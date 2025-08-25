@@ -1,0 +1,43 @@
+services:
+  # Service Backend Fastify
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: transcendance-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_PATH=/app/data/database.sqlite
+    volumes:
+      - ./backend/src:/app/src
+      - ./database:/app/data
+      - /app/node_modules
+    networks:
+      - transcendance-network
+    restart: unless-stopped
+    
+  # Service Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: transcendance-frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend/src:/app/src
+    depends_on:
+      - backend
+    networks:
+      - transcendance-network
+    restart: unless-stopped
+
+volumes:
+  backend_data:
+    driver: local
+
+networks:
+  transcendance-network:
+    driver: bridge
