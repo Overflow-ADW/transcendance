@@ -1,11 +1,10 @@
-transcendance/frontend/next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Pour Option 1 (Static) : garder 'export'
-  // output: 'export',
+  output: 'export',
   
   // Pour Option 2 (Standalone) : utiliser 'standalone'
-  output: 'standalone',
+  // output: 'standalone',
   
   trailingSlash: true,
   skipTrailingSlashRedirect: true,

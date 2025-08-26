@@ -58,7 +58,7 @@ export default function ProfilMenuPage() {
         {/* Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <MenuButton
-            variant="primary"
+            variant="welcome"
             size="lg"
             onClick={() => router.push('/play')}
             icon="🎮"
@@ -67,7 +67,7 @@ export default function ProfilMenuPage() {
           </MenuButton>
           
           <MenuButton
-            variant="secondary"
+            variant="default"
             size="lg"
             onClick={() => router.push('/settings')}
             icon="⚙️"
@@ -88,7 +88,7 @@ export default function ProfilMenuPage() {
         {/* Bouton retour */}
         <div className="text-center mt-8">
           <MenuButton
-            variant="secondary"
+            variant="default"
             onClick={() => router.push('/')}
             icon="🏠"
           >

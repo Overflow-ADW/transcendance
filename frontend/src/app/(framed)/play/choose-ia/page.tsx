@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
-import { MenuButton } from "@/app/components/ui/MenuButton";
+import MenuButton from "@/app/components/ui/MenuButton";
 import TransitionCurtain from "@/app/components/ui/TransitionCurtain";
 
 export default function ChooseIA() {
@@ -19,10 +19,10 @@ export default function ChooseIA() {
   return (
     <>
       <div className="w-full max-w-[520px] space-y-8">
-        <MenuButton label="EASY" onClick={() => go("easy")} />
-        <MenuButton label="MEDIUM" onClick={() => go("medium")} />
-        <MenuButton label="HARD" onClick={() => go("hard")} />
-        <MenuButton label="return" onClick={() => router.push("/play")} />
+        <MenuButton onClick={() => go("easy")}>EASY</MenuButton>
+        <MenuButton onClick={() => go("medium")}>MEDIUM</MenuButton>
+        <MenuButton onClick={() => go("hard")}>HARD</MenuButton>
+        <MenuButton onClick={() => router.push("/play")}>return</MenuButton>
       </div>
 
       {/* Le rideau violet */}

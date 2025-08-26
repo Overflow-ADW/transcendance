@@ -1,33 +1,32 @@
 # Étape de build
-FROM node:20-slim as build
+FROM node:20-slim AS build
 
 WORKDIR /app
 
 # Copier les fichiers de dépendances
 COPY package.json package-lock.json* ./
 
-# Installer TOUTES les dépendances (y compris devDependencies pour le build)
+# Installer les dépendances
 RUN npm ci --include=dev
 
 # Copier le code source
 COPY . .
 
-# Construire l'application Next.js
+# Construire l'application avec Next.js
 RUN npm run build
-
-RUN ls -la out/
 
 # Étape de production avec Nginx
 FROM nginx:alpine
 
-# Next.js génère le dossier 'out' pour l'export statique
+# Supprimer la configuration par défaut de Nginx
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copier les fichiers statiques générés par Next.js (dossier out/)
 COPY --from=build /app/out /usr/share/nginx/html
 
 # Copier la configuration Nginx personnalisée
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Exposer le port 80
 EXPOSE 80
 
-# Démarrer Nginx
 CMD ["nginx", "-g", "daemon off;"]

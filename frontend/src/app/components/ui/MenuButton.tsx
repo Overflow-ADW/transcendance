@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import clsx from "clsx";
 
 interface MenuButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "accent" | "danger";
+  variant?: "welcome" | "default";
   size?: "sm" | "md" | "lg";
   isActive?: boolean;
   icon?: React.ReactNode;
@@ -14,7 +14,7 @@ interface MenuButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 const MenuButton = forwardRef<HTMLButtonElement, MenuButtonProps>(
   (
     {
-      variant = "primary",
+      variant = "default",
       size = "md",
       isActive = false,
       icon,
@@ -29,10 +29,8 @@ const MenuButton = forwardRef<HTMLButtonElement, MenuButtonProps>(
       "inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50 disabled:cursor-not-allowed";
 
     const variantClasses = {
-      primary: "bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500",
-      secondary: "bg-gray-600 hover:bg-gray-700 text-white focus:ring-gray-500",
-      accent: "bg-purple-600 hover:bg-purple-700 text-white focus:ring-purple-500",
-      danger: "bg-red-600 hover:bg-red-700 text-white focus:ring-red-500",
+      welcome: "bg-black border-purple-500 text-yellow-400 hover:bg-purple-500/10 focus:outline-none",
+      default: "bg-black border-white text-white hover:bg-white/10 focus:outline-none",
     };
 
     const sizeClasses = {
@@ -65,4 +63,4 @@ const MenuButton = forwardRef<HTMLButtonElement, MenuButtonProps>(
 
 MenuButton.displayName = "MenuButton";
 
-export default MenuButton;
+export default MenuButton ;
