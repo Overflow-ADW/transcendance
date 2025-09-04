@@ -1,15 +1,5 @@
 # 🏓 ft_transcendence - Plateforme de Jeu Pong Multijoueur
 
-Projet final de l'é#### 🟢 **Florent - Backend & Architecture** (6 modules)
-- ✅ **Backend Framework** (Majeur) - Fastify + Node.js
-- ✅ **Database** (Mineur) - SQLite avec better-sqlite3
-- ✅ **JWT Avancé** (Partie Majeure) - Access/Refresh tokens + Blacklist
-- 🚧 **User Management** (Majeur) - Inscription, profils, amis, stats  
-- 🚧 **Remote Authentication** (Majeur) - OAuth 2.0
-- ✅ **2FA + JWT** (Majeur) - Double authentification TOTP complète
-- 🚧 **Microservices Architecture** (Majeur) - Backend modulaire
-- ✅ **User Dashboard** (Mineur) - Statistiques utilisateur Une plateforme web complète pour jouer au Pong en ligne avec système de tournois, IA, graphismes 3D et bien plus.
-
 ## 📋 Table des Matières
 
 - [🏗️ Architecture](#architecture)
