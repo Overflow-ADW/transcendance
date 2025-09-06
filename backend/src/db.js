@@ -229,6 +229,26 @@ function initDatabase(fastify) {
     `);
 
     // ========================================
+    // TABLE OAUTH_PROVIDERS - Comptes OAuth liés
+    // ========================================
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS oauth_providers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        provider TEXT NOT NULL, -- google, github, etc.
+        provider_id TEXT NOT NULL, -- ID unique chez le provider
+        email TEXT, -- Email du compte OAuth
+        provider_data TEXT, -- JSON avec données additionnelles (avatar, nom, etc.)
+        linked_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        last_used TEXT DEFAULT CURRENT_TIMESTAMP,
+        
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(provider, provider_id),
+        UNIQUE(user_id, provider)
+      )
+    `);
+
+    // ========================================
     // INDEX POUR PERFORMANCE
     // ========================================
     db.exec(`
@@ -246,6 +266,8 @@ function initDatabase(fastify) {
       CREATE INDEX IF NOT EXISTS idx_sessions_token ON user_sessions(session_token);
       CREATE INDEX IF NOT EXISTS idx_blacklist_token_id ON token_blacklist(token_id);
       CREATE INDEX IF NOT EXISTS idx_blacklist_user_id ON token_blacklist(user_id);
+      CREATE INDEX IF NOT EXISTS idx_oauth_providers_user ON oauth_providers(user_id);
+      CREATE INDEX IF NOT EXISTS idx_oauth_providers_provider ON oauth_providers(provider, provider_id);
     `);
 
     // ========================================

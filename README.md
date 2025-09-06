@@ -58,9 +58,11 @@ docker-compose up --build
 - 🔐 **Authentification Ultra-Sécurisée**
   - Connexion classique + JWT avancé 
   - **2FA Google Authenticator** (codes QR automatiques)
+  - **OAuth 2.0 Google & GitHub** (authentification sociale)
+  - **Liaison de comptes OAuth** (multiple providers par utilisateur)
   - Codes de récupération sécurisés
-- 🗄️ **Base de données robuste** (SQLite avec 8 tables optimisées)
-- 🚀 **API REST complète** (Fastify + validation Joi)
+- 🗄️ **Base de données robuste** (SQLite avec 9 tables optimisées)
+- 🚀 **API REST complète** (Fastify + validation JSON Schema)
 - 🐳 **Conteneurisation production-ready**
 
 ### 🚧 **En Cours de Développement**  
@@ -76,12 +78,12 @@ docker-compose up --build
 
 <div align="center">
 
-| Frontend | Backend | Base de données | DevOps |
-|----------|---------|----------------|---------|
-| **Next.js** 14 | **Node.js** + Fastify | **SQLite** | **Docker** |
-| TypeScript | JWT + 2FA | better-sqlite3 | Docker Compose |
-| Tailwind CSS | Joi validation | 8 tables optimisées | Volume persistence |
-| **Babylon.js** | Pino logging | Relations FK | Multi-stage builds |
+| Frontend | Backend | Base de données | DevOps | OAuth |
+|----------|---------|----------------|---------|-------|
+| **Next.js** 14 | **Node.js** + Fastify | **SQLite** | **Docker** | **OAuth 2.0** |
+| TypeScript | JWT + 2FA | better-sqlite3 | Docker Compose | Google Provider |
+| Tailwind CSS | JSON Schema validation | 9 tables optimisées | Volume persistence | GitHub Provider |
+| **Babylon.js** | Pino logging | Relations FK | Multi-stage builds | Account Linking |
 
 </div>
 
@@ -100,7 +102,9 @@ docker-compose up --build
 </div>
 
 ### 🏅 Modules Réalisés
-- **6 modules majeurs** + **5 modules mineurs** = **13 modules** au total
+- **4 modules majeurs** + **6 modules mineurs** = **12 modules** au total
+- **Module Remote Authentication OAuth 2.0** ✅ **COMPLET**
+- **Architecture monolithique modulaire** - Choix optimal pour une équipe de 3
 - Conformité stricte avec le **sujet 42**
 - Code de qualité production 🚀
 
@@ -113,6 +117,8 @@ Nous prenons la sécurité **très au sérieux** :
 - ✅ **Hachage bcrypt** (12 rounds)  
 - ✅ **JWT avancé** (access + refresh tokens)
 - ✅ **2FA TOTP** compatible Google Authenticator
+- ✅ **OAuth 2.0** (Google + GitHub avec liaison de comptes)
+- ✅ **Sessions sécurisées** avec protection CSRF
 - ✅ **Blacklist JWT** (révocation en temps réel)
 - ✅ **Rate limiting** et headers de sécurité
 - ✅ **Validation stricte** de toutes les entrées
@@ -128,6 +134,8 @@ Nous prenons la sécurité **très au sérieux** :
 - **[📋 TRANSCENDANCE.md](./TRANSCENDANCE.md)** - Documentation technique complète
 - **[🔐 JWT.md](./JWT.md)** - Système JWT avancé
 - **[📱 2FA.md](./2FA.md)** - Authentification à deux facteurs
+- **[🌐 OAUTH.md](./backend/OAUTH.md)** - Module Remote Authentication OAuth 2.0
+- **[🏗️ ARCHITECTURE.md](./backend/ARCHITECTURE.md)** - Choix d'architecture backend
 
 ### 🧪 Tests en Direct
 ```bash
@@ -138,6 +146,13 @@ curl -X POST http://localhost:3000/api/auth/register \
 
 # Configurer la 2FA
 curl -X POST http://localhost:3000/api/2fa/setup \
+  -H "Authorization: Bearer <votre_token>"
+
+# Tester l'OAuth Google (redirection)
+curl -I http://localhost:3000/api/oauth/google
+
+# Lister les comptes OAuth liés
+curl -X GET http://localhost:3000/api/oauth/accounts \
   -H "Authorization: Bearer <votre_token>"
 ```
 

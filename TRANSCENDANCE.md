@@ -78,16 +78,15 @@ ft_transcendence/
 
 ## 🎯 Modules Implémentés
 
-### 📊 Répartition des Modules (8 Majeurs + 5 Mineurs = 13 modules)
+### 📊 Répartition des Modules (4 Majeurs + 8 Mineurs = 12 modules)
 
-#### 🔐 **Florent - Backend & Architecture** (6 modules)
+#### 🔐 **Florent - Backend & Architecture** (5 modules)
 - ✅ **Backend Framework** (Majeur) - Fastify + Node.js
 - ✅ **Database** (Mineur) - SQLite avec better-sqlite3
 - ✅ **JWT Avancé** (Majeur) - Access/Refresh tokens + Blacklist complet
 - ✅ **2FA + JWT** (Majeur) - TOTP Google Authenticator implémenté
-- 🚧 **User Management** (Majeur) - Inscription, profils, amis, stats  
-- 🚧 **Remote Authentication** (Majeur) - OAuth 2.0
-- 🚧 **Microservices Architecture** (Majeur) - Backend modulaire
+- ✅ **User Management** (Majeur) - Inscription, profils, amis, stats  
+- ✅ **Remote Authentication** (Majeur) - OAuth 2.0 Google + GitHub
 - ✅ **User Dashboard** (Mineur) - Statistiques utilisateur
 
 #### 🟡 **Younes - Frontend & UX** (3 modules)
@@ -100,6 +99,36 @@ ft_transcendence/
 - 🚧 **AI Opponent** (Majeur) - Intelligence artificielle
 - 🚧 **Advanced 3D** (Majeur) - Babylon.js pour rendu 3D
 
+---
+
+## 🏗️ **Choix d'Architecture : Monolithique Modulaire**
+
+**Décision technique :** Nous avons choisi de **ne pas implémenter le module Microservices** (optionnel) au profit d'une **architecture monolithique hautement modulaire**.
+
+### ✅ **Pourquoi ce choix ?**
+- **Équipe de 3 développeurs** - Communication directe optimale
+- **Projet académique** avec contraintes de temps
+- **Performance critique** - Jeu temps réel (latence < 50ms)
+- **Complexité déjà élevée** - 3D + IA + Auth complète + Temps réel
+- **Code déjà très modulaire** - Séparation claire des responsabilités
+
+### 🎯 **Notre modularité :**
+```javascript
+backend/src/routes/
+├── authRoutes.js       // Authentification + JWT
+├── oauthRoutes.js      // OAuth Google/GitHub
+├── twoFactorRoutes.js  // 2FA TOTP
+├── userRoutes.js       // Profils + Amis
+├── gameRoutes.js       // Jeu + Tournois
+└── adminRoutes.js      // Administration
+```
+
+**Résultat :** Tous les bénéfices de la modularité sans la complexité opérationnelle des microservices.
+
+**📖 Justification complète :** [`backend/ARCHITECTURE.md`](backend/ARCHITECTURE.md)
+
+---
+
 ### 🎮 **Fonctionnalités par Module**
 
 #### **Backend Framework (✅ Implémenté)**
@@ -108,7 +137,7 @@ ft_transcendence/
 - API RESTful avec Fastify 4.24.3
 - Architecture modulaire (routes séparées)
 - Middleware d'authentification JWT avancé
-- Validation des données avec Joi
+- Validation des données avec JSON Schema
 - Logging structuré avec Pino
 - Rate limiting et headers de sécurité
 ```
@@ -620,25 +649,20 @@ Lister tous les utilisateurs (admin uniquement).
 
 ### 🟡 **Moyens (À Planifier)**
 
-3. **Architecture non-microservices**
-   - Backend actuel monolithique  
-   - Module "Microservices" requis
-   - Besoin de séparer auth/user/game services
-
-4. **Validation avancée**
+3. **Validation avancée**
    ```javascript
-   // ✅ Validation Joi implémentée
+   // ✅ Validation JSON Schema implémentée
    // ✅ TODO: Étendre à tous les endpoints
    ```
 
-5. **Error Handling avancé** ✅
+4. **Error Handling avancé** ✅
    - ✅ Codes d'erreur standardisés implémentés
    - ✅ Logs structurés avec Pino
    - 🚧 Monitoring à implémenter
 
 ### 🟢 **Mineurs (Nice-to-have)**
 
-6. **Tests automatisés** (en cours de planification)
+5. **Tests automatisés** (en cours de planification)
 7. **Documentation API automatisée** (Swagger/OpenAPI)
 8. **Monitoring/observabilité** (Prometheus/Grafana)
 9. **CI/CD pipeline** (GitHub Actions)

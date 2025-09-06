@@ -3,6 +3,7 @@ const userRoutes = require('./routes/userRoutes');
 const gameRoutes = require('./routes/gameRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const twoFactorRoutes = require('./routes/twoFactorRoutes');
+const oauthRoutes = require('./routes/oauthRoutes');
 const { initDatabase } = require('./db');
 
 // Configuration avec variables d'environnement
@@ -45,11 +46,34 @@ fastify.register(require('@fastify/helmet'), {
   }
 });
 
+// Configuration des cookies (requis pour les sessions)
+fastify.register(require('@fastify/cookie'), {
+  secret: process.env.SESSION_SECRET || 'a-very-long-secret-key-change-in-production',
+  parseOptions: {}
+});
+
+// Configuration des sessions pour OAuth
+fastify.register(require('@fastify/session'), {
+  secret: process.env.SESSION_SECRET || 'a-very-long-secret-key-change-in-production',
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // HTTPS uniquement en production
+    maxAge: 1000 * 60 * 30, // 30 minutes
+    httpOnly: true,
+    sameSite: 'lax'
+  },
+  saveUninitialized: false
+});
+
+// Décorateur pour l'authentification
+const { authenticateToken } = require('./middleware/auth');
+fastify.decorate('authenticate', authenticateToken);
+
 // Routes API
 fastify.register(authRoutes, { prefix: '/api/auth' });
+fastify.register(oauthRoutes, { prefix: '/api/oauth' });
 fastify.register(userRoutes, { prefix: '/api/users' });
 fastify.register(gameRoutes, { prefix: '/api/games' });
-fastify.register(twoFactorRoutes, { prefix: '/api/auth' });
+fastify.register(twoFactorRoutes, { prefix: '/api/2fa' });
 fastify.register(adminRoutes, { prefix: '/api/admin' });
 
 // Route racine
@@ -139,6 +163,9 @@ const start = async () => {
     fastify.log.info(`🗄️  Database: ${process.env.DATABASE_PATH || 'default path'}`);
     
   } catch (err) {
+    console.error('❌ Error starting server:');
+    console.error(err);
+    console.error('Stack trace:', err.stack);
     fastify.log.error('❌ Error starting server:', err);
     if (dbInstance) {
       dbInstance.close();
