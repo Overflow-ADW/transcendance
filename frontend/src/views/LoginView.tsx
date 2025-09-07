@@ -6,22 +6,8 @@ import { MenuButton } from "@/components/ui/MenuButton";
 import { BackButton } from "@/components/ui/BackButton";
 import { t } from "@/lib_front/i18n";
 import { useApp } from "@/lib_front/store";
+import { useAuth } from "@/lib_front/AuthContext";
 import { useRouter } from "next/navigation";
-
-type LoginSuccessBody = {
-  accessToken: string;
-  refreshToken?: string;
-  user?: unknown;
-};
-
-type LoginErrorBody = {
-  message?: string;
-  errors?: Record<string, string[]>;
-};
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-const LOGIN_ENDPOINT = `${API_BASE}/auth/login`;
 
 export default function LoginView() {
   const [mounted, setMounted] = useState(false);
@@ -48,98 +34,43 @@ export default function LoginView() {
 
 function LoginViewContent() {
   const router = useRouter();
-  const { lang } = useApp(); // on conserve l'i18n existant
+  const { lang, setView } = useApp();
+  const { login, user } = useAuth();
 
   // États du formulaire
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-
-  // États UI
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  // Si l'utilisateur est déjà connecté, rediriger
+  useEffect(() => {
+    if (user) {
+      setView("home");
+    }
+  }, [user, setView]);
 
   // Petite validation locale
   const validate = () => {
-    const errors: Record<string, string[]> = {};
-    if (!username || username.trim().length < 3) {
-      errors.username = ["Username must be at least 3 characters"];
-    }
-    if (!password || password.length < 6) {
-      errors.password = ["Password must be at least 6 characters"];
-    }
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    return username.trim().length >= 3 && password.length >= 6;
   };
 
   // Soumission
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-
+    
     if (!validate()) {
+      setFormError("Username must be at least 3 characters and password at least 6 characters");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(LOGIN_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        // On envoie username/password au backend
-        body: JSON.stringify({ username, password }),
-      });
-
-      // Tente de décoder le JSON, même en cas d'erreur (pour récupérer message/erreurs)
-      let data: LoginSuccessBody | LoginErrorBody | null = null;
-      try {
-        data = (await res.json()) as LoginSuccessBody | LoginErrorBody;
-      } catch {
-        data = null;
-      }
-
-      if (!res.ok) {
-        // Gestion fine des erreurs
-        if (res.status === 400 || res.status === 401 || res.status === 422) {
-          const message =
-            (data as LoginErrorBody)?.message ||
-            "Invalid credentials. Please check your username or password.";
-          setFormError(message);
-          const errors = (data as LoginErrorBody)?.errors || {};
-          setFieldErrors(errors);
-        } else {
-          setFormError(
-            (data as LoginErrorBody)?.message ||
-              `Server error (${res.status}). Please try again later.`
-          );
-        }
-        return;
-      }
-
-      // Succès : on attend accessToken (et optionnellement refreshToken)
-      const { accessToken, refreshToken } = (data || {}) as LoginSuccessBody;
-
-      if (!accessToken) {
-        // Si le backend ne renvoie pas l'accessToken alors qu'on est en mode token → on considère que c'est une erreur
-        setFormError(
-          "Login succeeded but no token received. Please contact support."
-        );
-        return;
-      }
-
-      // Stockage côté client (adaptable à ton store global si besoin)
-      // ⚠️ HttpOnly cookies sont plus sûrs, mais tu as précisé fonctionner par token
-      localStorage.setItem("accessToken", accessToken);
-      if (refreshToken) {
-        localStorage.setItem("refreshToken", refreshToken);
-      }
-
-      // Redirection après login
-      router.push("/profile");
+      await login({ username, password });
+      // La redirection sera gérée par l'effet useEffect ci-dessus
     } catch (err) {
-      setFormError("Network error. Please check your connection and try again.");
+      setFormError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -147,7 +78,7 @@ function LoginViewContent() {
 
   return (
     <div className="fixed inset-0">
-      <BackButton label={t(lang, "return")} onClick={() => router.push("/")} />
+      <BackButton label={t(lang, "return")} />
 
       <main className="w-full h-full flex">
         <aside className="w-1/2 h-full bg-black flex">
@@ -213,34 +144,20 @@ function LoginViewContent() {
                 autoCorrect="off"
                 spellCheck={false}
                 placeholder="Username"
-                className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${
-                  fieldErrors.username ? "border-red-500" : "border-gray-600"
-                } focus:border-purple-400 focus:outline-none transition-colors`}
+                className="w-full p-4 rounded-lg bg-gray-800/90 text-white border border-gray-600 focus:border-purple-400 focus:outline-none transition-colors"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
-              {fieldErrors.username && (
-                <p className="mt-1 text-xs text-red-400">
-                  {fieldErrors.username.join(", ")}
-                </p>
-              )}
             </div>
 
             <div>
               <input
                 type="password"
                 placeholder="Password"
-                className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${
-                  fieldErrors.password ? "border-red-500" : "border-gray-600"
-                } focus:border-purple-400 focus:outline-none transition-colors`}
+                className="w-full p-4 rounded-lg bg-gray-800/90 text-white border border-gray-600 focus:border-purple-400 focus:outline-none transition-colors"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              {fieldErrors.password && (
-                <p className="mt-1 text-xs text-red-400">
-                  {fieldErrors.password.join(", ")}
-                </p>
-              )}
             </div>
 
             <button

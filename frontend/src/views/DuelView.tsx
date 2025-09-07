@@ -6,6 +6,24 @@ import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useApp } from "@/lib_front/store";
 import { useRouter } from 'next/navigation';
 
+// Types pour les slots de duel
+type DuelPlayer = {
+  id: number;
+  name: string;
+  color: string;
+  isMainPlayer: boolean;
+};
+
+type EmptySlot = {
+  id: string;
+  name: string;
+  color: string;
+  isMainPlayer: boolean;
+  isEmpty: true;
+};
+
+type DuelSlot = DuelPlayer | EmptySlot;
+
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -130,9 +148,9 @@ export default function DuelView() {
   };
 
   // Créer un tableau de 2 slots pour le duel
-  const slots = Array.from({ length: 2 }, (_, i) => {
+  const slots: DuelSlot[] = Array.from({ length: 2 }, (_, i) => {
     const player = players[i];
-    return player || { id: `empty-${i}`, name: "ADD PLAYER +", isEmpty: true };
+    return player || { id: `empty-${i}`, name: "ADD PLAYER +", color: "", isMainPlayer: false, isEmpty: true };
   });
 
   return (
@@ -149,7 +167,7 @@ export default function DuelView() {
         <div className="flex gap-8 mb-16">
           {slots.map((slot, index) => (
             <div key={slot.id} className="relative">
-              {slot.isEmpty ? (
+              {'isEmpty' in slot ? (
                 <button
                   onClick={addPlayer}
                   className="bg-white text-black border-4 border-white rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[300px] h-[120px] flex items-center justify-center"

@@ -1,7 +1,7 @@
 // src/components/ui/ConditionalFrame.tsx
 "use client";
 
-import { PurpleFrame } from "./PurpleFrame";
+import PurpleFrame from "./PurpleFrame";
 import { useApp } from "@/lib_front/store";
 
 interface ConditionalFrameProps {
@@ -9,12 +9,12 @@ interface ConditionalFrameProps {
 }
 
 export function ConditionalFrame({ children }: ConditionalFrameProps) {
-  const { currentView } = useApp();
+  const { view } = useApp();
   
   // Pages qui ne doivent PAS avoir le PurpleFrame
   const pagesWithoutFrame = ["home", "profile", "tournament", "game"];
   
-  const shouldShowFrame = !pagesWithoutFrame.includes(currentView);
+  const shouldShowFrame = !pagesWithoutFrame.includes(view);
   
   if (shouldShowFrame) {
     return <PurpleFrame>{children}</PurpleFrame>;

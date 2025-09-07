@@ -21,7 +21,7 @@ type SignInErrorBody = {
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-const REGISTER_ENDPOINT = `${API_BASE}/auth/register`; // ← adapte au nom réel de ton endpoint
+const REGISTER_ENDPOINT = `${API_BASE}/api/auth/register`; // Utilisation de la route correcte avec /api
 
 export default function SignInView() {
   const [mounted, setMounted] = useState(false);
@@ -176,7 +176,7 @@ function SignInViewContent() {
 
   return (
     <div className="fixed inset-0">
-      <BackButton label={t(lang, "return")} onClick={() => router.push("/")} />
+      <BackButton label={t(lang, "return")} />
 
       <main className="w-full h-full flex">
         {/* ============ COLONNE GAUCHE - MENU ============ */}

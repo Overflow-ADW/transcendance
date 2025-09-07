@@ -1,65 +1,89 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { authenticateToken } = require('../middleware/auth');
+const Joi = require('joi');
+const { authenticateToken, authenticateRefreshToken } = require('../middleware/auth');
+const { generateTokenPair, refreshAccessToken, invalidateToken, verifyToken } = require('../utils/jwtUtils');
 
-// voir passage prod
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+// Sécurité: JWT_SECRET depuis les variables d'environnement (OBLIGATOIRE)
+const JWT_SECRET = process.env.JWT_SECRET;
 
-async function userRoutes(fastify, options) {
+if (!JWT_SECRET) {
+  console.error('❌ ERREUR CRITIQUE: JWT_SECRET non défini dans les variables d\'environnement !');
+  console.error('📝 Créez un fichier .env avec JWT_SECRET=your-secret-key');
+  process.exit(1);
+}
+
+// Schémas de validation Joi
+const registerSchema = Joi.object({
+  username: Joi.string().alphanum().min(3).max(30).required(),
+  email: Joi.string().email().optional(), // Email optionnel pour la création de compte local
+  password: Joi.string().min(8).pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])')).required()
+    .messages({
+      'string.pattern.base': 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'
+    })
+});
+
+const loginSchema = Joi.object({
+  username: Joi.string().required(),
+  password: Joi.string().required()
+});
+
+async function authRoutes(fastify, options) {
   const db = fastify.db;
 
+  // ========================================
+  // ROUTE D'INSCRIPTION AVEC JWT AVANCÉ
+  // ========================================
   fastify.post('/register', async (request, reply) => {
     try {
-      const { username, email, password } = request.body;
-
-      if (!username || !email || !password) {
+      // Validation des données avec Joi
+      const { error, value } = registerSchema.validate(request.body);
+      if (error) {
         return reply.status(400).send({
-          error: 'Tous les champs sont requis',
-          details: 'username, email et password sont obligatoires'
+          error: 'Données invalides',
+          details: error.details[0].message,
+          code: 'VALIDATION_ERROR'
         });
       }
 
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return reply.status(400).send({
-          error: 'Format d\'email invalide'
-        });
-      }
+      const { username, email, password } = value;
 
-      if (password.length < 6) {
-        return reply.status(400).send({
-          error: 'Le mot de passe doit contenir au moins 6 caractères'
-        });
+      // Vérifier si l'utilisateur existe déjà (par nom d'utilisateur et email si fourni)
+      let existingUser;
+      if (email) {
+        existingUser = db.prepare('SELECT id, username, email FROM users WHERE username = ? OR email = ?').get(username, email);
+      } else {
+        existingUser = db.prepare('SELECT id, username FROM users WHERE username = ?').get(username);
       }
-
-      const existingUser = db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(username, email);
+      
       if (existingUser) {
+        const conflictField = existingUser.username === username ? 'nom d\'utilisateur' : 'adresse email';
         return reply.status(409).send({
           error: 'Utilisateur déjà existant',
-          details: existingUser.username === username ? 'Ce nom d\'utilisateur est déjà pris' : 'Cette adresse email est déjà utilisée'
+          details: `Ce ${conflictField} est déjà utilisé`,
+          code: 'USER_EXISTS'
         });
       }
 
-      const saltRounds = 10;
+      // Hachage sécurisé du mot de passe
+      const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+      // Insertion en base avec transaction (email peut être NULL)
       const insertUser = db.prepare(`
         INSERT INTO users (username, email, password, created_at)
         VALUES (?, ?, ?, datetime('now'))
       `);
 
-      const result = insertUser.run(username, email, hashedPassword);
+      const result = insertUser.run(username, email || null, hashedPassword);
 
-      const token = jwt.sign(
-        { 
-          userId: result.lastInsertRowid, 
-          username: username 
-        },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
+      // Génération des tokens JWT (access + refresh)
+      const tokenPair = generateTokenPair({
+        userId: result.lastInsertRowid,
+        username: username
+      });
 
-      fastify.log.info(`Nouvel utilisateur enregistré: ${username}`);
+      fastify.log.info(`✅ Nouvel utilisateur enregistré: ${username} (ID: ${result.lastInsertRowid})`);
 
       return reply.status(201).send({
         message: 'Utilisateur créé avec succès',
@@ -68,37 +92,54 @@ async function userRoutes(fastify, options) {
           username: username,
           email: email
         },
-        token: token
+        accessToken: tokenPair.accessToken,
+        refreshToken: tokenPair.refreshToken,
+        expiresIn: tokenPair.expiresIn,
+        tokenType: 'Bearer'
       });
 
     } catch (error) {
-      fastify.log.error('Erreur lors de l\'enregistrement:', error);
+      fastify.log.error('❌ Erreur lors de l\'enregistrement:', error.message || error);
       return reply.status(500).send({
         error: 'Erreur interne du serveur',
-        details: 'Une erreur est survenue lors de la création du compte'
+        details: 'Une erreur est survenue lors de la création du compte',
+        code: 'INTERNAL_ERROR'
       });
     }
   });
 
-  // Route de connexion
+  // ========================================
+  // ROUTE DE CONNEXION AVEC JWT AVANCÉ
+  // ========================================
   fastify.post('/login', async (request, reply) => {
     try {
-      const { username, password } = request.body;
-
       // Validation des données
-      if (!username || !password) {
+      const { error, value } = loginSchema.validate(request.body);
+      if (error) {
         return reply.status(400).send({
-          error: 'Nom d\'utilisateur et mot de passe requis'
+          error: 'Données manquantes',
+          details: error.details[0].message,
+          code: 'VALIDATION_ERROR'
         });
       }
 
+      const { username, password } = value;
+
       // Récupérer l'utilisateur par nom d'utilisateur ou email
-      const user = db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(username, username);
+      const user = db.prepare(`
+        SELECT id, username, email, password, display_name, avatar_url, 
+               status, is_admin, two_factor_enabled, created_at 
+        FROM users 
+        WHERE username = ? OR email = ?
+      `).get(username, username);
       
       if (!user) {
+        // Délai constant pour éviter les attaques par timing
+        await new Promise(resolve => setTimeout(resolve, 100));
         return reply.status(401).send({
           error: 'Identifiants invalides',
-          details: 'Nom d\'utilisateur ou mot de passe incorrect'
+          details: 'Nom d\'utilisateur ou mot de passe incorrect',
+          code: 'INVALID_CREDENTIALS'
         });
       }
 
@@ -106,27 +147,56 @@ async function userRoutes(fastify, options) {
       const passwordMatch = await bcrypt.compare(password, user.password);
       
       if (!passwordMatch) {
+        fastify.log.warn(`🚨 Tentative de connexion échouée pour: ${username}`);
         return reply.status(401).send({
           error: 'Identifiants invalides',
-          details: 'Nom d\'utilisateur ou mot de passe incorrect'
+          details: 'Nom d\'utilisateur ou mot de passe incorrect',
+          code: 'INVALID_CREDENTIALS'
         });
       }
 
-      const updateStatus = db.prepare('UPDATE users SET status = ? WHERE id = ?');
+      // ========================================
+      // GESTION 2FA - ÉTAPE INTERMÉDIAIRE
+      // ========================================
+      if (user.two_factor_enabled) {
+        // Créer un token temporaire pour la vérification 2FA
+        const tempPayload = {
+          userId: user.id,
+          type: 'temp_login',
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + 300 // 5 minutes
+        };
+        
+        const tempToken = Buffer.from(JSON.stringify(tempPayload)).toString('base64');
+        
+        fastify.log.info(`🔐 2FA requis pour utilisateur: ${user.username} (ID: ${user.id})`);
+        
+        return reply.send({
+          message: 'Authentification 2FA requise',
+          requires_2fa: true,
+          temp_token: tempToken,
+          user: {
+            id: user.id,
+            username: user.username
+          }
+        });
+      }
+
+      // ========================================
+      // CONNEXION STANDARD (SANS 2FA)
+      // ========================================
+
+      // Mettre à jour le statut en ligne
+      const updateStatus = db.prepare('UPDATE users SET status = ?, last_login = datetime(\'now\') WHERE id = ?');
       updateStatus.run('online', user.id);
-      fastify.log.info(`Statut de l'utilisateur ${user.username} mis à jour : online`);
 
-      // Créer un token JWT
-      const token = jwt.sign(
-        { 
-          userId: user.id, 
-          username: user.username 
-        },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
+      // Créer les tokens JWT sécurisés (access + refresh)
+      const tokenPair = generateTokenPair({
+        userId: user.id,
+        username: user.username
+      });
 
-      fastify.log.info(`Utilisateur connecté: ${user.username}`);
+      fastify.log.info(`✅ Utilisateur connecté: ${user.username} (ID: ${user.id})`);
 
       return reply.send({
         message: 'Connexion réussie',
@@ -134,85 +204,237 @@ async function userRoutes(fastify, options) {
           id: user.id,
           username: user.username,
           email: user.email,
+          display_name: user.display_name,
+          avatar_url: user.avatar_url,
+          status: 'online',
+          is_admin: user.is_admin,
+          two_factor_enabled: false,
           created_at: user.created_at
         },
-        token: token
+        accessToken: tokenPair.accessToken,
+        refreshToken: tokenPair.refreshToken,
+        expiresIn: tokenPair.expiresIn,
+        tokenType: 'Bearer'
       });
 
     } catch (error) {
-      fastify.log.error('Erreur lors de la connexion:', error);
+      fastify.log.error('❌ Erreur lors de la connexion:', error);
       return reply.status(500).send({
         error: 'Erreur interne du serveur',
-        details: 'Une erreur est survenue lors de la connexion'
+        details: 'Une erreur est survenue lors de la connexion',
+        code: 'INTERNAL_ERROR'
       });
     }
   });
 
+  // ========================================
+  // ROUTE DE REFRESH TOKEN
+  // ========================================
+  fastify.post('/refresh', { preHandler: [authenticateRefreshToken] }, async (request, reply) => {
+    try {
+      const { refreshToken } = request.body;
+      
+      // Utiliser notre utilitaire pour refresher les tokens
+      const refreshResult = refreshAccessToken(refreshToken, db);
+      
+      if (!refreshResult.success) {
+        const { error } = refreshResult;
+        
+        let statusCode = 401;
+        if (error.type === 'USER_NOT_FOUND') {
+          statusCode = 404;
+        }
+        
+        return reply.status(statusCode).send({
+          error: error.message,
+          details: error.details,
+          code: error.type
+        });
+      }
+
+      const { tokens, user } = refreshResult;
+
+      fastify.log.info(`🔄 Tokens rafraîchis pour: ${user.username} (ID: ${user.id})`);
+
+      return reply.send({
+        message: 'Tokens rafraîchis avec succès',
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          status: user.status
+        },
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: tokens.expiresIn,
+        tokenType: 'Bearer'
+      });
+
+    } catch (error) {
+      fastify.log.error('❌ Erreur lors du refresh:', error);
+      return reply.status(500).send({
+        error: 'Erreur interne du serveur',
+        details: 'Une erreur est survenue lors du rafraîchissement des tokens',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+  });
+
+  // ========================================
+  // ROUTE DE DÉCONNEXION AVEC INVALIDATION
+  // ========================================
   fastify.post('/logout', { preHandler: [authenticateToken] }, async (request, reply) => {
-  try {
-    const userId = request.user.userId;
+    try {
+      const userId = request.user.userId;
+      const tokenId = request.user.jti;
 
-    const updateStatus = db.prepare('UPDATE users SET status = ? WHERE id = ?');
-    updateStatus.run('offline', userId);
+      // Mettre à jour le statut hors ligne
+      const updateStatus = db.prepare('UPDATE users SET status = ?, last_logout = datetime(\'now\') WHERE id = ?');
+      updateStatus.run('offline', userId);
 
-    fastify.log.info(`Utilisateur déconnecté: ${request.user.username}`);
+      // Invalider le token dans la blacklist
+      if (tokenId) {
+        const invalidationResult = invalidateToken(tokenId, db);
+        
+        if (!invalidationResult.success) {
+          fastify.log.warn(`⚠️  Échec de l'invalidation du token ${tokenId}:`, invalidationResult.error);
+        }
+      }
 
-    return reply.send({
-      message: 'Déconnexion réussie'
-    });
+      fastify.log.info(`👋 Utilisateur déconnecté: ${request.user.username} (ID: ${userId})`);
 
-  } catch (error) {
-    fastify.log.error('Erreur lors de la déconnexion:', error);
-    return reply.status(500).send({
-      error: 'Erreur interne du serveur'
-    });
-  }
-});
+      return reply.send({
+        message: 'Déconnexion réussie',
+        code: 'LOGOUT_SUCCESS'
+      });
 
-  // Route pour vérifier le token JWT (middleware d'authentification)
+    } catch (error) {
+      fastify.log.error('❌ Erreur lors de la déconnexion:', error);
+      return reply.status(500).send({
+        error: 'Erreur interne du serveur',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+  });
+
+  // ========================================
+  // ROUTE DE VÉRIFICATION DE TOKEN AMÉLIORÉE
+  // ========================================
   fastify.post('/verify', async (request, reply) => {
     try {
       const { token } = request.body;
 
       if (!token) {
         return reply.status(400).send({
-          error: 'Token requis'
+          error: 'Token requis',
+          details: 'Le token JWT est obligatoire',
+          code: 'MISSING_TOKEN'
         });
       }
 
-      // Vérifier le token
-      const decoded = jwt.verify(token, JWT_SECRET);
+      // Vérifier le token avec notre utilitaire avancé
+      const verification = verifyToken(token, 'access');
+      
+      if (!verification.success) {
+        const { error } = verification;
+        
+        return reply.status(401).send({
+          error: error.message,
+          details: error.details,
+          code: error.type
+        });
+      }
+
+      const decoded = verification.payload;
       
       // Récupérer les informations utilisateur actualisées
-      const user = db.prepare('SELECT id, username, email, created_at FROM users WHERE id = ?').get(decoded.userId);
+      const user = db.prepare('SELECT id, username, email, status, created_at FROM users WHERE id = ?').get(decoded.userId);
       
       if (!user) {
         return reply.status(401).send({
-          error: 'Utilisateur non trouvé'
+          error: 'Utilisateur non trouvé',
+          details: 'Le token fait référence à un utilisateur inexistant',
+          code: 'USER_NOT_FOUND'
+        });
+      }
+
+      // Vérifier si le token est blacklisté
+      const isBlacklisted = require('../utils/jwtUtils').isTokenBlacklisted(decoded.jti, db);
+      if (isBlacklisted) {
+        return reply.status(401).send({
+          error: 'Token révoqué',
+          details: 'Ce token a été invalidé',
+          code: 'TOKEN_BLACKLISTED'
         });
       }
 
       return reply.send({
         message: 'Token valide',
-        user: user
+        user: user,
+        tokenInfo: {
+          tokenId: decoded.jti,
+          issuedAt: new Date(decoded.iat * 1000).toISOString(),
+          expiresAt: new Date(decoded.exp * 1000).toISOString(),
+          type: decoded.type
+        },
+        code: 'TOKEN_VALID'
       });
 
     } catch (error) {
-      if (error.name === 'JsonWebTokenError') {
-        return reply.status(401).send({
-          error: 'Token invalide'
-        });
-      } else if (error.name === 'TokenExpiredError') {
-        return reply.status(401).send({
-          error: 'Token expiré'
+      fastify.log.error('❌ Erreur lors de la vérification du token:', error);
+      return reply.status(500).send({
+        error: 'Erreur interne du serveur',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+  });
+
+  // ========================================
+  // ROUTE DE RÉVOCATION DE TOKEN
+  // ========================================
+  fastify.post('/revoke', { preHandler: [authenticateToken] }, async (request, reply) => {
+    try {
+      const { tokenId: targetTokenId } = request.body;
+      const currentTokenId = request.user.jti;
+      
+      // Si aucun tokenId spécifié, révoquer le token actuel
+      const tokenToRevoke = targetTokenId || currentTokenId;
+      
+      if (!tokenToRevoke) {
+        return reply.status(400).send({
+          error: 'Token ID requis',
+          details: 'Veuillez spécifier le token à révoquer',
+          code: 'MISSING_TOKEN_ID'
         });
       }
 
-      fastify.log.error('Erreur lors de la vérification du token:', error);
+      // Invalider le token
+      const invalidationResult = invalidateToken(tokenToRevoke, db);
+      
+      if (!invalidationResult.success) {
+        return reply.status(500).send({
+          error: 'Échec de la révocation',
+          details: invalidationResult.error.details,
+          code: invalidationResult.error.type
+        });
+      }
+
+      fastify.log.info(`🚫 Token révoqué: ${tokenToRevoke} par ${request.user.username}`);
+
+      return reply.send({
+        message: 'Token révoqué avec succès',
+        revokedTokenId: tokenToRevoke,
+        code: 'TOKEN_REVOKED'
+      });
+
+    } catch (error) {
+      fastify.log.error('❌ Erreur lors de la révocation:', error);
       return reply.status(500).send({
-        error: 'Erreur interne du serveur'
+        error: 'Erreur interne du serveur',
+        code: 'INTERNAL_ERROR'
       });
     }
   });
 }
-module.exports = userRoutes;
+
+module.exports = authRoutes;
