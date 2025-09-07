@@ -3,13 +3,17 @@ import { IPongGameMode } from "./DefaultPongMode";
 import { GameType } from "@/game/utils/pongData";
 import { PLAYER_CONFIG } from "@/game/utils/pongValues";
 import { DefaultPongMode } from "./DefaultPongMode";
-import { MAIN_COLORS } from "@/game/utils/pongValues";
 
 /**
  * FourPlayerPongMode
  *
- * Uses the same logic as DefaultPongMode but enables player2/player3
- * as full paddles: visible, collision enabled and controlled via keys.
+ * Comportement identique à DefaultPongMode (même logique / balle / collisions)
+ * mais crée 2 paddles supplémentaires placés plus près du centre (visuels).
+ *
+ * NOTE: Le moteur de jeu principal (balle / collisions) reste géré par DefaultPongMode
+ * afin de garantir le même comportement exact que le mode par défaut. Si vous souhaitez
+ * que la balle interagisse avec les deux paddles additionnels, il faudra étendre la
+ * logique de collision / PongBall en conséquence.
  */
 export class FourPlayerPongMode implements IPongGameMode {
     private delegateMode: DefaultPongMode | null = null;
@@ -30,7 +34,7 @@ export class FourPlayerPongMode implements IPongGameMode {
     ): void {
         this.sceneRef = scene;
 
-        // Initialize default mode (keeps ball logic, scoring, etc.)
+        // Déléguons toute la logique au mode par défaut pour garantir comportement identique
         this.delegateMode = new DefaultPongMode();
         this.delegateMode.initialize(
             scene,
@@ -45,70 +49,39 @@ export class FourPlayerPongMode implements IPongGameMode {
             glowLayers
         );
 
-        // Try to reuse existing player2/player3 created in Pong.createScene, otherwise create them
-        let player2 = scene.getMeshByName("player2") as Mesh | null;
-        let player3 = scene.getMeshByName("player3") as Mesh | null;
-
+        // Créer 2 joueurs visuels supplémentaires, plus proches du centre
+        // Utilise PLAYER_CONFIG pour dimensions et hauteur Y
         const w = PLAYER_CONFIG.WIDTH ?? 10;
         const h = PLAYER_CONFIG.HEIGHT ?? 10;
         const d = PLAYER_CONFIG.DEPTH ?? 90;
         const y = PLAYER_CONFIG.POSITION_Y ?? 10;
-        const nearLeftX = -200;
-        const nearRightX = 200;
 
-        const ensurePlayer = (mesh: Mesh | null, name: string, xPos: number, color: Color3): Mesh => {
-            if (mesh) {
-                mesh.isVisible = true;
-                mesh.position.x = xPos;
-                mesh.position.y = y;
-                mesh.position.z = PLAYER_CONFIG.INITIAL_POSITION_Z ?? 0;
-                // ensure required properties for collisions
-                mesh.isPickable = true;
-                mesh.checkCollisions = true;
-                // ensure material uses correct color
-                if (!(mesh.material instanceof StandardMaterial)) {
-                    const mat = new StandardMaterial(`${name}_mat`, scene);
-                    mat.diffuseColor = color;
-                    mat.emissiveColor = color.scale(0.5);
-                    mesh.material = mat;
-                } else {
-                    (mesh.material as StandardMaterial).diffuseColor = color;
-                    (mesh.material as StandardMaterial).emissiveColor = color.scale(0.5);
-                }
-                return mesh;
-            } else {
-                const newMesh = MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
-                newMesh.position.x = xPos;
-                newMesh.position.y = y;
-                newMesh.position.z = PLAYER_CONFIG.INITIAL_POSITION_Z ?? 0;
-                const mat = new StandardMaterial(`${name}_mat`, scene);
-                mat.diffuseColor = color;
-                mat.emissiveColor = color.scale(0.5);
-                newMesh.material = mat;
-                newMesh.isPickable = true;
-                newMesh.checkCollisions = true;
-                return newMesh;
-            }
+        // Positions proches du centre (entre le centre et les paddles latéraux)
+        const nearLeftX = -100;  // ajuste si vous voulez plus/moins proche
+        const nearRightX = 100;
+
+        const createExtraPlayer = (name: string, xPos: number): Mesh => {
+            const mesh = MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, scene);
+            mesh.position.y = y;
+            mesh.position.x = xPos;
+            mesh.position.z = PLAYER_CONFIG.INITIAL_POSITION_Z ?? 0;
+
+            const mat = new StandardMaterial(`${name}_mat`, scene);
+            // couleur grisée semi-transparente pour différencier
+            mat.diffuseColor = new Color3(0.6, 0.6, 0.6);
+            mat.emissiveColor = mat.diffuseColor.scale(0.2);
+            mesh.material = mat;
+
+            // disable collisions/physics by default so it doesn't interfere with DefaultPong logic
+            mesh.isPickable = false;
+
+            return mesh;
         };
 
-        player2 = ensurePlayer(player2, "player2", nearLeftX, MAIN_COLORS.RGB_GREEN);
-        player3 = ensurePlayer(player3, "player3", nearRightX, MAIN_COLORS.RGB_YELLOW);
+        const extraA = createExtraPlayer("four_extra_left", nearLeftX);
+        const extraB = createExtraPlayer("four_extra_right", nearRightX);
 
-        this.extraPlayers = [player2, player3];
-
-        // If controls object supports adding players (backwards compatible), attach them
-        if (typeof controls?.setMovementConfig === "function") {
-            // If PongControls was constructed with optional player2/player3 (see Pong.ts change),
-            // controls should already handle them. But in case it exposes an API to add players:
-            if (typeof controls?.addPlayer === "function") {
-                try { controls.addPlayer(2, player2); } catch { /* ignore */ }
-                try { controls.addPlayer(3, player3); } catch { /* ignore */ }
-            }
-        }
-
-        // Also ensure these extra players are part of the physics/collision checks if the game mode uses a multi-player ball manager.
-        // If your ball manager supports passing a players array, you should create/use that manager here (FourPlayerBall).
-        // Otherwise the DefaultPongMode's ball may not collide with these additional paddles — see FourPlayerBall integration if needed.
+        this.extraPlayers.push(extraA, extraB);
     }
 
     cleanup(): void {
@@ -118,15 +91,11 @@ export class FourPlayerPongMode implements IPongGameMode {
                 this.delegateMode.cleanup();
             }
         } finally {
-            // remove & dispose extra players that we created ourselves
+            // remove & dispose extra players
             if (this.extraPlayers && this.sceneRef) {
                 this.extraPlayers.forEach(mesh => {
                     try {
-                        // only dispose if we created them (name match)
-                        if (mesh && mesh.name && (mesh.name === "player2" || mesh.name === "player3")) {
-                            // keep if original scene had them (they are reused) - check ownership if needed
-                            mesh.dispose();
-                        }
+                        mesh.dispose();
                     } catch { /* ignore */ }
                 });
             }

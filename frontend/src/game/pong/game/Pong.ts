@@ -495,7 +495,7 @@ export class Pong {
         this.bottomWallGlowLayer.blurKernelSize = GAME_CONFIG.OPTIMIZATION.GLOW_BLUR_KERNEL;
         this.bottomWallGlowLayer.addIncludedOnlyMesh(this.bottomWallPlane);
 
-        // Setup controls (now supports optional player2/player3)
+        // Setup controls
         this.controls = new PongControls(
             scene, 
             this.player0, 
@@ -505,10 +505,7 @@ export class Pong {
                 speed: CONTROLS_CONFIG.SPEED, 
                 maxZ: CONTROLS_CONFIG.MAX_Z, 
                 minZ: CONTROLS_CONFIG.MIN_Z 
-            },
-            // pass the optional player2/player3 meshes so controls will handle them too
-            this.player2,
-            this.player3
+            }
         );
 
         // NOUVEAU : Définir la référence à la balle pour l'IA
