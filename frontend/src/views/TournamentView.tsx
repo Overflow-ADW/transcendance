@@ -6,6 +6,22 @@ import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useApp } from "@/lib_front/store";
 import { useRouter } from 'next/navigation';
 
+// Types pour les slots de tournoi
+type TournamentPlayer = {
+  id: number;
+  name: string;
+  color: string;
+};
+
+type EmptySlot = {
+  id: string;
+  name: string;
+  color: string;
+  isEmpty: true;
+};
+
+type TournamentSlot = TournamentPlayer | EmptySlot;
+
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -128,9 +144,9 @@ export default function TournamentView() {
   };
 
   // Créer un tableau de 4 slots
-  const slots = Array.from({ length: 4 }, (_, i) => {
+  const slots: TournamentSlot[] = Array.from({ length: 4 }, (_, i) => {
     const player = players[i];
-    return player || { id: `empty-${i}`, name: "ADD PLAYER +", isEmpty: true };
+    return player || { id: `empty-${i}`, name: "ADD PLAYER +", color: "", isEmpty: true };
   });
 
   return (
@@ -147,7 +163,7 @@ export default function TournamentView() {
         <div className="grid grid-cols-2 gap-8 mb-16">
           {slots.map((slot, index) => (
             <div key={slot.id} className="relative">
-              {slot.isEmpty ? (
+              {'isEmpty' in slot ? (
                 <button
                   onClick={addPlayer}
                   className="bg-white text-black border-4 border-white rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[300px] h-[120px] flex items-center justify-center"
@@ -157,11 +173,7 @@ export default function TournamentView() {
               ) : (
                 <div className="relative">
                   <button
-                    className={`border-4 rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 min-w-[300px] h-[120px] flex items-center justify-center ${
-                      slot.isMainPlayer 
-                        ? 'bg-purple-600/20 border-purple-400 text-purple-400' // Mauve pour le joueur principal
-                        : 'bg-blue-600/20 border-blue-400 text-blue-400' // Bleu pour les autres joueurs connectés
-                    }`}
+                    className="bg-blue-600/20 border-blue-400 text-blue-400 border-4 rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 min-w-[300px] h-[120px] flex items-center justify-center"
                   >
                     {slot.name}
                   </button>

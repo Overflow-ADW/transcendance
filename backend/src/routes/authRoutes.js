@@ -16,7 +16,7 @@ if (!JWT_SECRET) {
 // Schémas de validation Joi
 const registerSchema = Joi.object({
   username: Joi.string().alphanum().min(3).max(30).required(),
-  email: Joi.string().email().required(),
+  email: Joi.string().email().optional(), // Email optionnel pour la création de compte local
   password: Joi.string().min(8).pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])')).required()
     .messages({
       'string.pattern.base': 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'
@@ -48,8 +48,14 @@ async function authRoutes(fastify, options) {
 
       const { username, email, password } = value;
 
-      // Vérifier si l'utilisateur existe déjà
-      const existingUser = db.prepare('SELECT id, username, email FROM users WHERE username = ? OR email = ?').get(username, email);
+      // Vérifier si l'utilisateur existe déjà (par nom d'utilisateur et email si fourni)
+      let existingUser;
+      if (email) {
+        existingUser = db.prepare('SELECT id, username, email FROM users WHERE username = ? OR email = ?').get(username, email);
+      } else {
+        existingUser = db.prepare('SELECT id, username FROM users WHERE username = ?').get(username);
+      }
+      
       if (existingUser) {
         const conflictField = existingUser.username === username ? 'nom d\'utilisateur' : 'adresse email';
         return reply.status(409).send({
@@ -63,13 +69,13 @@ async function authRoutes(fastify, options) {
       const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-      // Insertion en base avec transaction
+      // Insertion en base avec transaction (email peut être NULL)
       const insertUser = db.prepare(`
         INSERT INTO users (username, email, password, created_at)
         VALUES (?, ?, ?, datetime('now'))
       `);
 
-      const result = insertUser.run(username, email, hashedPassword);
+      const result = insertUser.run(username, email || null, hashedPassword);
 
       // Génération des tokens JWT (access + refresh)
       const tokenPair = generateTokenPair({
@@ -93,7 +99,7 @@ async function authRoutes(fastify, options) {
       });
 
     } catch (error) {
-      fastify.log.error('❌ Erreur lors de l\'enregistrement:', error);
+      fastify.log.error('❌ Erreur lors de l\'enregistrement:', error.message || error);
       return reply.status(500).send({
         error: 'Erreur interne du serveur',
         details: 'Une erreur est survenue lors de la création du compte',

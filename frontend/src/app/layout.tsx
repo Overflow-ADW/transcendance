@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Press_Start_2P } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/lib_front/store";
+import { AuthProvider } from "@/lib_front/AuthContext";
+import { NotificationToast } from "@/components/ui/NotificationToast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,9 +34,12 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className="antialiased bg-black min-h-screen" suppressHydrationWarning>
-        <AppProvider>
-          {children}
-        </AppProvider>
+        <AuthProvider>
+          <AppProvider>
+            {children}
+            <NotificationToast />
+          </AppProvider>
+        </AuthProvider>
       </body>
     </html>
   );

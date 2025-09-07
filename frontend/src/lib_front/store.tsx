@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState, useEffect } from "react";
 import type { Difficulty, Lang, MatchItem, Player, View, Winrate } from "./types";
+import { AuthProvider } from "./AuthContext";
 
 type AppState = {
   lang: Lang;
@@ -29,7 +30,22 @@ type AppState = {
 
   matches: MatchItem[];
   setMatches: (m: MatchItem[]) => void;
+
+  // Nouvelles propriétés pour les notifications et l'état global
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
+  isOnline: boolean;
+  notifications: Notification[];
+  addNotification: (notification: Omit<Notification, 'id'>) => void;
+  removeNotification: (id: string) => void;
 };
+
+interface Notification {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  message: string;
+  duration?: number;
+}
 
 const AppCtx = createContext<AppState | null>(null);
 
@@ -43,6 +59,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [playersDuel, _setPlayersDuel] = useState<Player[]>([{ id: "me", name: "YOU" }]);
 
   const [avatarURL, setAvatarURL] = useState<string | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [isOnline, setIsOnline] = useState(true);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [winrates, setWinrates] = useState<Winrate[]>([
     { label: "winrate vs player", value: 70, color: "bg-purple-600" },
     { label: "winrate tournament", value: 65, color: "bg-blue-600" },
@@ -98,7 +117,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       winrates,
       setWinrates,
       matches,
-      setMatches
+      setMatches,
+      theme,
+      setTheme,
+      isOnline,
+      setIsOnline,
+      notifications,
+      setNotifications,
+      addNotification: (notification: Omit<Notification, 'id'>) => {
+        setNotifications(prev => [
+          ...prev,
+          { ...notification, id: Date.now().toString() }
+        ]);
+      },
+      removeNotification: (id: string) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      }
     }),
     [
       lang,
@@ -108,7 +142,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       playersDuel,
       avatarURL,
       winrates,
-      matches
+      matches,
+      theme,
+      isOnline,
+      notifications
     ]
   );
 

@@ -1,3 +1,6 @@
+// Configuration avec variables d'environnement (AVANT tout autre import)
+require('dotenv').config();
+
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const gameRoutes = require('./routes/gameRoutes');
@@ -5,9 +8,6 @@ const adminRoutes = require('./routes/adminRoutes');
 const twoFactorRoutes = require('./routes/twoFactorRoutes');
 const oauthRoutes = require('./routes/oauthRoutes');
 const { initDatabase } = require('./db');
-
-// Configuration avec variables d'environnement
-require('dotenv').config();
 
 const fastify = require('fastify')({
   logger: {
@@ -74,8 +74,11 @@ fastify.register(authRoutes, { prefix: '/api/auth' });
 // Routes OAuth de base et étendues
 fastify.register(oauthRoutes, { prefix: '/api/oauth' });
 const { registerAdditionalOAuthProviders } = require('./routes/oauthProvidersExtended');
-await registerAdditionalOAuthProviders(fastify);
-fastify.register(require('./routes/oauthRoutesAdvanced'), { prefix: '/api/oauth' });
+fastify.register(async function (fastify) {
+  await registerAdditionalOAuthProviders(fastify);
+});
+// TODO: Réactiver les routes avancées après avoir configuré les middlewares d'authentification
+// fastify.register(require('./routes/oauthRoutesAdvanced'), { prefix: '/api/oauth' });
 
 fastify.register(userRoutes, { prefix: '/api/users' });
 fastify.register(gameRoutes, { prefix: '/api/games' });

@@ -11,6 +11,16 @@ interface Player {
   isHost: boolean;
 }
 
+interface EmptySlot {
+  id: string;
+  name: string;
+  color: string;
+  isHost: boolean;
+  isEmpty: true;
+}
+
+type GameSlot = Player | EmptySlot;
+
 interface AddPlayerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -123,9 +133,9 @@ export default function MultiplayerView() {
   };
 
   // Créer un tableau de 4 slots
-  const slots = Array.from({ length: 4 }, (_, i) => {
+  const slots: GameSlot[] = Array.from({ length: 4 }, (_, i) => {
     const player = players[i];
-    return player || { id: `empty-${i}`, name: "INVITE PLAYER", isEmpty: true };
+    return player || { id: `empty-${i}`, name: "INVITE PLAYER", color: "", isHost: false, isEmpty: true };
   });
 
   return (
@@ -143,7 +153,7 @@ export default function MultiplayerView() {
         <div className="grid grid-cols-2 gap-6 mb-12">
           {slots.map((slot, index) => (
             <div key={slot.id} className="relative">
-              {slot.isEmpty ? (
+              {'isEmpty' in slot ? (
                 <button
                   onClick={addPlayer}
                   className="bg-white text-black border-4 border-white rounded-3xl px-12 py-6 text-xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[280px] h-[100px] flex items-center justify-center"
@@ -165,11 +175,9 @@ export default function MultiplayerView() {
                       {slot.isHost && (
                         <span className="text-xs mt-1 opacity-80">HOST</span>
                       )}
-                      {!slot.isEmpty && (
-                        <span className="text-xs mt-1 opacity-60">
-                          Player {index + 1}
-                        </span>
-                      )}
+                      <span className="text-xs mt-1 opacity-60">
+                        Player {index + 1}
+                      </span>
                     </div>
                   </button>
                   

@@ -30,7 +30,7 @@ function initDatabase(fastify) {
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE, -- Email optionnel pour comptes locaux
         password TEXT NOT NULL,
         display_name TEXT,
         avatar_url TEXT,
