@@ -3,12 +3,20 @@
 
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useApp } from "@/lib_front/store";
-import { t } from "@/lib_front/i18n";
 import { useRouter } from 'next/navigation';
 
 export default function ChooseIAView() {
   const router = useRouter();
   const { lang } = useApp();
+
+  const handleDifficultySelect = (difficulty: string) => {
+    // Sauvegarder la difficulté sélectionnée dans le localStorage
+    localStorage.setItem('ai-difficulty', difficulty);
+    // Marquer que c'est un jeu contre l'IA
+    localStorage.setItem('game-mode', 'ai');
+    // Rediriger vers le jeu
+    router.push("/game");
+  };
 
   return (
     <GradientBackground>
@@ -16,32 +24,27 @@ export default function ChooseIAView() {
         {/* Cadre noir centré comme Settings */}
         <div className="bg-black min-h-[70vh] rounded-lg p-10 flex flex-col justify-center items-center w-full max-w-2xl">
           <div className="w-full max-w-lg space-y-6">
+            <h2 className="text-4xl font-bold text-white text-center mb-8">
+              CHOOSE DIFFICULTY
+            </h2>
+            
             <button
-              onClick={() => {
-                setDifficulty("easy");
-                router.push("/game");
-              }}
-              className="w-full py-6 px-8 bg-transparent border-4 border-purple-500 text-purple-500 text-2xl font-bold rounded-2xl transition-all duration-300 hover:bg-purple-500 hover:text-white hover:scale-105"
+              onClick={() => handleDifficultySelect("easy")}
+              className="w-full py-6 px-8 bg-transparent border-4 border-green-500 text-green-500 text-2xl font-bold rounded-2xl transition-all duration-300 hover:bg-green-500 hover:text-white hover:scale-105"
             >
               EASY
             </button>
             
             <button
-              onClick={() => {
-                setDifficulty("medium");
-                router.push("/game");
-              }}
-              className="w-full py-6 px-8 bg-transparent border-4 border-purple-500 text-purple-500 text-2xl font-bold rounded-2xl transition-all duration-300 hover:bg-purple-500 hover:text-white hover:scale-105"
+              onClick={() => handleDifficultySelect("medium")}
+              className="w-full py-6 px-8 bg-transparent border-4 border-yellow-500 text-yellow-500 text-2xl font-bold rounded-2xl transition-all duration-300 hover:bg-yellow-500 hover:text-white hover:scale-105"
             >
               MEDIUM
             </button>
             
             <button
-              onClick={() => {
-                setDifficulty("hard");
-                router.push("/game");
-              }}
-              className="w-full py-6 px-8 bg-transparent border-4 border-purple-500 text-purple-500 text-2xl font-bold rounded-2xl transition-all duration-300 hover:bg-purple-500 hover:text-white hover:scale-105"
+              onClick={() => handleDifficultySelect("hard")}
+              className="w-full py-6 px-8 bg-transparent border-4 border-red-500 text-red-500 text-2xl font-bold rounded-2xl transition-all duration-300 hover:bg-red-500 hover:text-white hover:scale-105"
             >
               HARD
             </button>

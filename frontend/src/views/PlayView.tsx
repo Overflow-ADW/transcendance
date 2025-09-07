@@ -5,8 +5,8 @@ import { useApp } from "@/lib_front/store";
 import { useRouter } from 'next/navigation';
 
 export default function PlayView() {
-	const router = useRouter();
-	const { lang } = useApp();
+  const router = useRouter();
+  const { lang } = useApp();
 
   return (
     <GradientBackground>

@@ -22,9 +22,10 @@ export default function SettingsView() {
             </button>
             
             <button 
+			  onClick={() => router.push("/friends")}
               className="w-full py-6 px-8 bg-transparent border-2 border-white text-white text-2xl font-bold rounded-lg transition-all duration-300 hover:bg-purple-600"
             >
-              tchat
+              friends
             </button>
             
             <button 
@@ -34,18 +35,11 @@ export default function SettingsView() {
               profile
             </button>
             
-            <button 
+            <button
+			  onClick={() => router.push("/trueSettings")} 
               className="w-full py-6 px-8 bg-purple-600 border-2 border-white text-white text-2xl font-bold rounded-lg cursor-default"
             >
               setting
-            </button>
-            
-            {/* Bouton retour */}
-            <button 
-              onClick={() => router.push("/")}
-              className="w-full py-4 px-8 mt-8 bg-transparent border border-white/50 text-white/70 text-lg rounded-lg transition-all duration-300 hover:bg-white/10 hover:text-white hover:border-white/80"
-            >
-              ← Return to Home
             </button>
           </div>
         </div>
