@@ -38,39 +38,94 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  // Initialiser l'état avec les données du localStorage
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('accessToken');
+      if (storedUser && token) {
+        try {
+          return JSON.parse(storedUser);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !!localStorage.getItem('accessToken');
+    }
+    return false;
+  });
 
   // Vérifier l'authentification au chargement
   useEffect(() => {
+    console.log('🔄 Initial Auth State:', { user, isAuthenticated });
     checkAuthStatus();
   }, []);
 
   const checkAuthStatus = async () => {
+    console.log('🔄 Starting Auth Check');
     try {
       const token = apiClient.getToken();
+      const storedUser = localStorage.getItem('user');
+      
+      console.log('📦 Stored Data:', { hasToken: !!token, hasStoredUser: !!storedUser });
+      
       if (!token) {
+        console.log('❌ No token found');
         setLoading(false);
+        setIsAuthenticated(false);
+        setUser(null);
         return;
       }
 
+      // Si nous avons un utilisateur stocké, l'utiliser temporairement
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+        } catch (e) {
+          console.error('❌ Error parsing stored user:', e);
+        }
+      }
+
       // Vérifier le token auprès du backend
+      console.log('🔄 Verifying token with backend...');
       const data = await apiClient.verifyToken(token);
 
-      if (data.valid && data.user) {
+      if ((data.valid || data.code === 'TOKEN_VALID') && data.user) {
+        console.log('✅ Token valid, updating user data');
         setUser(data.user);
         setIsAuthenticated(true);
         apiClient.setToken(token);
+        localStorage.setItem('user', JSON.stringify(data.user));
       } else {
-        // Token invalide, nettoyer
+        console.log('❌ Invalid token response:', data);
+        setIsAuthenticated(false);
+        setUser(null);
         apiClient.clearAuth();
       }
     } catch (error) {
-      console.error('Auth check error:', error);
-      apiClient.clearAuth();
+      console.error('❌ Auth check error:', error);
+      // Garder l'authentification en cas d'erreur réseau
+      if (error instanceof TypeError || (error instanceof Error && error.message.includes('Failed to fetch'))) {
+        console.log('⚠️ Network error - keeping existing auth state');
+        // Ne rien faire, garder l'état actuel
+        return;
+      } else {
+        console.log('❌ Non-network error - clearing auth state');
+        setUser(null);
+        setIsAuthenticated(false);
+        apiClient.clearAuth();
+      }
     } finally {
       setLoading(false);
+      console.log('🔄 Auth Check Complete:', { user, isAuthenticated });
     }
   };
 
@@ -160,6 +215,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updateUser,
     checkAuthStatus
   };
+
+  // Ne pas rendre les enfants tant que la vérification initiale n'est pas terminée
+  if (loading) {
+    return null; // ou un composant de chargement si vous préférez
+  }
 
   return (
     <AuthContext.Provider value={value}>

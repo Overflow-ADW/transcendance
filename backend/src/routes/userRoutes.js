@@ -29,14 +29,25 @@ async function userRoutes(fastify, options) {
   // ========================================
   fastify.get('/profile', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
+      console.log('Fetching profile for user ID:', request.user.userId);
       const user = db.prepare(`
-        SELECT id, username, email, display_name, avatar_url, status, 
-               is_admin, two_factor_enabled, created_at, last_login,
-               (SELECT COUNT(*) FROM friends WHERE (user_id = ? OR friend_id = ?) AND status = 'accepted') as friends_count,
-               (SELECT COUNT(*) FROM games WHERE (player1_id = ? OR player2_id = ?) AND status = 'completed') as games_played,
-               (SELECT COUNT(*) FROM games WHERE status = 'completed' AND 
-                ((player1_id = ? AND winner_id = ?) OR (player2_id = ? AND winner_id = ?))) as games_won
-        FROM users WHERE id = ?
+        SELECT 
+          users.id, 
+          users.username, 
+          users.email, 
+          users.display_name, 
+          users.avatar_url, 
+          users.status,
+          users.is_admin, 
+          users.two_factor_enabled, 
+          users.created_at, 
+          users.last_login,
+          (SELECT COUNT(*) FROM friends WHERE (user_id = ? OR friend_id = ?) AND status = 'accepted') as friends_count,
+          (SELECT COUNT(*) FROM games WHERE (player1_id = ? OR player2_id = ?) AND status = 'completed') as games_played,
+          (SELECT COUNT(*) FROM games WHERE status = 'completed' AND 
+           ((player1_id = ? AND winner_id = ?) OR (player2_id = ? AND winner_id = ?))) as games_won
+        FROM users 
+        WHERE users.id = ?
       `).get(
         request.user.userId, request.user.userId,
         request.user.userId, request.user.userId,
@@ -51,21 +62,31 @@ async function userRoutes(fastify, options) {
         });
       }
 
+      console.log('User data from DB:', user);
+      
       // Calculer le winrate
       const winrate = user.games_played > 0 ? Math.round((user.games_won / user.games_played) * 100) : 0;
 
-      return reply.send({
-        user: {
-          ...user,
-          winrate: winrate,
-          stats: {
-            friends: user.friends_count,
-            gamesPlayed: user.games_played,
-            gamesWon: user.games_won,
-            winrate: winrate
-          }
+      const responseData = {
+        id: user.id,
+        username: user.username,
+        display_name: user.display_name,
+        email: user.email,
+        avatar_url: user.avatar_url,
+        status: user.status,
+        created_at: user.created_at,
+        last_login: user.last_login,
+        winrate: winrate,
+        stats: {
+          friends: user.friends_count,
+          gamesPlayed: user.games_played,
+          gamesWon: user.games_won,
+          winrate: winrate
         }
-      });
+      };
+
+      console.log('Sending response:', responseData);
+      return reply.send(responseData);
 
     } catch (error) {
       fastify.log.error('❌ Erreur lors de la récupération du profil:', error);
@@ -655,6 +676,14 @@ async function userRoutes(fastify, options) {
       // Statistiques complètes de l'utilisateur
       const stats = db.prepare(`
         SELECT 
+          u.username,
+          u.display_name,
+          u.avatar_url,
+          u.email,
+          u.status,
+          u.is_admin,
+          u.two_factor_enabled,
+          u.created_at,
           COUNT(DISTINCT f.id) as total_friends,
           COUNT(DISTINCT CASE WHEN g.player1_id = ? OR g.player2_id = ? THEN g.id END) as total_games,
           COUNT(DISTINCT CASE 
