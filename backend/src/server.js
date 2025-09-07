@@ -70,7 +70,13 @@ fastify.decorate('authenticate', authenticateToken);
 
 // Routes API
 fastify.register(authRoutes, { prefix: '/api/auth' });
+
+// Routes OAuth de base et étendues
 fastify.register(oauthRoutes, { prefix: '/api/oauth' });
+const { registerAdditionalOAuthProviders } = require('./routes/oauthProvidersExtended');
+await registerAdditionalOAuthProviders(fastify);
+fastify.register(require('./routes/oauthRoutesAdvanced'), { prefix: '/api/oauth' });
+
 fastify.register(userRoutes, { prefix: '/api/users' });
 fastify.register(gameRoutes, { prefix: '/api/games' });
 fastify.register(twoFactorRoutes, { prefix: '/api/2fa' });
