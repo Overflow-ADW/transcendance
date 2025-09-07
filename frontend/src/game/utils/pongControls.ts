@@ -1,7 +1,7 @@
 import { Scene, Mesh, Vector3 } from "@babylonjs/core";
 import { CONTROLS_CONFIG } from "@/game/utils/pongValues";
 import { PongData, GameState } from "@/game/utils/pongData";
-import { PongAI, AIDifficulty, KeyboardSimulator } from "@/game/utils/pongAI";
+import { PongAI, AIDifficulty, KeyboardSimulator } from "@/game/utils/AI/pongAI";
 
 export enum PlayerKeys {
     UP,
@@ -26,7 +26,7 @@ export class PongControls {
     private player1DownKeys = CONTROLS_CONFIG.KEYS.PLAYER1.DOWN;
     private gameData: PongData;
     private controlsLocked = false;
-    public ai: PongAI | null = null;
+    public ai: PongAI | null = null; // CORRECTION: Rendre public pour permettre l'accès depuis pongGame
     private ballMesh: Mesh | null = null;
     private keySimulator: KeyboardSimulator | null = null;
 
@@ -198,67 +198,134 @@ export class PongControls {
         }
     }
 
+    /**
+     * CORRECTION : updatePlayersPosition avec logs détaillés pour debug IA
+     */
     private updatePlayersPosition(): void {
         // Only update if game is playing and controls are not locked
         if (this.gameData.gameState !== GameState.PLAYING || this.controlsLocked) {
             return;
         }
 
-        // CORRECTION : Mettre à jour l'IA sans paramètre
-        if (this.ai) {
+        // CORRECTION : Mettre à jour l'IA en premier avec debug
+        if (this.ai && this.ai.isAIActive()) {
             this.ai.update();
+            
+            // DEBUG : Vérifier l'état de l'IA toutes les 60 frames (~1 seconde)
+            if (Math.random() < 0.016) { // ~1/60 chance
+                const debugInfo = this.ai.getDebugInfo();
+                console.log(`🤖 État IA: ${debugInfo}`);
+            }
         }
 
         // Player 0 movement (toujours manuel)
-        if (this.isAnyKeyPressed(this.player0UpKeys)) {
+        const player0UpPressed = this.isAnyKeyPressed(this.player0UpKeys);
+        const player0DownPressed = this.isAnyKeyPressed(this.player0DownKeys);
+        
+        if (player0UpPressed) {
             this.movePlayer(this.player0, PlayerKeys.UP);
         }
-        if (this.isAnyKeyPressed(this.player0DownKeys)) {
+        if (player0DownPressed) {
             this.movePlayer(this.player0, PlayerKeys.DOWN);
         }
 
-        // Player 1 movement (seulement si l'IA n'est pas active)
+        // CORRECTION MAJEURE : Player 1 movement avec debug détaillé
         if (!this.ai || !this.ai.isAIActive()) {
-            if (this.isAnyKeyPressed(this.player1UpKeys)) {
-                console.log("Player1 UP manuel détecté");
+            // Contrôles manuels pour Player 1
+            const player1UpPressed = this.isAnyKeyPressed(this.player1UpKeys);
+            const player1DownPressed = this.isAnyKeyPressed(this.player1DownKeys);
+            
+            if (player1UpPressed) {
                 this.movePlayer(this.player1, PlayerKeys.UP);
             }
-            if (this.isAnyKeyPressed(this.player1DownKeys)) {
-                console.log("Player1 DOWN manuel détecté");
+            if (player1DownPressed) {
                 this.movePlayer(this.player1, PlayerKeys.DOWN);
             }
         } else {
-            // DEBUG : Vérifier si l'IA simule correctement les touches
-            if (this.isAnyKeyPressed(this.player1UpKeys)) {
-                console.log("IA: Touche UP détectée par le système de contrôle");
-                this.movePlayer(this.player1, PlayerKeys.UP);
-            }
-            if (this.isAnyKeyPressed(this.player1DownKeys)) {
-                console.log("IA: Touche DOWN détectée par le système de contrôle");
-                this.movePlayer(this.player1, PlayerKeys.DOWN);
+            // IA active - vérifier les touches simulées
+            const aiUpPressed = this.isAnyKeyPressed(this.player1UpKeys);
+            const aiDownPressed = this.isAnyKeyPressed(this.player1DownKeys);
+            
+            if (aiUpPressed || aiDownPressed) {
+                console.log(`🎮 IA TOUCHES DÉTECTÉES - UP: ${aiUpPressed}, DOWN: ${aiDownPressed}`);
+                
+                if (aiUpPressed) {
+                    console.log(`⬆️ IA: Mouvement UP détecté - Position avant: ${this.player1.position.z.toFixed(1)}`);
+                    this.movePlayer(this.player1, PlayerKeys.UP);
+                    console.log(`⬆️ IA: Position après: ${this.player1.position.z.toFixed(1)}`);
+                }
+                if (aiDownPressed) {
+                    console.log(`⬇️ IA: Mouvement DOWN détecté - Position avant: ${this.player1.position.z.toFixed(1)}`);
+                    this.movePlayer(this.player1, PlayerKeys.DOWN);
+                    console.log(`⬇️ IA: Position après: ${this.player1.position.z.toFixed(1)}`);
+                }
+            } else {
+                // Debug périodique de l'état des touches
+                if (Math.random() < 0.01) { // ~1% chance pour éviter le spam
+                    console.log(`🔍 DEBUG IA: Aucune touche détectée`);
+                    console.log(`   Touches UP attendues: ${this.player1UpKeys.join(', ')}`);
+                    console.log(`   Touches DOWN attendues: ${this.player1DownKeys.join(', ')}`);
+                    console.log(`   État touches: ${Object.keys(this.keysPressed).filter(k => this.keysPressed[k]).join(', ') || 'Aucune'}`);
+                }
             }
         }
     }
 
+    /**
+     * AMÉLIORATION : isAnyKeyPressed avec debug conditionnel
+     */
     private isAnyKeyPressed(keys: string[]): boolean {
-        return keys.some(key => this.keysPressed[key]);
+        const pressed = keys.some(key => this.keysPressed[key]);
+        
+        // Debug seulement si une touche est pressée
+        if (pressed && Math.random() < 0.1) { // 10% chance de log quand pressée
+            const pressedKeys = keys.filter(key => this.keysPressed[key]);
+            console.log(`🔑 Touche(s) pressée(s): ${pressedKeys.join(', ')}`);
+        }
+        
+        return pressed;
     }
 
+    /**
+     * AMÉLIORATION : movePlayer avec logs de position
+     */
     private movePlayer(player: Mesh, direction: PlayerKeys): void {
         const currentZ = player.position.z;
+        const playerName = player.name;
         
         if (direction === PlayerKeys.UP && currentZ < this.movement.maxZ) {
+            const newZ = currentZ + this.movement.speed;
             player.position = new Vector3(
                 player.position.x,
                 player.position.y,
-                currentZ + this.movement.speed
+                newZ
             );
+            
+            // Log pour l'IA seulement
+            if (playerName === 'player1' && this.ai && this.ai.isAIActive()) {
+                console.log(`⬆️ IA: ${currentZ.toFixed(1)} -> ${newZ.toFixed(1)} (+${this.movement.speed})`);
+            }
         } else if (direction === PlayerKeys.DOWN && currentZ > this.movement.minZ) {
+            const newZ = currentZ - this.movement.speed;
             player.position = new Vector3(
                 player.position.x,
                 player.position.y,
-                currentZ - this.movement.speed
+                newZ
             );
+            
+            // Log pour l'IA seulement
+            if (playerName === 'player1' && this.ai && this.ai.isAIActive()) {
+                console.log(`⬇️ IA: ${currentZ.toFixed(1)} -> ${newZ.toFixed(1)} (-${this.movement.speed})`);
+            }
+        } else {
+            // Log des limites pour l'IA
+            if (playerName === 'player1' && this.ai && this.ai.isAIActive()) {
+                if (direction === PlayerKeys.UP) {
+                    console.log(`🚧 IA: Limite UP atteinte - ${currentZ.toFixed(1)} >= ${this.movement.maxZ}`);
+                } else {
+                    console.log(`🚧 IA: Limite DOWN atteinte - ${currentZ.toFixed(1)} <= ${this.movement.minZ}`);
+                }
+            }
         }
     }
 }
