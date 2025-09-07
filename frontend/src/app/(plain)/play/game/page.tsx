@@ -29,9 +29,9 @@ export default function GamePage() {
       
       if (mode === 'ia' && difficulty) {
         const difficultyMap: { [key: string]: number } = {
-          'easy': 2,
-          'medium': 3,
-          'hard': 4
+          'easy': 1,
+          'medium': 2,
+          'hard': 3
         };
         
         const difficultyLevel = difficultyMap[difficulty] || 3;

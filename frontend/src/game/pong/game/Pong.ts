@@ -30,7 +30,8 @@ import {
 } from "@/game/utils/pongValues";
 import { IPongGameMode } from "@/game/modes/DefaultPongMode";
 import { GameModeFactory } from "@/game/factories/GameModeFactory";
-import { AIDifficulty } from "@/game/utils/pongAI";
+import { AIDifficulty } from "@/game/utils/AI/pongAI";
+import { getDifficultyName } from "@/game/utils/AI/aiConfig";
 
 export class Pong {
     scene: Scene;
@@ -82,8 +83,6 @@ export class Pong {
         
         // Activer le suivi de la barre avec la balle
         this.enableBarColorTracking();
-
-        this.enableAI(AIDifficulty.EXTREME);
         
         // Initialiser le mode de jeu par défaut
         this.setGameMode(this.gameData.gameType);
@@ -142,7 +141,7 @@ export class Pong {
 
     /**
      * Configure et active l'IA
-     * @param difficulty Niveau de difficulté (1-5)
+     * @param difficulty Niveau de difficulté (1-3)
      */
     public enableAI(difficulty: AIDifficulty = AIDifficulty.MEDIUM): void {
         // Configurer l'IA
@@ -197,14 +196,7 @@ export class Pong {
      * Obtient le nom de la difficulté
      */
     private getDifficultyName(difficulty: AIDifficulty): string {
-        const names = {
-            [AIDifficulty.VERY_EASY]: "Très Facile",
-            [AIDifficulty.EASY]: "Facile", 
-            [AIDifficulty.MEDIUM]: "Moyen",
-            [AIDifficulty.HARD]: "Difficile",
-            [AIDifficulty.EXTREME]: "Extrême"
-        };
-        return names[difficulty];
+        return getDifficultyName(difficulty);
     }
 
     /**
@@ -214,7 +206,7 @@ export class Pong {
         if (!difficulty) {
             return "Moyen"; // Valeur par défaut
         }
-        return this.getDifficultyName(difficulty);
+        return getDifficultyName(difficulty);
     }
 
     /**
@@ -1366,7 +1358,6 @@ export class Pong {
             setTimeout(() => {
                 paddle.isVisible = true;
             }, 800);  // TIMING ORIGINAL LONG
-            
             setTimeout(() => {
                 paddleParticles.dispose();
             }, 3000); // TIMING ORIGINAL TRÈS LONG
