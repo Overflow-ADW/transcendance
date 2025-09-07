@@ -1,6 +1,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const { seedDatabase } = require('./seed');
 
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '..', 'database', 'database.sqlite');
 const dbDir = path.dirname(dbPath);
@@ -305,6 +306,13 @@ function initDatabase(fastify) {
 
     fastify.log.info('✅ Tables de la base de données créées/vérifiées avec succès');
     fastify.log.info(`📊 Base de données prête : ${db.name}`);
+    
+    // Initialiser les données de seed en mode développement
+    if (process.env.NODE_ENV !== 'production') {
+      seedDatabase(db, fastify.log).catch(err => {
+        fastify.log.error('Erreur lors du seed:', err);
+      });
+    }
     
     return db;
     
