@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Pour Option 1 (Static) : garder 'export'
+  // Pour Option 1 (Static) : garder 'export' - MANDATORY pour SPA
   output: 'export',
   
-  // Pour Option 2 (Standalone) : utiliser 'standalone'
+  // Pour Option 2 (Standalone) : utiliser 'standalone' (seulement si module SSR choisi)
   // output: 'standalone',
   
   trailingSlash: true,

@@ -1,0 +1,28 @@
+app/
+  page.tsx
+  layout.tsx
+  globals.css
+
+components/
+  ui/
+    MenuButton.tsx
+    PurpleFrame.tsx
+    LangSwitcher.tsx
+  profile/
+    AvatarUploader.tsx
+
+views/
+  HomeView.tsx
+  SettingsView.tsx
+  PlayView.tsx
+  ChooseIAView.tsx
+  GameView.tsx
+  TournamentView.tsx
+  DuelView.tsx
+  ProfileView.tsx
+
+lib/
+  types.ts
+  i18n.ts
+  store.ts
+  api.ts
