@@ -73,56 +73,10 @@ export const MAIN_COLORS = {
     HEX_GREEN: "#28A745"
 };
 
-// Four Player Settings - For 4-player mode
-export const FOUR_PLAYER_CONFIG = {
-    PLAYER_WIDTH: 117,   // Width of paddles - augmenté de 30% (90 * 1.3)
-    PLAYER_HEIGHT: 10,
-    PLAYER_DEPTH: 10,
-    POSITION_Y: 10,
-    // Positions for 4 players - 490 distance from center
-    PLAYER0_POSITION: { X: -490, Z: 0 },  // Left (Player 0) - se déplace sur Z
-    PLAYER1_POSITION: { X: 490, Z: 0 },   // Right (Player 1) - se déplace sur Z  
-    PLAYER2_POSITION: { X: 0, Z: 490 },   // Top (Player 2) - se déplace sur X
-    PLAYER3_POSITION: { X: 0, Z: -490 },  // Bottom (Player 3) - se déplace sur X
-    MOVEMENT_LIMITS: {
-        HORIZONTAL_X: { MIN: -400, MAX: 400 }, // Pour players 2 et 3 moving sur X - étendu
-        VERTICAL_Z: { MIN: -400, MAX: 400 }    // Pour players 0 et 1 moving sur Z - étendu
-    },
-    // Goal zones - when ball goes past these coordinates, player is eliminated
-    GOAL_ZONES: {
-        LEFT: -510,    // X coordinate for left player elimination (Player 0)
-        RIGHT: 510,    // X coordinate for right player elimination (Player 1)
-        TOP: 510,      // Z coordinate for top player elimination (Player 2)
-        BOTTOM: -510   // Z coordinate for bottom player elimination (Player 3)
-    },
-    // Configuration des murs pour chaque joueur - CRÉÉS SEULEMENT QUAND LE JOUEUR EST ÉLIMINÉ
-    PLAYER_WALLS: {
-        WIDTH: 1000,   // Largeur des murs (couvre toute la longueur)
-        HEIGHT: 10,    // Hauteur des murs
-        DEPTH: 10,     // Profondeur des murs
-        POSITIONS: {
-            PLAYER0: { X: -500, Z: 0 }, // Mur vertical à gauche
-            PLAYER1: { X: 500, Z: 0 },  // Mur vertical à droite
-            PLAYER2: { X: 0, Z: 500 },  // Mur horizontal en haut
-            PLAYER3: { X: 0, Z: -500 }  // Mur horizontal en bas
-        }
-    },
-    // Configuration spéciale pour la balle en mode 4 joueurs
-    BALL: {
-        DIAMETER: 26,  // Augmenté de 30% (20 * 1.3)
-        PHYSICS: {
-            INITIAL_SPEED: 3.9,     // Augmenté de 30% (3 * 1.3)
-            SPEED_INCREMENT: 0.4,   // Légèrement ajusté
-            MAX_SPEED: 17          // Augmenté légèrement (13 * 1.3)
-        },
-        COLLISION_THRESHOLD: 15 // Ajusté pour la nouvelle taille
-    }
-};
 
 // Player Controls - Common to all game modes
 export const CONTROLS_CONFIG = {
     SPEED: 5,
-    FOUR_PLAYER_SPEED: 8.75,  // Vitesse augmentée de 75% pour le mode 4 joueurs (5 * 1.75)
     MAX_Z: 245,
     MIN_Z: -245,
     KEYS: {
@@ -225,13 +179,10 @@ export const GAME_MODE_CONFIGS: Record<GameType, GameModeConfig> = {
     [GameType.FOUR_PLAYER_PONG]: {
         // Four player mode - Battle royale style
         BALL_PHYSICS: {
-            INITIAL_SPEED: FOUR_PLAYER_CONFIG.BALL.PHYSICS.INITIAL_SPEED,
-            SPEED_INCREMENT: FOUR_PLAYER_CONFIG.BALL.PHYSICS.SPEED_INCREMENT,
-            MAX_SPEED: FOUR_PLAYER_CONFIG.BALL.PHYSICS.MAX_SPEED
+            INITIAL_SPEED: BALL_CONFIG.PHYSICS.INITIAL_SPEED,
+            SPEED_INCREMENT: BALL_CONFIG.PHYSICS.SPEED_INCREMENT,
+            MAX_SPEED: BALL_CONFIG.PHYSICS.MAX_SPEED
         },
-        CONTROLS: {
-            SPEED: CONTROLS_CONFIG.FOUR_PLAYER_SPEED  // Utiliser la vitesse spécifique 4 joueurs (8.75)
-        }
     }
 };
 

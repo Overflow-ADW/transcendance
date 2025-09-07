@@ -38,6 +38,8 @@ export class Pong {
     engine: Engine;
     player0!: Mesh;
     player1!: Mesh;
+    player2!: Mesh;                // added
+    player3!: Mesh;                // added
     ball!: Mesh;
     controls!: PongControls;
     gameData: PongData;
@@ -63,8 +65,11 @@ export class Pong {
     private bottomWallPlane!: Mesh;
     private topWallGlowLayer!: GlowLayer;
     private bottomWallGlowLayer!: GlowLayer;
+
     private player0GlowLayer!: GlowLayer;
     private player1GlowLayer!: GlowLayer;
+    private player2GlowLayer!: GlowLayer; // added
+    private player3GlowLayer!: GlowLayer; // added
 
     constructor(private canvas: HTMLCanvasElement) {
         this.engine = new Engine(this.canvas, true);
@@ -196,16 +201,6 @@ export class Pong {
      * Obtient le nom de la difficulté
      */
     private getDifficultyName(difficulty: AIDifficulty): string {
-        return getDifficultyName(difficulty);
-    }
-
-    /**
-     * NOUVELLE MÉTHODE : Obtient le nom de la difficulté avec gestion des valeurs null
-     */
-    private getDifficultyNameSafe(difficulty: AIDifficulty | null): string {
-        if (!difficulty) {
-            return "Moyen"; // Valeur par défaut
-        }
         return getDifficultyName(difficulty);
     }
 
@@ -406,6 +401,35 @@ export class Pong {
             depth: PLAYER_CONFIG.DEPTH
         }, this.scene);
 
+        // --- NEW: create optional player2 & player3 (hidden by default, used in 4-player modes) ---
+        this.player2 = MeshBuilder.CreateBox("player2", {
+            width: PLAYER_CONFIG.WIDTH,
+            height: PLAYER_CONFIG.HEIGHT,
+            depth: PLAYER_CONFIG.DEPTH
+        }, this.scene);
+        const player2Mat = new StandardMaterial("player2Mat", this.scene);
+        player2Mat.diffuseColor = MAIN_COLORS.RGB_GREEN;
+        player2Mat.emissiveColor = MAIN_COLORS.RGB_GREEN.scale(0.5);
+        player2Mat.specularColor = new Color3(0.2, 0.2, 0.2);
+        this.player2.material = player2Mat;
+        // place off-screen by default so it doesn't interfere with default mode
+        this.player2.position = new Vector3(0, PLAYER_CONFIG.POSITION_Y, 1000);
+        this.player2.isVisible = false;
+
+        this.player3 = MeshBuilder.CreateBox("player3", {
+            width: PLAYER_CONFIG.WIDTH,
+            height: PLAYER_CONFIG.HEIGHT,
+            depth: PLAYER_CONFIG.DEPTH
+        }, this.scene);
+        const player3Mat = new StandardMaterial("player3Mat", this.scene);
+        player3Mat.diffuseColor = MAIN_COLORS.RGB_YELLOW;
+        player3Mat.emissiveColor = MAIN_COLORS.RGB_YELLOW.scale(0.5);
+        player3Mat.specularColor = new Color3(0.2, 0.2, 0.2);
+        this.player3.material = player3Mat;
+        this.player3.position = new Vector3(0, PLAYER_CONFIG.POSITION_Y, 1000);
+        this.player3.isVisible = false;
+        // --- END new players ---
+
         // Create player materials
         const player0Material = new StandardMaterial("player0Mat", this.scene);
         player0Material.diffuseColor = MAIN_COLORS.RGB_BLUE;
@@ -449,6 +473,17 @@ export class Pong {
         this.player1GlowLayer.blurKernelSize = GAME_CONFIG.OPTIMIZATION.GLOW_BLUR_KERNEL;
         this.player1GlowLayer.addIncludedOnlyMesh(this.player1);
 
+        // Add glow layers for player2 & player3 (won't hurt if meshes hidden)
+        this.player2GlowLayer = new GlowLayer("player2Glow", this.scene);
+        this.player2GlowLayer.intensity = 0.8;
+        this.player2GlowLayer.blurKernelSize = GAME_CONFIG.OPTIMIZATION.GLOW_BLUR_KERNEL;
+        this.player2GlowLayer.addIncludedOnlyMesh(this.player2);
+
+        this.player3GlowLayer = new GlowLayer("player3Glow", this.scene);
+        this.player3GlowLayer.intensity = 0.8;
+        this.player3GlowLayer.blurKernelSize = GAME_CONFIG.OPTIMIZATION.GLOW_BLUR_KERNEL;
+        this.player3GlowLayer.addIncludedOnlyMesh(this.player3);
+
         // Glow layers COMPLÈTEMENT séparés pour CHAQUE mur
         this.topWallGlowLayer = new GlowLayer("topWallGlow", this.scene);
         this.topWallGlowLayer.intensity = 0.6; // Intensité constante
@@ -460,7 +495,7 @@ export class Pong {
         this.bottomWallGlowLayer.blurKernelSize = GAME_CONFIG.OPTIMIZATION.GLOW_BLUR_KERNEL;
         this.bottomWallGlowLayer.addIncludedOnlyMesh(this.bottomWallPlane);
 
-        // Setup controls
+        // Setup controls (now supports optional player2/player3)
         this.controls = new PongControls(
             scene, 
             this.player0, 
@@ -470,7 +505,10 @@ export class Pong {
                 speed: CONTROLS_CONFIG.SPEED, 
                 maxZ: CONTROLS_CONFIG.MAX_Z, 
                 minZ: CONTROLS_CONFIG.MIN_Z 
-            }
+            },
+            // pass the optional player2/player3 meshes so controls will handle them too
+            this.player2,
+            this.player3
         );
 
         // NOUVEAU : Définir la référence à la balle pour l'IA
