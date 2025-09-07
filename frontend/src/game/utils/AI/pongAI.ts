@@ -171,21 +171,21 @@ export class PongAI {
                 this.lastBallVelocityX = fullVelocity.x;
                 return;
             }
-            
-            // Si la balle était dans la zone centrale et entre dans la zone droite
-            if (wasInMiddleZone && isInRightZone && currentVelX > 0) {
-                console.log(`⚡ TRANSITION ZONE CENTRALE → DROITE ! Pos: ${ballPos.x.toFixed(1)}`);
-                if (!this.ballTowardsAI) {
-                    const fullVelocity = this.estimateFullVelocity(ballPos);
-                    if (fullVelocity.x <= 0) {
-                        fullVelocity.x = Math.max(250, Math.abs(currentVelX));
-                    }
-                    console.log(`   Vélocité complète utilisée: X=${fullVelocity.x.toFixed(1)}, Z=${fullVelocity.z.toFixed(1)}`);
-                    this.createSnapshot(ballPos, fullVelocity, "ZONE_MIDDLE_TO_RIGHT");
-                    this.ballTowardsAI = true;
-                    this.lastBallVelocityX = fullVelocity.x;
-                    return;
+        }
+        
+        // Si la balle était dans la zone centrale et entre dans la zone droite  
+        if (wasInMiddleZone && isInRightZone && currentVelX > 0) {
+            console.log(`⚡ TRANSITION ZONE CENTRALE → DROITE ! Pos: ${ballPos.x.toFixed(1)}`);
+            if (!this.ballTowardsAI) {
+                const fullVelocity = this.estimateFullVelocity(ballPos);
+                if (fullVelocity.x <= 0) {
+                    fullVelocity.x = Math.max(250, Math.abs(currentVelX));
                 }
+                console.log(`   Vélocité complète utilisée: X=${fullVelocity.x.toFixed(1)}, Z=${fullVelocity.z.toFixed(1)}`);
+                this.createSnapshot(ballPos, fullVelocity, "ZONE_MIDDLE_TO_RIGHT");
+                this.ballTowardsAI = true;
+                this.lastBallVelocityX = fullVelocity.x;
+                return;
             }
         }
         
