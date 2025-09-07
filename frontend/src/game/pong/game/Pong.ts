@@ -30,13 +30,16 @@ import {
 } from "@/game/utils/pongValues";
 import { IPongGameMode } from "@/game/modes/DefaultPongMode";
 import { GameModeFactory } from "@/game/factories/GameModeFactory";
-import { AIDifficulty } from "@/game/utils/pongAI";
+import { AIDifficulty } from "@/game/utils/AI/pongAI";
+import { getDifficultyName } from "@/game/utils/AI/aiConfig";
 
 export class Pong {
     scene: Scene;
     engine: Engine;
     player0!: Mesh;
     player1!: Mesh;
+    player2!: Mesh;                // added
+    player3!: Mesh;                // added
     ball!: Mesh;
     controls!: PongControls;
     gameData: PongData;
@@ -62,8 +65,11 @@ export class Pong {
     private bottomWallPlane!: Mesh;
     private topWallGlowLayer!: GlowLayer;
     private bottomWallGlowLayer!: GlowLayer;
+
     private player0GlowLayer!: GlowLayer;
     private player1GlowLayer!: GlowLayer;
+    private player2GlowLayer!: GlowLayer; // added
+    private player3GlowLayer!: GlowLayer; // added
 
     constructor(private canvas: HTMLCanvasElement) {
         this.engine = new Engine(this.canvas, true);
@@ -82,8 +88,6 @@ export class Pong {
         
         // Activer le suivi de la barre avec la balle
         this.enableBarColorTracking();
-
-        this.enableAI(AIDifficulty.EXTREME);
         
         // Initialiser le mode de jeu par défaut
         this.setGameMode(this.gameData.gameType);
@@ -142,7 +146,7 @@ export class Pong {
 
     /**
      * Configure et active l'IA
-     * @param difficulty Niveau de difficulté (1-5)
+     * @param difficulty Niveau de difficulté (1-3)
      */
     public enableAI(difficulty: AIDifficulty = AIDifficulty.MEDIUM): void {
         // Configurer l'IA
@@ -197,24 +201,7 @@ export class Pong {
      * Obtient le nom de la difficulté
      */
     private getDifficultyName(difficulty: AIDifficulty): string {
-        const names = {
-            [AIDifficulty.VERY_EASY]: "Très Facile",
-            [AIDifficulty.EASY]: "Facile", 
-            [AIDifficulty.MEDIUM]: "Moyen",
-            [AIDifficulty.HARD]: "Difficile",
-            [AIDifficulty.EXTREME]: "Extrême"
-        };
-        return names[difficulty];
-    }
-
-    /**
-     * NOUVELLE MÉTHODE : Obtient le nom de la difficulté avec gestion des valeurs null
-     */
-    private getDifficultyNameSafe(difficulty: AIDifficulty | null): string {
-        if (!difficulty) {
-            return "Moyen"; // Valeur par défaut
-        }
-        return this.getDifficultyName(difficulty);
+        return getDifficultyName(difficulty);
     }
 
     /**
@@ -414,6 +401,35 @@ export class Pong {
             depth: PLAYER_CONFIG.DEPTH
         }, this.scene);
 
+        // --- NEW: create optional player2 & player3 (hidden by default, used in 4-player modes) ---
+        this.player2 = MeshBuilder.CreateBox("player2", {
+            width: PLAYER_CONFIG.WIDTH,
+            height: PLAYER_CONFIG.HEIGHT,
+            depth: PLAYER_CONFIG.DEPTH
+        }, this.scene);
+        const player2Mat = new StandardMaterial("player2Mat", this.scene);
+        player2Mat.diffuseColor = MAIN_COLORS.RGB_GREEN;
+        player2Mat.emissiveColor = MAIN_COLORS.RGB_GREEN.scale(0.5);
+        player2Mat.specularColor = new Color3(0.2, 0.2, 0.2);
+        this.player2.material = player2Mat;
+        // place off-screen by default so it doesn't interfere with default mode
+        this.player2.position = new Vector3(0, PLAYER_CONFIG.POSITION_Y, 1000);
+        this.player2.isVisible = false;
+
+        this.player3 = MeshBuilder.CreateBox("player3", {
+            width: PLAYER_CONFIG.WIDTH,
+            height: PLAYER_CONFIG.HEIGHT,
+            depth: PLAYER_CONFIG.DEPTH
+        }, this.scene);
+        const player3Mat = new StandardMaterial("player3Mat", this.scene);
+        player3Mat.diffuseColor = MAIN_COLORS.RGB_YELLOW;
+        player3Mat.emissiveColor = MAIN_COLORS.RGB_YELLOW.scale(0.5);
+        player3Mat.specularColor = new Color3(0.2, 0.2, 0.2);
+        this.player3.material = player3Mat;
+        this.player3.position = new Vector3(0, PLAYER_CONFIG.POSITION_Y, 1000);
+        this.player3.isVisible = false;
+        // --- END new players ---
+
         // Create player materials
         const player0Material = new StandardMaterial("player0Mat", this.scene);
         player0Material.diffuseColor = MAIN_COLORS.RGB_BLUE;
@@ -456,6 +472,17 @@ export class Pong {
         this.player1GlowLayer.intensity = 0.8; // Intensité constante
         this.player1GlowLayer.blurKernelSize = GAME_CONFIG.OPTIMIZATION.GLOW_BLUR_KERNEL;
         this.player1GlowLayer.addIncludedOnlyMesh(this.player1);
+
+        // Add glow layers for player2 & player3 (won't hurt if meshes hidden)
+        this.player2GlowLayer = new GlowLayer("player2Glow", this.scene);
+        this.player2GlowLayer.intensity = 0.8;
+        this.player2GlowLayer.blurKernelSize = GAME_CONFIG.OPTIMIZATION.GLOW_BLUR_KERNEL;
+        this.player2GlowLayer.addIncludedOnlyMesh(this.player2);
+
+        this.player3GlowLayer = new GlowLayer("player3Glow", this.scene);
+        this.player3GlowLayer.intensity = 0.8;
+        this.player3GlowLayer.blurKernelSize = GAME_CONFIG.OPTIMIZATION.GLOW_BLUR_KERNEL;
+        this.player3GlowLayer.addIncludedOnlyMesh(this.player3);
 
         // Glow layers COMPLÈTEMENT séparés pour CHAQUE mur
         this.topWallGlowLayer = new GlowLayer("topWallGlow", this.scene);
@@ -1366,7 +1393,6 @@ export class Pong {
             setTimeout(() => {
                 paddle.isVisible = true;
             }, 800);  // TIMING ORIGINAL LONG
-            
             setTimeout(() => {
                 paddleParticles.dispose();
             }, 3000); // TIMING ORIGINAL TRÈS LONG

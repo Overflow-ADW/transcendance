@@ -1,4 +1,5 @@
-import { EventEmitter } from 'events';
+// Use local EventEmitter instead of Node.js events module
+import { EventEmitter } from './eventEmitter';
 
 /**
  * Types de jeu disponibles
@@ -7,7 +8,8 @@ export enum GameType {
     DEFAULT_PONG = 0,
     SPEED_PONG = 1,
     OBSTACLE_PONG = 2,
-    CUSTOM_PONG = 3
+    CUSTOM_PONG = 3,
+    FOUR_PLAYER_PONG = 4
 }
 
 /**

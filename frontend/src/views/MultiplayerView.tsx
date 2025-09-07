@@ -83,12 +83,12 @@ const AddPlayerModal = ({ isOpen, onClose, onAdd }: AddPlayerModalProps) => {
 export default function MultiplayerView() {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([
-    { id: 1, name: "YOU", color: "#8A00C4", isHost: true }
+    { id: 1, name: "YOU", color: "#2323FF", isHost: true }
   ]);
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Couleurs pour les joueurs
-  const playerColors = ["#8A00C4", "#2323FF", "#FF6B35", "#28A745"];
+  const playerColors = ["#2323FF", "#8A00C4", "#FFD700", "#28A745"]; // Bleu, Violet, Jaune, Vert
 
   // Charger les joueurs sauvegardés au démarrage
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function MultiplayerView() {
       setPlayers(JSON.parse(savedPlayers));
     } else {
       // Sauvegarder le joueur par défaut
-      const defaultPlayers = [{ id: 1, name: "YOU", color: "#8A00C4", isHost: true }];
+      const defaultPlayers = [{ id: 1, name: "YOU", color: "#2323FF", isHost: true }];
       localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
     }
   }, []);
@@ -263,18 +263,19 @@ export default function MultiplayerView() {
           <h4 className="text-white font-bold mb-2">HOW TO PLAY</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-white/70">
             <div>
-              <span className="font-bold text-purple-400">Player 1 (YOU):</span> W/S keys
+              <span className="font-bold text-blue-400">Player 1 (Left):</span> Z/S keys
             </div>
             <div>
-              <span className="font-bold text-blue-400">Player 2:</span> ↑/↓ arrows
+              <span className="font-bold text-purple-400">Player 2 (Right):</span> O/L keys
             </div>
             <div>
-              <span className="font-bold text-orange-400">Player 3:</span> I/K keys
+              <span className="font-bold text-yellow-400">Player 3 (Top):</span> I/K keys
             </div>
             <div>
-              <span className="font-bold text-green-400">Player 4:</span> 8/5 numpad
+              <span className="font-bold text-green-400">Player 4 (Bottom):</span> 8/5 numpad
             </div>
           </div>
+          <p className="text-white/50 text-xs mt-4">Last player standing wins!</p>
         </div>
 
         {/* Modal d'ajout de joueur */}
