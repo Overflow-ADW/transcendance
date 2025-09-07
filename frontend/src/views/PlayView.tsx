@@ -36,6 +36,13 @@ export default function PlayView() {
               1 vs 1
             </button>
             
+			<button 
+              onClick={() => router.push("/multi")}
+              className="w-full py-8 px-12 bg-transparent border-2 border-white text-white text-3xl font-bold rounded-2xl transition-all duration-300 hover:bg-purple-600"
+            >
+              multiplayer local
+            </button>
+
             <button 
               onClick={() => router.push("/tournament")}
               className="w-full py-8 px-12 bg-transparent border-2 border-white text-white text-3xl font-bold rounded-2xl transition-all duration-300 hover:bg-purple-600"
