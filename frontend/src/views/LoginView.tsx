@@ -32,9 +32,10 @@ export default function LoginView() {
   return <LoginViewContent />;
 }
 
+
 function LoginViewContent() {
   const router = useRouter();
-  const { lang, setView } = useApp();
+  const { lang, addNotification } = useApp();
   const { login, user } = useAuth();
 
   // États du formulaire
@@ -43,12 +44,12 @@ function LoginViewContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Si l'utilisateur est déjà connecté, rediriger
+  // Rediriger si déjà connecté
   useEffect(() => {
     if (user) {
-      setView("home");
+      router.push("/settings");
     }
-  }, [user, setView]);
+  }, [user, router]);
 
   // Petite validation locale
   const validate = () => {
@@ -67,8 +68,19 @@ function LoginViewContent() {
 
     setIsSubmitting(true);
     try {
-      await login({ username, password });
-      // La redirection sera gérée par l'effet useEffect ci-dessus
+      const result = await login({ username, password });
+      if (result.success) {
+        addNotification && addNotification({
+          type: "success",
+          message: "Connexion réussie ! Bienvenue.",
+        });
+        router.push("/settings");
+      } else if (result.requires2FA) {
+        // TODO: gérer la 2FA si besoin
+        setFormError("Two-factor authentication required.");
+      } else {
+        setFormError(result.error || "Login failed");
+      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Login failed");
     } finally {

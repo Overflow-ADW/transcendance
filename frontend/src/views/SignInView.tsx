@@ -78,7 +78,7 @@ export default function SignInView() {
 
 function SignInViewContent() {
   const router = useRouter();
-  const { lang } = useApp();
+  const { lang, addNotification } = useApp();
 
   // États du formulaire
   const [username, setUsername] = useState("");
@@ -165,8 +165,12 @@ function SignInViewContent() {
         localStorage.setItem("refreshToken", refreshToken);
       }
 
-      // Redirection après création de compte
-      router.push("/profile");
+      // Notification succès et redirection vers login
+      addNotification && addNotification({
+        type: "success",
+        message: "Compte créé avec succès ! Connecte-toi pour continuer.",
+      });
+      router.push("/login");
     } catch (err) {
       setFormError("Network error. Please check your connection and try again.");
     } finally {
