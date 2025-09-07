@@ -25,11 +25,30 @@ class ApiClient {
   }
 
   /**
-   * Récupérer le token depuis localStorage
+   * Récupérer le token depuis localStorage ou sessionStorage
    */
   getToken(): string | null {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('accessToken') || localStorage.getItem('auth_token');
+      // Vérifier d'abord this.token
+      if (this.token) {
+        return this.token;
+      }
+      
+      // Ensuite vérifier sessionStorage (navigation actuelle)
+      const sessionToken = sessionStorage.getItem('accessToken');
+      if (sessionToken) {
+        this.token = sessionToken;
+        return sessionToken;
+      }
+      
+      // Enfin vérifier localStorage (persistance longue durée)
+      const localToken = localStorage.getItem('accessToken') || localStorage.getItem('auth_token');
+      if (localToken) {
+        this.token = localToken;
+        // Synchroniser avec sessionStorage
+        sessionStorage.setItem('accessToken', localToken);
+        return localToken;
+      }
     }
     return null;
   }
@@ -40,7 +59,13 @@ class ApiClient {
   setToken(token: string): void {
     this.token = token;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', token);
+      try {
+        localStorage.setItem('accessToken', token);
+        // Stocker aussi dans sessionStorage pour la persistance pendant la navigation
+        sessionStorage.setItem('accessToken', token);
+      } catch (e) {
+        console.error('Error setting token:', e);
+      }
     }
   }
 
@@ -50,11 +75,20 @@ class ApiClient {
   clearAuth(): void {
     this.token = null;
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
+      try {
+        // Nettoyer localStorage
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        
+        // Nettoyer sessionStorage
+        sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('refreshToken');
+      } catch (e) {
+        console.error('Error clearing auth:', e);
+      }
     }
   }
 
@@ -62,7 +96,7 @@ class ApiClient {
    * Wrapper fetch avec authentification automatique
    */
   async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const token = this.token || this.getToken();
+    let token = this.token || this.getToken();
     
     const config: RequestInit = {
       headers: {
@@ -76,7 +110,7 @@ class ApiClient {
     const url = endpoint.startsWith('http') ? endpoint : `${this.baseURL}${endpoint}`;
 
     try {
-      const response = await fetch(url, config);
+      let response = await fetch(url, config);
       
       // Gestion automatique des erreurs d'authentification
       if (response.status === 401) {
@@ -84,24 +118,28 @@ class ApiClient {
         const refreshed = await this.tryRefreshToken();
         
         if (refreshed) {
-          // Retry avec le nouveau token
+          // Mettre à jour le token dans la config
+          token = this.token;
           const newConfig = {
             ...config,
             headers: {
               ...config.headers,
-              'Authorization': `Bearer ${this.token}`
+              'Authorization': `Bearer ${token}`
             }
           };
-          return fetch(url, newConfig);
-        } else {
-          // Rediriger vers login si refresh impossible
-          this.clearAuth();
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+          // Réessayer la requête avec le nouveau token
+          response = await fetch(url, newConfig);
+          
+          // Si ça échoue encore après le refresh, c'est une vraie erreur d'auth
+          if (response.status === 401) {
+            throw new Error('Authentication required');
           }
+        } else {
           throw new Error('Authentication required');
         }
       }
+      
+      return response;
 
       return response;
     } catch (error) {
@@ -162,12 +200,32 @@ class ApiClient {
   }
 
   async verifyToken(token: string) {
-    const response = await fetch(`${this.baseURL}/api/auth/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token })
-    });
-    return response.json();
+    try {
+      const response = await fetch(`${this.baseURL}/api/auth/verify`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ token })
+      });
+
+      const data = await response.json();
+      
+      // Considérer la réponse comme valide si le code est TOKEN_VALID ou si valid est true
+      if (data.code === 'TOKEN_VALID' || data.valid) {
+        return {
+          valid: true,
+          user: data.user,
+          ...data
+        };
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Token verification error:', error);
+      throw error;
+    }
   }
 
   async logout() {
@@ -175,7 +233,7 @@ class ApiClient {
     return response.json();
   }
 
-  // ============ MÉTHODES UTILISATEUR ============
+  // ============ MÉTHODES UTILISATEUR ET PROFIL ============
 
   async getProfile() {
     const response = await this.request('/api/users/profile');
@@ -186,6 +244,45 @@ class ApiClient {
     const response = await this.request('/api/users/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData)
+    });
+    return response.json();
+  }
+
+  async uploadAvatar(avatarUrl: string) {
+    const response = await this.request('/api/users/avatar', {
+      method: 'POST',
+      body: JSON.stringify({ avatarUrl })
+    });
+    return response.json();
+  }
+
+  // ============ MÉTHODES TOURNOI ============
+
+  async searchUsers(query: string) {
+    const response = await this.request(`/api/users/search?q=${encodeURIComponent(query)}`);
+    return response.json();
+  }
+
+  async getTournamentParticipants(tournamentId: number) {
+    const response = await this.request(`/api/tournaments/${tournamentId}/participants`);
+    return response.json();
+  }
+
+  async joinTournament(tournamentId: number) {
+    const response = await this.request(`/api/tournaments/${tournamentId}/join`, {
+      method: 'POST'
+    });
+    return response.json();
+  }
+
+  async createTournament(data: {
+    name: string;
+    maxParticipants: number;
+    startTime?: string;
+  }) {
+    const response = await this.request('/api/tournaments', {
+      method: 'POST',
+      body: JSON.stringify(data)
     });
     return response.json();
   }
