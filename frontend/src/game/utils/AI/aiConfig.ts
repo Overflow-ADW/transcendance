@@ -7,7 +7,7 @@ import { AIDifficulty, AIConfig } from "./aiTypes";
 export const AI_CONFIGS: Record<AIDifficulty, AIConfig> = {
     [AIDifficulty.EASY]: {
         useSnapshotSystem: true,    
-        precisionFactor: 0.65,      // Réduit pour plus d'erreurs humaines
+        precisionFactor: 0.45,      // Réduit pour plus d'erreurs humaines
         reactionTime: 180,          // Plus lent pour être prévisible  
         positionError: 25,          // Plus d'erreur pour manquer parfois
         anticipationRange: 250,     // Anticipation réduite
@@ -15,7 +15,7 @@ export const AI_CONFIGS: Record<AIDifficulty, AIConfig> = {
     },
     [AIDifficulty.MEDIUM]: {
         useSnapshotSystem: true,    
-        precisionFactor: 0.80,      // Bon équilibre
+        precisionFactor: 0.65,      // Bon équilibre
         reactionTime: 120,          // Réaction humaine normale
         positionError: 15,          // Erreur modérée
         anticipationRange: 350,     // Bonne anticipation
