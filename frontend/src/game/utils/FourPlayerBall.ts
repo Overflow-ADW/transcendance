@@ -1,14 +1,17 @@
-import { Scene, Mesh, Vector3 } from "@babylonjs/core";
+import { Scene, Mesh, Vector3, Color3, ParticleSystem, Texture, Color4, MeshBuilder, StandardMaterial } from "@babylonjs/core";
 import { FourPlayerData, FourPlayerGameState } from "./FourPlayerData";
-import { FOUR_PLAYER_CONFIG } from "./pongValues";
+import { FOUR_PLAYER_CONFIG, MAIN_COLORS } from "./pongValues";
 
 /**
  * Interface pour la configuration physique de la balle 4 joueurs
  */
 export interface FourPlayerBallPhysics {
-    initialSpeed: number;
-    speedIncrement: number;
-    maxSpeed: number;
+    checkCollisionWithPlayer: (ballPosition: Vector3, playerMesh: Mesh) => boolean;
+    checkCollisionWithWall: (ballPosition: Vector3, wallMesh: Mesh) => boolean;
+    handlePlayerCollision: (playerIndex: number, ballPosition: Vector3, playerPosition: Vector3) => void;
+    handleWallCollision: (wallNormal: Vector3) => void;
+    updateBallPosition: (deltaTime: number) => void;
+    resetBall: () => void;
 }
 
 /**
@@ -26,8 +29,8 @@ export class FourPlayerBall {
     private velocity: Vector3 = new Vector3(0, 0, 0);
     private currentSpeed: number = 0;
     private isActive: boolean = false;
-    private lastHitPlayer: number = -1; // Pour éviter les collisions multiples
-    private lastHitTime: number = 0; // Timestamp de la dernière collision
+    private lastHitPlayer: number = -1;
+    private lastHitTime: number = 0;
 
     constructor(
         scene: Scene,
@@ -47,277 +50,304 @@ export class FourPlayerBall {
         this.parentGame = parentGame;
 
         this.setupBallMovement();
+    }
+
+    private setupBallMovement(): void {
+        // Configuration initiale de la balle
+        this.currentSpeed = FOUR_PLAYER_CONFIG.BALL.PHYSICS.INITIAL_SPEED;
+        this.calculateRandomDirection();
+        
+        // Démarrer le mouvement
+        this.isActive = true;
         this.startNewRound();
     }
 
-    /**
-     * Configure le mouvement de la balle
-     */
-    private setupBallMovement(): void {
-        this.scene.registerBeforeRender(() => {
-            if (this.isActive && this.gameData.gameState === FourPlayerGameState.PLAYING) {
-                this.updateBallPosition();
-                this.checkCollisions();
-            }
-        });
-    }
-
-    /**
-     * Démarre un nouveau round avec une direction aléatoire naturelle
-     */
     private startNewRound(): void {
-        // Repositionner la balle au centre
+        // Position au centre
         this.ball.position = new Vector3(0, 0, 0);
-        this.ball.isVisible = true;
-
-        // Réinitialiser les protections contre les collisions multiples
-        this.lastHitPlayer = -1;
-        this.lastHitTime = 0;
-
-        // Direction aléatoire à 360° (naturelle)
+        
+        // Direction aléatoire
         this.calculateRandomDirection();
         
-        this.currentSpeed = this.physics.initialSpeed;
+        // Réinitialiser les variables
+        this.lastHitPlayer = -1;
+        this.lastHitTime = 0;
         this.isActive = true;
-
-        console.log(`Nouvelle balle avec direction aléatoire`);
     }
 
-    /**
-     * Calcule une direction aléatoire naturelle à 360°
-     */
     private calculateRandomDirection(): void {
-        // Angle aléatoire entre 0 et 2π (360 degrés)
+        // Angle aléatoire entre 0 et 2π
         const angle = Math.random() * Math.PI * 2;
         
-        // Convertir l'angle en direction normalisée
+        // Direction normalisée
         const direction = new Vector3(
             Math.cos(angle),
             0,
             Math.sin(angle)
-        );
-
-        this.velocity = direction.normalize();
+        ).normalize();
+        
+        // Appliquer la vitesse
+        this.velocity = direction.scale(this.currentSpeed);
     }
 
-    /**
-     * Met à jour la position de la balle
-     */
-    private updateBallPosition(): void {
-        const deltaTime = this.scene.getEngine().getDeltaTime() / 1000;
-        const movement = this.velocity.scale(this.currentSpeed * deltaTime * 60);
-        this.ball.position.addInPlace(movement);
-    }
+    public update(deltaTime: number): void {
+        if (!this.isActive) return;
 
-    /**
-     * Vérifie les collisions avec les joueurs et les zones de goal
-     */
-    private checkCollisions(): void {
+        // Sauvegarder l'ancienne position
+        const oldPosition = this.ball.position.clone();
+        
+        // Calculer la nouvelle position
+        const newPosition = this.ball.position.add(this.velocity.scale(deltaTime));
+        
         // Vérifier les collisions avec les joueurs actifs
-        this.players.forEach((player, index) => {
-            if (this.gameData.isPlayerActive(index) && player.isVisible) {
-                if (this.checkPlayerCollision(player, index)) {
-                    this.handlePlayerHit(player, index);
+        for (let i = 0; i < this.players.length; i++) {
+            if (this.gameData.isPlayerActive(i) && this.players[i]) {
+                if (this.checkCollisionWithPlayer(newPosition, this.players[i])) {
+                    this.handlePlayerCollision(i, newPosition, this.players[i].position);
+                    return;
                 }
             }
-        });
+        }
 
-        // Vérifier les collisions avec les murs colorés
-        this.checkWallCollisions();
-
-        // Vérifier si la balle est sortie du terrain (goal)
-        this.checkGoalZones();
-    }
-
-    /**
-     * Vérifie les collisions avec les murs colorés
-     */
-    private checkWallCollisions(): void {
-        const ballPos = this.ball.position;
-        const ballRadius = FOUR_PLAYER_CONFIG.BALL.DIAMETER / 2; // Calculer le rayon à partir du diamètre
-        
-        this.walls.forEach((wall) => {
-            if (!wall.isVisible) return; // Ignorer les murs invisibles
-            
-            const wallPos = wall.position;
-            const wallBounds = wall.getBoundingInfo().boundingBox;
-            
-            // Vérifier collision avec le mur
-            const withinX = Math.abs(ballPos.x - wallPos.x) < (wallBounds.maximumWorld.x - wallBounds.minimumWorld.x) / 2 + ballRadius;
-            const withinZ = Math.abs(ballPos.z - wallPos.z) < (wallBounds.maximumWorld.z - wallBounds.minimumWorld.z) / 2 + ballRadius;
-            
-            if (withinX && withinZ) {
-                this.handleWallCollision(wall);
+        // Vérifier les collisions avec les murs colorés (joueurs éliminés)
+        for (let i = 0; i < this.walls.length; i++) {
+            if (this.walls[i] && this.checkCollisionWithWall(newPosition, this.walls[i])) {
+                this.handleWallCollision(i, newPosition);
+                return;
             }
-        });
-    }
-
-    /**
-     * Gère la collision avec un mur coloré
-     */
-    private handleWallCollision(wall: Mesh): void {
-        const wallPos = wall.position;
-        const ballPos = this.ball.position;
-        
-        // Déterminer la direction de rebond selon la position du mur
-        if (Math.abs(wallPos.x) > Math.abs(wallPos.z)) {
-            // Mur vertical (gauche ou droite) - inverser X
-            this.velocity.x = -this.velocity.x;
-        } else {
-            // Mur horizontal (haut ou bas) - inverser Z
-            this.velocity.z = -this.velocity.z;
         }
-        
-        // Pousser la balle pour éviter qu'elle reste collée au mur
-        const pushDistance = 40; // Ajusté pour la nouvelle taille
-        this.ball.position.addInPlace(this.velocity.scale(pushDistance));
-        
-        console.log(`Collision avec mur ${wall.name} - nouvelle direction: ${this.velocity.toString()}`);
-    }
 
-    /**
-     * Vérifie si la balle est dans une zone de goal
-     */
-    private checkGoalZones(): void {
-        const ballPos = this.ball.position;
-        const { LEFT, RIGHT, TOP, BOTTOM } = FOUR_PLAYER_CONFIG.GOAL_ZONES;
-
-        // Goal côté gauche (Player 0)
-        if (ballPos.x < LEFT && this.gameData.isPlayerActive(0)) {
-            this.handleGoal(0);
+        // Vérifier si la balle sort des limites du terrain
+        if (this.isBallOutOfBounds(newPosition)) {
+            this.handleBallOutOfBounds();
             return;
         }
 
-        // Goal côté droit (Player 1)
-        if (ballPos.x > RIGHT && this.gameData.isPlayerActive(1)) {
-            this.handleGoal(1);
+        // Mettre à jour la position de la balle
+        this.ball.position = newPosition;
+    }
+
+    private checkCollisionWithPlayer(ballPosition: Vector3, playerMesh: Mesh): boolean {
+        if (!playerMesh) return false;
+        
+        const distance = Vector3.Distance(ballPosition, playerMesh.position);
+        const ballRadius = FOUR_PLAYER_CONFIG.BALL.DIAMETER / 2;
+        const playerRadius = Math.max(FOUR_PLAYER_CONFIG.PLAYER_WIDTH, FOUR_PLAYER_CONFIG.PLAYER_DEPTH) / 2;
+        const collisionDistance = ballRadius + playerRadius;
+        
+        return distance <= collisionDistance;
+    }
+
+    private checkCollisionWithWall(ballPosition: Vector3, wallMesh: Mesh): boolean {
+        if (!wallMesh) return false;
+        
+        // Vérification simple de collision avec les murs (boîtes englobantes)
+        const ballRadius = FOUR_PLAYER_CONFIG.BALL.DIAMETER / 2;
+        const wallBounds = wallMesh.getBoundingInfo().boundingBox;
+        
+        return (ballPosition.x + ballRadius >= wallBounds.minimumWorld.x &&
+                ballPosition.x - ballRadius <= wallBounds.maximumWorld.x &&
+                ballPosition.z + ballRadius >= wallBounds.minimumWorld.z &&
+                ballPosition.z - ballRadius <= wallBounds.maximumWorld.z);
+    }
+
+    private handlePlayerCollision(playerIndex: number, ballPosition: Vector3, playerPosition: Vector3): void {
+        // Éviter les collisions multiples rapprochées
+        const currentTime = Date.now();
+        if (this.lastHitPlayer === playerIndex && currentTime - this.lastHitTime < 100) {
             return;
         }
 
-        // Goal côté haut (Player 2)
-        if (ballPos.z > TOP && this.gameData.isPlayerActive(2)) {
-            this.handleGoal(2);
-            return;
-        }
-
-        // Goal côté bas (Player 3)
-        if (ballPos.z < BOTTOM && this.gameData.isPlayerActive(3)) {
-            this.handleGoal(3);
-            return;
-        }
-    }
-
-    /**
-     * Gère un goal (élimination d'un joueur)
-     */
-    private handleGoal(playerId: number): void {
-        console.log(`Goal ! Joueur ${playerId} éliminé`);
-        
-        // Éliminer le joueur
-        this.gameData.eliminatePlayer(playerId);
-        
-        // Effet de désintégration de la balle
-        if (this.parentGame && this.parentGame.createBallDisintegrationEffect) {
-            this.parentGame.createBallDisintegrationEffect(playerId);
-        }
-
-        // Arrêter la balle temporairement
-        this.isActive = false;
-        
-        // Démarrer un nouveau round après un délai
-        setTimeout(() => {
-            if (this.gameData.activePlayersCount > 1) {
-                this.startNewRound();
-            }
-        }, 2000);
-    }
-
-    /**
-     * Vérifie la collision avec un joueur
-     */
-    private checkPlayerCollision(player: Mesh, playerIndex: number): boolean {
-        if (!player.isVisible) return false; // Ne pas détecter de collision si le joueur est invisible
-        
-        const ballPos = this.ball.position;
-        const playerPos = player.position;
-        
-        // Utiliser les nouvelles dimensions augmentées pour le mode 4 joueurs
-        const isHorizontal = playerIndex >= 2;
-        const playerWidth = isHorizontal ? FOUR_PLAYER_CONFIG.PLAYER_WIDTH : FOUR_PLAYER_CONFIG.PLAYER_DEPTH;
-        const playerDepth = isHorizontal ? FOUR_PLAYER_CONFIG.PLAYER_DEPTH : FOUR_PLAYER_CONFIG.PLAYER_WIDTH;
-        
-        // Seuil de collision ajusté pour la nouvelle taille de balle
-        const threshold = FOUR_PLAYER_CONFIG.BALL.COLLISION_THRESHOLD;
-
-        const withinX = Math.abs(ballPos.x - playerPos.x) < (playerWidth / 2 + threshold);
-        const withinZ = Math.abs(ballPos.z - playerPos.z) < (playerDepth / 2 + threshold);
-        
-        return withinX && withinZ;
-    }
-
-    /**
-     * Gère la collision avec un joueur
-     */
-    private handlePlayerHit(player: Mesh, playerIndex: number): void {
-        if (!player.isVisible) return;
-        
-        // Éviter les collisions multiples avec le même joueur
-        const currentTime = performance.now();
-        if (this.lastHitPlayer === playerIndex && (currentTime - this.lastHitTime) < 500) {
-            return; // Ignorer si collision trop récente avec le même joueur (réduit de 750ms à 500ms)
-        }
-        
         this.lastHitPlayer = playerIndex;
         this.lastHitTime = currentTime;
-        
-        // Calculer une direction simple et prévisible
-        let newDirection: Vector3;
-        
-        if (playerIndex === 0) { // Gauche - renvoie vers la droite
-            newDirection = new Vector3(1, 0, 0);
-        } else if (playerIndex === 1) { // Droite - renvoie vers la gauche  
-            newDirection = new Vector3(-1, 0, 0);
-        } else if (playerIndex === 2) { // Haut - renvoie vers le bas
-            newDirection = new Vector3(0, 0, -1);
-        } else { // Bas - renvoie vers le haut
-            newDirection = new Vector3(0, 0, 1);
-        }
 
-        // Ajouter une petite variation aléatoire pour éviter les trajectoires répétitives
-        const randomVariation = 0.15; // Réduit pour plus de prévisibilité
-        newDirection.x += (Math.random() - 0.5) * randomVariation;
-        newDirection.z += (Math.random() - 0.5) * randomVariation;
-
-        // Normaliser la direction
-        this.velocity = newDirection.normalize();
+        // Calculer la direction de rebond
+        const direction = ballPosition.subtract(playerPosition).normalize();
         
-        // Augmenter légèrement la vitesse
+        // Augmenter la vitesse
         this.currentSpeed = Math.min(
-            this.currentSpeed + this.physics.speedIncrement,
-            this.physics.maxSpeed
+            this.currentSpeed * FOUR_PLAYER_CONFIG.BALL.PHYSICS.SPEED_INCREMENT,
+            FOUR_PLAYER_CONFIG.BALL.PHYSICS.MAX_SPEED
         );
 
-        // Pousser la balle IMMÉDIATEMENT avec une distance adaptée à la nouvelle taille
-        const pushDistance = 80; // Distance augmentée pour la plus grosse balle
-        this.ball.position.addInPlace(this.velocity.scale(pushDistance));
-
-        console.log(`Joueur ${playerIndex} hit - direction: ${this.velocity.toString()}, vitesse: ${this.currentSpeed}`);
+        // Appliquer la nouvelle vélocité
+        this.velocity = direction.scale(this.currentSpeed);
+        
+        // Effet visuel de collision
+        this.createCollisionEffect(ballPosition, new Color3(1, 1, 1)); // White color for collision
     }
 
-    /**
-     * Réinitialise la balle
-     */
-    public reset(): void {
-        this.ball.position = new Vector3(0, 0, 0);
-        this.ball.isVisible = true;
-        this.velocity = new Vector3(0, 0, 0);
-        this.currentSpeed = 0;
-        this.isActive = false;
-        // SUPPRIMÉ : Plus d'obstacles à nettoyer
+    private handleWallCollision(wallIndex: number, ballPosition: Vector3): void {
+        // Déterminer la normale du mur selon sa position
+        let normal: Vector3;
         
-        // Démarrer un nouveau round après un court délai
+        switch (wallIndex) {
+            case 0: // Mur gauche
+                normal = new Vector3(1, 0, 0);
+                break;
+            case 1: // Mur droit
+                normal = new Vector3(-1, 0, 0);
+                break;
+            case 2: // Mur haut
+                normal = new Vector3(0, 0, -1);
+                break;
+            case 3: // Mur bas
+                normal = new Vector3(0, 0, 1);
+                break;
+            default:
+                normal = new Vector3(1, 0, 0);
+        }
+
+        // Calculer la réflexion
+        const dotProduct = Vector3.Dot(this.velocity, normal);
+        this.velocity = this.velocity.subtract(normal.scale(2 * dotProduct));
+        
+        // Effet visuel
+        this.createCollisionEffect(ballPosition, new Color3(1, 0, 0)); // Red color for wall collision
+    }
+
+    private isBallOutOfBounds(position: Vector3): boolean {
+        const fieldWidth = 1000; // Use default field dimensions
+        const fieldHeight = 600;
+        return (position.x < -fieldWidth/2 || position.x > fieldWidth/2 ||
+                position.z < -fieldHeight/2 || position.z > fieldHeight/2);
+    }
+
+    private handleBallOutOfBounds(): void {
+        // Déterminer quel joueur a perdu le point
+        const ballPos = this.ball.position;
+        let eliminatedPlayer = -1;
+        const fieldWidth = 1000;
+        const fieldHeight = 600;
+
+        if (ballPos.x < -fieldWidth/2) {
+            eliminatedPlayer = 0; // Joueur gauche
+        } else if (ballPos.x > fieldWidth/2) {
+            eliminatedPlayer = 1; // Joueur droit
+        } else if (ballPos.z > fieldHeight/2) {
+            eliminatedPlayer = 2; // Joueur haut
+        } else if (ballPos.z < -fieldHeight/2) {
+            eliminatedPlayer = 3; // Joueur bas
+        }
+
+        if (eliminatedPlayer >= 0 && this.gameData.isPlayerActive(eliminatedPlayer)) {
+            this.eliminatePlayer(eliminatedPlayer);
+        }
+
+        // Redémarrer la manche
+        this.startNewRound();
+    }
+
+    private eliminatePlayer(playerIndex: number): void {
+        // Marquer le joueur comme éliminé
+        this.gameData.eliminatePlayer(playerIndex);
+        
+        // Créer un mur coloré à la place du joueur éliminé
+        if (this.parentGame && this.parentGame.createEliminationWall) {
+            this.parentGame.createEliminationWall(playerIndex);
+        }
+        
+        // Effet d'élimination
+        if (this.players[playerIndex]) {
+            this.createEliminationEffect(this.players[playerIndex], this.getPlayerColor(playerIndex));
+            this.players[playerIndex].setEnabled(false);
+        }
+
+        // Vérifier les conditions de fin de partie
+        const activePlayers = this.gameData.getActivePlayers();
+        if (activePlayers.length <= 1) {
+            this.endGame(activePlayers[0] || -1);
+        }
+    }
+
+    private createCollisionEffect(position: Vector3, color: Color3): void {
+        // Effet de particules pour les collisions
+        const particles = new ParticleSystem("collision", 20, this.scene);
+        
+        // Configuration des particules
+        particles.emitter = position;
+        particles.minEmitBox = new Vector3(-0.5, -0.5, -0.5);
+        particles.maxEmitBox = new Vector3(0.5, 0.5, 0.5);
+        
+        particles.color1 = new Color4(color.r, color.g, color.b, 1.0);
+        particles.color2 = new Color4(1, 1, 1, 1.0);
+        particles.colorDead = new Color4(0, 0, 0, 0);
+        
+        particles.minSize = 0.1;
+        particles.maxSize = 0.3;
+        particles.minLifeTime = 0.3;
+        particles.maxLifeTime = 0.6;
+        particles.emitRate = 50;
+        
+        particles.start();
+        
+        // Arrêter après un court délai
         setTimeout(() => {
-            this.startNewRound();
+            particles.stop();
+            setTimeout(() => particles.dispose(), 1000);
+        }, 200);
+    }
+
+    private createEliminationEffect(playerMesh: Mesh, color: Color3): void {
+        // Effet d'élimination plus spectaculaire
+        const particles = new ParticleSystem("elimination", 100, this.scene);
+        
+        particles.emitter = playerMesh.position;
+        particles.minEmitBox = new Vector3(-2, -2, -2);
+        particles.maxEmitBox = new Vector3(2, 2, 2);
+        
+        particles.color1 = new Color4(color.r, color.g, color.b, 1.0);
+        particles.color2 = new Color4(1, 0, 0, 1.0);
+        particles.colorDead = new Color4(0, 0, 0, 0);
+        
+        particles.minSize = 0.5;
+        particles.maxSize = 2.0;
+        particles.minLifeTime = 1.0;
+        particles.maxLifeTime = 2.0;
+        particles.emitRate = 100;
+        
+        particles.start();
+        
+        setTimeout(() => {
+            particles.stop();
+            setTimeout(() => particles.dispose(), 3000);
         }, 1000);
+    }
+
+    private getPlayerColor(playerIndex: number): Color3 {
+        const colors = [
+            MAIN_COLORS.RGB_BLUE,    // Joueur 0
+            MAIN_COLORS.RGB_PURPLE,  // Joueur 1
+            MAIN_COLORS.RGB_GREEN,   // Joueur 2
+            MAIN_COLORS.RGB_YELLOW   // Joueur 3
+        ];
+        return colors[playerIndex] || new Color3(1, 1, 1); // Default to white
+    }
+
+    private endGame(winnerIndex: number): void {
+        this.isActive = false;
+        
+        if (this.parentGame && this.parentGame.endGame) {
+            this.parentGame.endGame(winnerIndex);
+        }
+    }
+
+    public reset(): void {
+        this.currentSpeed = FOUR_PLAYER_CONFIG.BALL.PHYSICS.INITIAL_SPEED;
+        this.lastHitPlayer = -1;
+        this.lastHitTime = 0;
+        this.startNewRound();
+    }
+
+    public setActive(active: boolean): void {
+        this.isActive = active;
+    }
+
+    public getVelocity(): Vector3 {
+        return this.velocity.clone();
+    }
+
+    public setVelocity(velocity: Vector3): void {
+        this.velocity = velocity.clone();
     }
 }

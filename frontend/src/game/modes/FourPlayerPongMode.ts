@@ -127,8 +127,8 @@ export class FourPlayerPongMode implements IPongGameMode {
         // Créer les 4 joueurs
         this.createFourPlayers(scene, playerInfos);
 
-        // Créer les murs colorés pour chaque joueur
-        this.createPlayerWalls(scene);
+        // NE PAS créer les murs colorés au début - ils apparaîtront lors des éliminations
+        // this.createPlayerWalls(scene); // SUPPRIMÉ
 
         // Configurer les contrôles pour 4 joueurs
         this.controlsManager = new FourPlayerControls(scene, this.players, this.fourPlayerData);
@@ -139,7 +139,7 @@ export class FourPlayerPongMode implements IPongGameMode {
             scene,
             ball,
             this.players,
-            this.walls, // Passer les murs colorés au gestionnaire de balle
+            this.walls, // Passer le tableau vide au début - les murs seront ajoutés lors des éliminations
             this.fourPlayerData,
             {
                 initialSpeed: modeConfig.BALL_PHYSICS.INITIAL_SPEED,
@@ -279,22 +279,79 @@ export class FourPlayerPongMode implements IPongGameMode {
     }
 
     /**
-     * Élimine un joueur visuellement
+     * Élimine un joueur visuellement et crée un mur coloré à sa place
      */
     private eliminatePlayer(playerId: number): void {
-        if (playerId < this.players.length) {
+        if (playerId < this.players.length && this.scene) {
             const player = this.players[playerId];
             
-            console.log(`Élimination du joueur ${playerId} - cachage permanent`);
+            console.log(`Élimination du joueur ${playerId} - création d'un mur coloré`);
             
             // Cacher immédiatement le joueur pour éviter qu'il réapparaisse
             player.isVisible = false;
             player.setEnabled(false); // Désactiver complètement
             
+            // Créer un mur coloré à la place du joueur éliminé
+            this.createEliminationWall(playerId);
+            
             // Effet de désintégration de la raquette
             if (this.parentGame && this.parentGame.createPaddleDisintegrationEffect) {
                 this.parentGame.createPaddleDisintegrationEffect(playerId);
             }
+        }
+    }
+
+    /**
+     * Crée un mur coloré à la place d'un joueur éliminé
+     */
+    private createEliminationWall(playerId: number): void {
+        if (!this.scene) return;
+
+        const wallConfig = FOUR_PLAYER_CONFIG.PLAYER_WALLS;
+        const playerColors = [
+            MAIN_COLORS.RGB_BLUE,    // Player 0 (gauche)
+            MAIN_COLORS.RGB_PURPLE,  // Player 1 (droite)
+            MAIN_COLORS.RGB_YELLOW,  // Player 2 (haut)
+            MAIN_COLORS.RGB_GREEN    // Player 3 (bas)
+        ];
+
+        const positions = [
+            wallConfig.POSITIONS.PLAYER0, // Left
+            wallConfig.POSITIONS.PLAYER1, // Right
+            wallConfig.POSITIONS.PLAYER2, // Top
+            wallConfig.POSITIONS.PLAYER3  // Bottom
+        ];
+
+        if (playerId >= 0 && playerId < positions.length) {
+            const position = positions[playerId];
+            const isVertical = playerId <= 1; // Players 0 et 1 ont des murs verticaux
+            
+            // Dimensions du mur selon son orientation
+            const width = isVertical ? wallConfig.DEPTH : wallConfig.WIDTH;
+            const depth = isVertical ? wallConfig.WIDTH : wallConfig.DEPTH;
+            
+            const wall = MeshBuilder.CreateBox(`eliminationWall_${playerId}`, {
+                width: width,
+                height: wallConfig.HEIGHT,
+                depth: depth
+            }, this.scene);
+
+            // Position du mur (même position que le joueur éliminé)
+            wall.position = new Vector3(position.X, 5, position.Z);
+
+            // Matériau coloré avec effet lumineux
+            const material = new StandardMaterial(`eliminationWallMaterial_${playerId}`, this.scene);
+            material.diffuseColor = playerColors[playerId];
+            material.emissiveColor = playerColors[playerId].scale(0.3); // Effet lumineux
+            material.specularColor = new Color3(0.5, 0.5, 0.5);
+            
+            wall.material = material;
+            
+            // Ajouter le mur aux tableaux pour les collisions et le nettoyage
+            this.walls.push(wall);
+            this.eliminatedWalls.push(wall);
+
+            console.log(`Mur d'élimination créé pour joueur ${playerId} à la position X:${position.X}, Z:${position.Z}`);
         }
     }
 

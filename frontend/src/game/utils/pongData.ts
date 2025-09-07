@@ -1,4 +1,5 @@
-import { EventEmitter } from 'events';
+// Use local EventEmitter instead of Node.js events module
+import { EventEmitter } from './eventEmitter';
 
 /**
  * Types de jeu disponibles
