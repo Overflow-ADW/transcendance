@@ -29,6 +29,7 @@ const SEED_USERS = [
 ];
 
 const SEED_GAMES = [
+  // Jeux entre joueurs
   {
     player1_id: 1, // alice
     player2_id: 2, // bob
@@ -36,7 +37,8 @@ const SEED_GAMES = [
     score_player1: 11,
     score_player2: 7,
     duration: 180, // 3 minutes
-    game_mode: 'classic'
+    game_mode: 'classic',
+    ai_opponent: false
   },
   {
     player1_id: 2, // bob
@@ -45,7 +47,8 @@ const SEED_GAMES = [
     score_player1: 11,
     score_player2: 9,
     duration: 240,
-    game_mode: 'classic'
+    game_mode: 'classic',
+    ai_opponent: false
   },
   {
     player1_id: 1, // alice
@@ -54,7 +57,8 @@ const SEED_GAMES = [
     score_player1: 11,
     score_player2: 5,
     duration: 150,
-    game_mode: 'custom'
+    game_mode: 'classic',
+    ai_opponent: false
   },
   {
     player1_id: 2, // bob
@@ -63,8 +67,74 @@ const SEED_GAMES = [
     score_player1: 8,
     score_player2: 11,
     duration: 200,
-    game_mode: 'classic'
+    game_mode: 'classic',
+    ai_opponent: false
+  },
+  // Jeux contre IA
+  {
+    player1_id: 1, // alice vs IA
+    player2_id: null,
+    winner_id: 1,
+    score_player1: 11,
+    score_player2: 6,
+    duration: 120,
+    game_mode: 'classic',
+    ai_opponent: true,
+    ai_level: 3
+  },
+  {
+    player1_id: 1, // alice vs IA (défaite)
+    player2_id: null,
+    winner_id: null, // IA gagne
+    score_player1: 9,
+    score_player2: 11,
+    duration: 140,
+    game_mode: 'classic',
+    ai_opponent: true,
+    ai_level: 4
+  },
+  // Jeux de tournoi (Tournoi Test)
+  {
+    player1_id: 1, // alice vs bob (demi-finale)
+    player2_id: 2,
+    winner_id: 1,
+    score_player1: 11,
+    score_player2: 8,
+    duration: 180,
+    game_mode: 'tournament',
+    ai_opponent: false,
+    tournament_id: 1
+  },
+  {
+    player1_id: 2, // bob vs charlie (demi-finale)
+    player2_id: 3,
+    winner_id: 2,
+    score_player1: 11,
+    score_player2: 6,
+    duration: 160,
+    game_mode: 'tournament',
+    ai_opponent: false,
+    tournament_id: 1
   }
+];
+
+const SEED_TOURNAMENTS = [
+  {
+    name: 'Premier Tournoi Test',
+    description: 'Tournoi de test avec Alice, Bob et Charlie',
+    max_players: 4,
+    current_players: 3,
+    status: 'completed',
+    format: 'elimination',
+    created_by: 1, // alice
+    winner_id: 1 // alice gagne
+  }
+];
+
+const SEED_TOURNAMENT_PARTICIPANTS = [
+  { tournament_id: 1, user_id: 1, position: 1 }, // alice - gagnante
+  { tournament_id: 1, user_id: 2, position: 2 }, // bob - finaliste
+  { tournament_id: 1, user_id: 3, position: 3 }  // charlie - demi-finaliste
 ];
 
 const SEED_FRIENDSHIPS = [
@@ -112,30 +182,123 @@ async function seedDatabase(db, logger) {
 
     // ============ SEED GAMES ============
     logger.info('🎮 Creation des parties de test...');
+    
+    // Vérifier les utilisateurs avant de créer les jeux
+    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
+    logger.info(`👥 Utilisateurs disponibles: ${userCount.count}`);
+    
+    const users = db.prepare('SELECT id, username FROM users').all();
+    users.forEach(u => logger.info(`  - User ID ${u.id}: ${u.username}`));
+    
+    // Insertion simple sans dates complexes
     const insertGame = db.prepare(`
       INSERT INTO games (
         player1_id, player2_id, winner_id, 
         score_player1, score_player2, duration,
-        game_mode, status, start_time, end_time, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', datetime('now', '-' || ? || ' days'), datetime('now', '-' || ? || ' days', '+' || ? || ' seconds'), datetime('now', '-' || ? || ' days'))
+        game_mode, ai_opponent, ai_level, status, tournament_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?)
     `);
 
-    SEED_GAMES.forEach((game, index) => {
-      const daysAgo = Math.floor(Math.random() * 7) + 1; // 1-7 jours
-      insertGame.run(
-        game.player1_id,
-        game.player2_id,
-        game.winner_id,
-        game.score_player1,
-        game.score_player2,
-        game.duration,
-        game.game_mode,
-        daysAgo, // start_time offset
-        daysAgo, // end_time offset  
-        game.duration, // duration in seconds
-        daysAgo // created_at offset
+    SEED_GAMES.filter(game => !game.tournament_id).forEach((game, index) => {
+      try {
+        logger.info(`Création partie ${index + 1}: player1=${game.player1_id}, player2=${game.player2_id}, winner=${game.winner_id}`);
+        logger.info(`Détails: mode=${game.game_mode}, ai=${game.ai_opponent}, ai_level=${game.ai_level}`);
+        
+        const result = insertGame.run(
+          game.player1_id,
+          game.player2_id || null,
+          game.winner_id,
+          game.score_player1,
+          game.score_player2,
+          game.duration,
+          game.game_mode,
+          game.ai_opponent ? 1 : 0, // Convertir boolean en integer pour SQLite
+          game.ai_level || null,
+          null // tournament_id = null pour les jeux normaux
+        );
+        
+        logger.info(`✅ Partie ${result.lastInsertRowid} créée: ${game.game_mode} (${game.score_player1}-${game.score_player2})`);
+      } catch (error) {
+        logger.error(`❌ Erreur partie ${index}:`, error.message);
+        logger.error(`   Code:`, error.code);
+        logger.error(`   Errno:`, error.errno); 
+        logger.error(`   Game:`, JSON.stringify(game));
+        throw error;
+      }
+    });
+
+    const normalGamesCount = SEED_GAMES.filter(game => !game.tournament_id).length;
+    logger.info(`🎯 ${normalGamesCount} parties normales créées avec succès`);
+
+    // Test: vérifier les données
+    const gameCount = db.prepare('SELECT COUNT(*) as count FROM games').get();
+    logger.info(`📊 Total jeux en base: ${gameCount.count}`);
+
+    // ============ SEED TOURNAMENTS ============
+    logger.info('🏆 Creation des tournois de test...');
+    const insertTournament = db.prepare(`
+      INSERT INTO tournaments (
+        name, description, max_players, current_players, 
+        status, format, created_by, winner_id, created_at, ended_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `);
+
+    SEED_TOURNAMENTS.forEach(tournament => {
+      const result = insertTournament.run(
+        tournament.name,
+        tournament.description,
+        tournament.max_players,
+        tournament.current_players,
+        tournament.status,
+        tournament.format,
+        tournament.created_by,
+        tournament.winner_id
       );
-      logger.info(`✅ Partie creee: ${game.game_mode} (${game.score_player1}-${game.score_player2})`);
+      logger.info(`✅ Tournoi ${result.lastInsertRowid} créé: ${tournament.name}`);
+    });
+
+    // ============ SEED TOURNAMENT PARTICIPANTS ============
+    logger.info('👥 Creation des participants aux tournois...');
+    const insertParticipant = db.prepare(`
+      INSERT INTO tournament_participants (tournament_id, user_id, position)
+      VALUES (?, ?, ?)
+    `);
+
+    SEED_TOURNAMENT_PARTICIPANTS.forEach(participant => {
+      insertParticipant.run(
+        participant.tournament_id,
+        participant.user_id,
+        participant.position
+      );
+      logger.info(`✅ Participant ajouté: user_id=${participant.user_id}, position=${participant.position}`);
+    });
+
+    // ============ SEED TOURNAMENT GAMES ============
+    logger.info('🏆 Creation des parties de tournoi...');
+    const tournamentGames = SEED_GAMES.filter(game => game.tournament_id);
+    
+    tournamentGames.forEach((game, index) => {
+      try {
+        logger.info(`Création partie tournoi ${index + 1}/${tournamentGames.length}: player1=${game.player1_id}, player2=${game.player2_id}`);
+        
+        const result = insertGame.run(
+          game.player1_id,
+          game.player2_id || null,
+          game.winner_id,
+          game.score_player1,
+          game.score_player2,
+          game.duration,
+          game.game_mode,
+          game.ai_opponent ? 1 : 0, // Convertir boolean en integer pour SQLite
+          game.ai_level || null,
+          game.tournament_id
+        );
+        
+        logger.info(`✅ Partie tournoi ${result.lastInsertRowid} créée: ${game.game_mode} (${game.score_player1}-${game.score_player2})`);
+      } catch (error) {
+        logger.error(`❌ Erreur partie tournoi ${index}:`, error.message);
+        throw error;
+      }
     });
 
     // ============ SEED FRIENDSHIPS ============

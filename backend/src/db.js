@@ -304,6 +304,28 @@ function initDatabase(fastify) {
       END;
     `);
 
+    // Trigger pour mettre à jour les stats utilisateur lors d'INSERT direct
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS update_user_stats_on_game_insert
+      AFTER INSERT ON games
+      WHEN NEW.status = 'completed'
+      BEGIN
+        -- Update player1 stats
+        UPDATE users 
+        SET games_played = games_played + 1,
+            games_won = CASE WHEN NEW.winner_id = NEW.player1_id THEN games_won + 1 ELSE games_won END,
+            total_score = total_score + NEW.score_player1
+        WHERE id = NEW.player1_id;
+        
+        -- Update player2 stats (if not AI)
+        UPDATE users 
+        SET games_played = games_played + 1,
+            games_won = CASE WHEN NEW.winner_id = NEW.player2_id THEN games_won + 1 ELSE games_won END,
+            total_score = total_score + NEW.score_player2
+        WHERE id = NEW.player2_id AND NEW.ai_opponent = 0;
+      END;
+    `);
+
     fastify.log.info('✅ Tables de la base de données créées/vérifiées avec succès');
     fastify.log.info(`📊 Base de données prête : ${db.name}`);
     

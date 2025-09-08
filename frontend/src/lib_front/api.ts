@@ -1,4 +1,4 @@
-import type { MatchItem, Winrate } from "./types";
+import type { MatchItem, Winrate, GameHistoryResponse } from "./types";
 
 // Configuration API centralisée avec détection automatique
 function getApiBaseUrl(): string {
@@ -304,6 +304,46 @@ class ApiClient {
     const response = await this.request('/api/users/friends', {
       method: 'POST',
       body: JSON.stringify(friendData)
+    });
+    return response.json();
+  }
+
+  async getGameHistory(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    gameMode?: string;
+  } = {}): Promise<GameHistoryResponse> {
+    const queryParams = new URLSearchParams();
+    
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.status) queryParams.append('status', params.status);
+    if (params.gameMode) queryParams.append('gameMode', params.gameMode);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/api/users/games/history${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await this.request(endpoint);
+    return response.json();
+  }
+
+  // ============ MÉTHODES DE JEU ============
+
+  async completeGame(gameData: {
+    player2_id?: number | null;
+    ai_opponent?: boolean;
+    ai_level?: number | null;
+    score_player1: number;
+    score_player2: number;
+    winner_id?: number | null;
+    duration: number; // en secondes
+    game_mode?: string;
+    tournament_id?: number | null;
+  }) {
+    const response = await this.request('/api/games/complete', {
+      method: 'POST',
+      body: JSON.stringify(gameData)
     });
     return response.json();
   }
