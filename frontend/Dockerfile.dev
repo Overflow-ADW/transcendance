@@ -1,0 +1,19 @@
+# Dockerfile de développement pour Next.js avec Hot Reload
+FROM node:20-slim
+
+WORKDIR /app
+
+# Copier les fichiers de dépendances
+COPY package.json package-lock.json* ./
+
+# Installer les dépendances
+RUN npm ci --include=dev
+
+# Copier le code source
+COPY . .
+
+# Exposer le port de développement Next.js
+EXPOSE 3000
+
+# Démarrer le serveur de développement avec hot reload
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
