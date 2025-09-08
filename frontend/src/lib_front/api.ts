@@ -2,18 +2,13 @@ import type { MatchItem, Winrate } from "./types";
 
 // Configuration API centralisée avec détection automatique
 function getApiBaseUrl(): string {
-  // En développement, pointer directement vers le backend
+  // En mode SPA avec proxy Nginx, utiliser l'origine actuelle
   if (typeof window !== 'undefined') {
-    // Si on est en développement (port 8080), pointer vers le backend (port 3000)
-    if (window.location.port === '8080') {
-      return 'http://localhost:3000';
-    }
-    // En production, utiliser l'origine actuelle (avec proxy Nginx)
     return window.location.origin;
   }
   
-  // Fallback pour le build-time (développement)
-  return 'http://localhost:3000';
+  // Fallback pour le build-time
+  return 'http://localhost:8080';
 }
 
 const BASE_URL = getApiBaseUrl().replace(/\/+$/, ""); // Supprimer les slashes finaux
@@ -310,62 +305,6 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(friendData)
     });
-    return response.json();
-  }
-
-  // ============ MÉTHODES HISTORIQUE DES JEUX ============
-
-  async getGameHistory(options: { 
-    page?: number; 
-    limit?: number; 
-    status?: string; 
-    gameMode?: string; 
-  } = {}) {
-    const { page = 1, limit = 10, status, gameMode } = options;
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-      ...(status && status !== 'all' && { status }),
-      ...(gameMode && gameMode !== 'all' && { gameMode })
-    });
-    
-    const response = await this.request(`/api/users/games/history?${params}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch game history: ${response.statusText}`);
-    }
-    return response.json();
-  }
-
-  async getGameStats() {
-    const response = await this.request('/api/users/games/stats');
-    if (!response.ok) {
-      throw new Error(`Failed to fetch game statistics: ${response.statusText}`);
-    }
-    return response.json();
-  }
-
-  // ============ MÉTHODES DE JEU ============
-
-  async saveGameResults(gameData: {
-    player2_id?: number | null;
-    ai_opponent?: boolean;
-    ai_level?: number | null;
-    score_player1: number;
-    score_player2: number;
-    winner_id?: number | null;
-    duration: number;
-    game_mode?: string;
-    tournament_id?: number | null;
-  }) {
-    const response = await this.request('/api/games/complete', {
-      method: 'POST',
-      body: JSON.stringify(gameData),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to save game results: ${response.statusText}`);
-    }
-
     return response.json();
   }
 }

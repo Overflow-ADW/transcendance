@@ -1,6 +1,5 @@
 // Use local EventEmitter instead of Node.js events module
 import { EventEmitter } from './eventEmitter';
-import { apiClient } from '../../lib_front/api';
 
 /**
  * Types de jeu disponibles
@@ -53,10 +52,6 @@ export class PongData extends EventEmitter {
     private _gameType: GameType;
     private _maxScore: number;
     private _winner = -1; // -1 = no winner, 0 = player 0, 1 = player 1
-    private _gameStartTime: Date | null = null;
-    private _isAiOpponent = false;
-    private _aiLevel: number | null = null;
-    private _tournamentId: number | null = null;
 
     /**
      * Constructeur
@@ -135,10 +130,6 @@ export class PongData extends EventEmitter {
             this.emit(GameEvents.GAME_STATE_CHANGED, GameState.GAME_OVER);
             console.log(`Joueur 0 (${this._player0Name}) a gagné! État du jeu: ${this._gameState}`);
             this.emit(GameEvents.PLAYER_WON, 0, this._player0Name);
-            
-            // Sauvegarder automatiquement les résultats de la partie
-            this.saveGameResults();
-            
         } else if (this._player1Score >= this._maxScore) {
             this._winner = 1;
             // Changer directement l'état à GAME_OVER pour arrêter la balle et les contrôles
@@ -146,9 +137,6 @@ export class PongData extends EventEmitter {
             this.emit(GameEvents.GAME_STATE_CHANGED, GameState.GAME_OVER);
             console.log(`Joueur 1 (${this._player1Name}) a gagné! État du jeu: ${this._gameState}`);
             this.emit(GameEvents.PLAYER_WON, 1, this._player1Name);
-            
-            // Sauvegarder automatiquement les résultats de la partie
-            this.saveGameResults();
         }
     }
 
@@ -157,7 +145,6 @@ export class PongData extends EventEmitter {
      */
     public startGame(): void {
         if (this._gameState !== GameState.PLAYING) {
-            this._gameStartTime = new Date();
             this.gameState = GameState.PLAYING;
         }
     }
@@ -252,58 +239,5 @@ export class PongData extends EventEmitter {
 
     get winner(): number {
         return this._winner;
-    }
-
-    // ============ MÉTHODES DE CONFIGURATION ============
-
-    /**
-     * Configure une partie contre l'IA
-     */
-    public setupAiGame(aiLevel: number): void {
-        this._isAiOpponent = true;
-        this._aiLevel = aiLevel;
-    }
-
-    /**
-     * Configure une partie de tournoi
-     */
-    public setupTournamentGame(tournamentId: number): void {
-        this._tournamentId = tournamentId;
-    }
-
-    // ============ SAUVEGARDE AUTOMATIQUE ============
-
-    /**
-     * Sauvegarde les résultats de la partie terminée
-     */
-    private async saveGameResults(): Promise<void> {
-        if (this._winner === -1 || !this._gameStartTime) {
-            console.warn('Impossible de sauvegarder: partie non terminée ou pas de temps de début');
-            return;
-        }
-
-        try {
-            const duration = Math.round((new Date().getTime() - this._gameStartTime.getTime()) / 1000);
-            const winnerId = this._winner; // 0 ou 1 pour indiquer le gagnant
-            
-            const gameData = {
-                player2_id: this._isAiOpponent ? null : undefined, // null si IA, undefined pour joueur réel (sera déterminé côté backend)
-                ai_opponent: this._isAiOpponent,
-                ai_level: this._aiLevel,
-                score_player1: this._winner === 0 ? this._player0Score : this._player1Score,
-                score_player2: this._winner === 0 ? this._player1Score : this._player0Score,
-                winner_id: winnerId, 
-                duration: duration,
-                game_mode: 'classic',
-                tournament_id: this._tournamentId
-            };
-
-            console.log('🎮 Sauvegarde des résultats de partie:', gameData);
-            const result = await apiClient.saveGameResults(gameData);
-            console.log('✅ Partie sauvegardée avec succès:', result);
-            
-        } catch (error) {
-            console.error('❌ Erreur lors de la sauvegarde de la partie:', error);
-        }
     }
 }

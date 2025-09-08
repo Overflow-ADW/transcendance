@@ -24,16 +24,12 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev  # Utiliser un Dockerfile de développement
+      dockerfile: Dockerfile
     container_name: transcendance-frontend
     ports:
-      - "8080:8080"  # Next.js dev server port
-    environment:
-      - NODE_ENV=development
+      - "8080:80"
     volumes:
       - ./frontend/src:/app/src
-      - ./frontend/package.json:/app/package.json
-      - /app/node_modules
     depends_on:
       - backend
     networks:
