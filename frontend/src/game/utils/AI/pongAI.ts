@@ -21,7 +21,7 @@ export class PongAI {
     private config: AIConfig = AI_CONFIGS[AIDifficulty.MEDIUM];
     private isActive = false;
     
-    // === SYSTÈME DE SNAPSHOT SIMPLIFIÉ ===
+    // === SYSTÈME DE SNAPSHOT SIMPLIFIÉ AVEC DIFFICULTÉ VARIABLE ===
     private lastSnapshot: {
         position: Vector3;
         velocity: Vector3;
@@ -30,7 +30,20 @@ export class PongAI {
         interceptPoint: number;
     } | null = null;
     private lastSnapshotTime = 0;
-    private readonly SNAPSHOT_INTERVAL = 1000; // 1 seconde stricte
+    
+    // Intervalles selon la difficulté
+    private getSnapshotInterval(): number {
+        switch (this.difficulty) {
+            case AIDifficulty.EASY:
+                return 1000; // 1 seconde
+            case AIDifficulty.MEDIUM:
+                return 800;  // 0.8 seconde
+            case AIDifficulty.HARD:
+                return 600;  // 0.6 seconde
+            default:
+                return 800;  // fallback à MEDIUM
+        }
+    }
     
     // === DÉTECTION ROBUSTE DE CHANGEMENT DE DIRECTION ===
     private lastBallPosition: Vector3 | null = null;
@@ -55,7 +68,7 @@ export class PongAI {
     ) {
         this.setDifficulty(difficulty);
         this.targetPosition = 0;
-        console.log(`🤖 IA Intelligente créée - Difficulté: ${getDifficultyName(this.difficulty)}`);
+        console.log(`🤖 IA Intelligente créée - Difficulté: ${getDifficultyName(this.difficulty)} (Snapshot: ${this.getSnapshotInterval()}ms)`);
     }
 
     /**
@@ -64,7 +77,7 @@ export class PongAI {
     public setDifficulty(difficulty: AIDifficulty): void {
         this.difficulty = difficulty;
         this.config = AI_CONFIGS[difficulty];
-        console.log(`🎯 Difficulté IA: ${getDifficultyName(this.difficulty)}`);
+        console.log(`🎯 Difficulté IA: ${getDifficultyName(this.difficulty)} (Intervalle snapshot: ${this.getSnapshotInterval()}ms)`);
     }
 
     public getDifficulty(): AIDifficulty {
@@ -120,12 +133,7 @@ export class PongAI {
     private detectDirectionChange(): void {
         const ballPos = this.ball.position.clone();
         const currentVelX = this.calculateCurrentVelocityX(ballPos);
-        
-        // DEBUG : Afficher la position de la balle en continu quand elle bouge
-        if (Math.abs(currentVelX) > 10) {
-            console.log(`🔍 Balle: X=${ballPos.x.toFixed(1)}, VelX=${currentVelX.toFixed(1)}, TowardsAI=${this.ballTowardsAI}`);
-        }
-        
+
         // CORRECTION CRITIQUE : Ignorer si la balle est hors limites (but marqué)
         if (Math.abs(ballPos.x) > BALL_CONFIG.OUT_OF_BOUNDS_X) {
             console.log(`🚫 Balle hors limites: X=${ballPos.x.toFixed(1)} (limite: ±${BALL_CONFIG.OUT_OF_BOUNDS_X}) - Ignorer détection`);
@@ -395,15 +403,16 @@ export class PongAI {
     }
 
     /**
-     * VÉRIFICATION DE LA POSSIBILITÉ DE CRÉER UN SNAPSHOT
+     * VÉRIFICATION DE LA POSSIBILITÉ DE CRÉER UN SNAPSHOT AVEC DIFFICULTÉ VARIABLE
      */
     private canCreateSnapshot(): boolean {
+        const currentInterval = this.getSnapshotInterval();
         const timeSinceLastSnapshot = performance.now() - this.lastSnapshotTime;
-        const canCreate = timeSinceLastSnapshot >= this.SNAPSHOT_INTERVAL;
+        const canCreate = timeSinceLastSnapshot >= currentInterval;
         
         if (!canCreate) {
-            const remainingTime = this.SNAPSHOT_INTERVAL - timeSinceLastSnapshot;
-            console.log(`⏳ Snapshot bloqué - attendre ${remainingTime.toFixed(0)}ms`);
+            const remainingTime = currentInterval - timeSinceLastSnapshot;
+            console.log(`⏳ Snapshot bloqué (${getDifficultyName(this.difficulty)}) - attendre ${remainingTime.toFixed(0)}ms`);
         }
         
         return canCreate;
@@ -559,8 +568,9 @@ export class PongAI {
             return "IA inactive";
         }
         
+        const currentInterval = this.getSnapshotInterval();
         const timeSinceSnapshot = performance.now() - this.lastSnapshotTime;
-        const nextSnapshotIn = Math.max(0, this.SNAPSHOT_INTERVAL - timeSinceSnapshot);
+        const nextSnapshotIn = Math.max(0, currentInterval - timeSinceSnapshot);
         const snapshotAge = this.lastSnapshot ? performance.now() - this.lastSnapshot.timestamp : 0;
         
         return [
@@ -569,7 +579,7 @@ export class PongAI {
             `Âge: ${snapshotAge.toFixed(0)}ms`,
             `Cible: ${this.targetPosition.toFixed(1)}`,
             `Pos: ${this.player1.position.z.toFixed(1)}`,
-            `Prochain: ${nextSnapshotIn.toFixed(0)}ms`
+            `Prochain: ${nextSnapshotIn.toFixed(0)}ms (${getDifficultyName(this.difficulty)})`
         ].join(' | ');
     }
 }

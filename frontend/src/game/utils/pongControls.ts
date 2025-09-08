@@ -18,12 +18,15 @@ export class PongControls {
     private keysPressed: { [key: string]: boolean } = {};
     private player0: Mesh;
     private player1: Mesh;
+    private player2: Mesh | null = null;
     private scene: Scene;
     private movement: PlayerMovement;
     private player0UpKeys = CONTROLS_CONFIG.KEYS.PLAYER0.UP;
     private player0DownKeys = CONTROLS_CONFIG.KEYS.PLAYER0.DOWN;
     private player1UpKeys = CONTROLS_CONFIG.KEYS.PLAYER1.UP;
     private player1DownKeys = CONTROLS_CONFIG.KEYS.PLAYER1.DOWN;
+    private player2UpKeys = CONTROLS_CONFIG.KEYS.PLAYER2.UP;
+    private player2DownKeys = CONTROLS_CONFIG.KEYS.PLAYER2.DOWN;
     private gameData: PongData;
     private controlsLocked = false;
     public ai: PongAI | null = null; // CORRECTION: Rendre public pour permettre l'accès depuis pongGame
@@ -269,6 +272,19 @@ export class PongControls {
                 }
             }
         }
+
+        // Player 2 movement (paddle verte au centre) - seulement si disponible
+        if (this.player2) {
+            const player2UpPressed = this.isAnyKeyPressed(this.player2UpKeys);
+            const player2DownPressed = this.isAnyKeyPressed(this.player2DownKeys);
+            
+            if (player2UpPressed) {
+                this.movePlayer(this.player2, PlayerKeys.UP);
+            }
+            if (player2DownPressed) {
+                this.movePlayer(this.player2, PlayerKeys.DOWN);
+            }
+        }
     }
 
     /**
@@ -327,5 +343,16 @@ export class PongControls {
                 }
             }
         }
+    }
+
+    //Définir le player2
+    public setPlayer2(player2Mesh: Mesh): void {
+        this.player2 = player2Mesh;
+        console.log("Player2 ajouté aux contrôles:", player2Mesh.name);
+    }
+
+    //Vérifier si player2 est disponible
+    public hasPlayer2(): boolean {
+        return this.player2 !== null;
     }
 }

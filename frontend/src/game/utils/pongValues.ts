@@ -55,7 +55,7 @@ export const BALL_CONFIG = {
     PHYSICS: {
         INITIAL_SPEED: 3,
         SPEED_INCREMENT: 0.5,
-        MAX_SPEED: 13
+        MAX_SPEED: 15
     },
     COLLISION_THRESHOLD: 5,
     OUT_OF_BOUNDS_X: 510
@@ -133,7 +133,7 @@ interface GameModeConfig {
     };
 }
 
-// Mode-specific configurations - Définir TOUTES les configurations pour éviter l'erreur TypeScript
+// Mode-specific configurations - Seulement DEFAULT_PONG et MULTIPLAYER_PONG
 export const GAME_MODE_CONFIGS: Record<GameType, GameModeConfig> = {
     [GameType.DEFAULT_PONG]: {
         // Default mode uses the standard configurations above
@@ -143,30 +143,8 @@ export const GAME_MODE_CONFIGS: Record<GameType, GameModeConfig> = {
             MAX_SPEED: BALL_CONFIG.PHYSICS.MAX_SPEED
         }
     },
-    [GameType.SPEED_PONG]: {
-        // Speed mode - Faster gameplay
-        BALL_PHYSICS: {
-            INITIAL_SPEED: 5,           // Faster initial speed
-            SPEED_INCREMENT: 0.8,       // Faster acceleration
-            MAX_SPEED: 15              // Higher maximum speed
-        },
-        CONTROLS: {
-            SPEED: 7                   // Faster paddle movement
-        }
-    },
-    [GameType.OBSTACLE_PONG]: {
-        // Obstacle mode - Normal speed with obstacles
-        BALL_PHYSICS: {
-            INITIAL_SPEED: BALL_CONFIG.PHYSICS.INITIAL_SPEED,
-            SPEED_INCREMENT: BALL_CONFIG.PHYSICS.SPEED_INCREMENT,
-            MAX_SPEED: BALL_CONFIG.PHYSICS.MAX_SPEED
-        },
-        CONTROLS: {
-            SPEED: CONTROLS_CONFIG.SPEED // Standard paddle speed
-        }
-    },
-    [GameType.CUSTOM_PONG]: {
-        // Custom mode - Configurable settings (default for now)
+    [GameType.MULTIPLAYER_PONG]: {
+        // Multiplayer mode - Same physics as default
         BALL_PHYSICS: {
             INITIAL_SPEED: BALL_CONFIG.PHYSICS.INITIAL_SPEED,
             SPEED_INCREMENT: BALL_CONFIG.PHYSICS.SPEED_INCREMENT,
@@ -175,14 +153,6 @@ export const GAME_MODE_CONFIGS: Record<GameType, GameModeConfig> = {
         CONTROLS: {
             SPEED: CONTROLS_CONFIG.SPEED
         }
-    },
-    [GameType.FOUR_PLAYER_PONG]: {
-        // Four player mode - Battle royale style
-        BALL_PHYSICS: {
-            INITIAL_SPEED: BALL_CONFIG.PHYSICS.INITIAL_SPEED,
-            SPEED_INCREMENT: BALL_CONFIG.PHYSICS.SPEED_INCREMENT,
-            MAX_SPEED: BALL_CONFIG.PHYSICS.MAX_SPEED
-        },
     }
 };
 

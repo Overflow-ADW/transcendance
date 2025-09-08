@@ -34,25 +34,6 @@ export class SnapshotSystem {
     }
 
     /**
-     * SEUL ACCÈS AUTORISÉ À LA BALLE - CRÉATION DE SNAPSHOT UNIQUEMENT
-     */
-    private createAuthorizedSnapshot(reason: string): Vector3 | null {
-        this.ballAccessAttempts++;
-        
-        if (!this.canCreateSnapshot()) {
-            this.ballAccessBlocked++;
-            console.log(`🚫 ACCÈS BLOQUÉ: ${reason} - Délai insuffisant (${this.ballAccessBlocked}/${this.ballAccessAttempts})`);
-            return null;
-        }
-        
-        // SEUL ET UNIQUE ACCÈS AUTORISÉ
-        const authorizedPosition = this.ball.position.clone();
-        console.log(`✅ ACCÈS AUTORISÉ: ${reason} - Position capturée: (${authorizedPosition.x.toFixed(1)}, ${authorizedPosition.z.toFixed(1)})`);
-        
-        return authorizedPosition;
-    }
-
-    /**
      * QUEUE SNAPSHOT AVEC POSITION PRÉ-CAPTURÉE
      */
     public queueSnapshotWithPosition(reason: string, priority: number, timestamp: number, preAuthorizedPosition: Vector3, velocity: Vector3): void {
