@@ -1,25 +1,167 @@
 // src/views/GameView.tsx
 "use client";
 
+import { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
-import { useApp } from "@/lib_front/store";
+import { useRouter } from 'next/navigation';
 import Pong from "@/game/components/Pong";
 
-export default function GameView() {
-  const { navigate } = useApp();
+interface Player {
+  id: number | string;
+  name: string;
+  color: string;
+  isMainPlayer?: boolean;
+  isHost?: boolean;
+}
 
-  // Nettoyer le localStorage quand on quitte le jeu
+export default function GameView() {
+  const router = useRouter();
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [gameMode, setGameMode] = useState<string>('');
+
+  useEffect(() => {
+    // Charger le mode de jeu et les joueurs
+    const mode = localStorage.getItem('game-mode') || '';
+    setGameMode(mode);
+
+    let loadedPlayers: Player[] = [];
+
+    switch (mode) {
+      case 'tournament':
+        const tournamentPlayers = localStorage.getItem('tournament-players');
+        if (tournamentPlayers) {
+          loadedPlayers = JSON.parse(tournamentPlayers);
+        }
+        break;
+        
+      case 'duel':
+        const duelPlayers = localStorage.getItem('duel-players');
+        if (duelPlayers) {
+          loadedPlayers = JSON.parse(duelPlayers);
+        }
+        break;
+        
+      case 'multiplayer':
+        const multiplayerPlayers = localStorage.getItem('multiplayer-players');
+        if (multiplayerPlayers) {
+          loadedPlayers = JSON.parse(multiplayerPlayers);
+        }
+        break;
+        
+      case 'ai':
+        const difficulty = localStorage.getItem('ai-difficulty') || 'medium';
+        loadedPlayers = [
+          { id: 1, name: "YOU", color: "#8A00C4", isMainPlayer: true },
+          { id: 2, name: `AI (${difficulty.toUpperCase()})`, color: "#FF6B35" }
+        ];
+        break;
+        
+      default:
+        // Mode par défaut si aucun mode n'est défini
+        loadedPlayers = [
+          { id: 1, name: "PLAYER 1", color: "#8A00C4" },
+          { id: 2, name: "PLAYER 2", color: "#2323FF" }
+        ];
+    }
+
+    setPlayers(loadedPlayers);
+  }, []);
+
   const handleQuit = () => {
+    // Nettoyer le localStorage
     localStorage.removeItem('game-mode');
     localStorage.removeItem('ai-difficulty');
-    navigate("tournament");
+    localStorage.removeItem('current-match');
+    
+    // Retourner à la page play
+    router.push('/play');
+  };
+
+  const getGameModeTitle = () => {
+    switch (gameMode) {
+      case 'tournament':
+        return 'TOURNAMENT MODE';
+      case 'duel':
+        return 'DUEL MODE';
+      case 'multiplayer':
+        return 'MULTIPLAYER MODE (4P)';
+      case 'ai':
+        const difficulty = localStorage.getItem('ai-difficulty') || 'medium';
+        return `VS AI (${difficulty.toUpperCase()})`;
+      default:
+        return 'GAME MODE';
+    }
   };
 
   return (
     <GradientBackground className="bg-black">
-      <div className="min-h-screen flex flex-col items-center justify-center p-8">
-        {/* Zone de jeu avec bordure blanche */}
-        <div className="w-full max-w-6xl mb-12">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        
+        {/* Header avec mode de jeu */}
+        <div className="mb-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-white text-center tracking-wider">
+            {getGameModeTitle()}
+          </h1>
+        </div>
+
+        {/* Affichage des joueurs */}
+        <div className="mb-6 w-full max-w-4xl">
+          {gameMode === 'multiplayer' ? (
+            // Affichage 2x2 pour multiplayer
+            <div className="grid grid-cols-2 gap-4">
+              {players.slice(0, 4).map((player, index) => (
+                <div
+                  key={player.id}
+                  className="flex items-center justify-center p-3 rounded-lg border-2"
+                  style={{
+                    backgroundColor: `${player.color}20`,
+                    borderColor: player.color,
+                    color: player.color
+                  }}
+                >
+                  <div className="text-center">
+                    <div className="font-bold text-sm">
+                      {player.name}
+                    </div>
+                    <div className="text-xs opacity-80">
+                      Player {index + 1}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            // Affichage horizontal pour les autres modes
+            <div className="flex justify-center gap-8">
+              {players.slice(0, 2).map((player, index) => (
+                <div
+                  key={player.id}
+                  className="flex items-center justify-center p-4 rounded-lg border-2 min-w-[150px]"
+                  style={{
+                    backgroundColor: `${player.color}20`,
+                    borderColor: player.color,
+                    color: player.color
+                  }}
+                >
+                  <div className="text-center">
+                    <div className="font-bold">
+                      {player.name}
+                    </div>
+                    {player.isHost && (
+                      <div className="text-xs opacity-80">HOST</div>
+                    )}
+                    {player.isMainPlayer && (
+                      <div className="text-xs opacity-80">YOU</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Zone de jeu avec canvas 60vw */}
+        <div className="mb-8" style={{ width: '60vw', maxWidth: '800px' }}>
           <div className="bg-black border-4 border-white rounded-2xl p-1 relative">
             {/* Conteneur de jeu avec aspect ratio 16:10 */}
             <div
@@ -32,31 +174,45 @@ export default function GameView() {
           </div>
         </div>
 
-        {/* Boutons de contrôle */}
-        <div className="flex gap-8">
-          <button
-            onClick={() => {
-              /* Logique pause */
-            }}
-            className="bg-transparent border-4 border-white text-white px-12 py-3 rounded-full text-2xl font-bold transition-all duration-300 hover:bg-white hover:text-black hover:scale-105"
-          >
-            pause
-          </button>
-
+        {/* Bouton quit uniquement */}
+        <div className="flex justify-center">
           <button
             onClick={handleQuit}
-            className="bg-transparent border-4 border-white text-white px-12 py-3 rounded-full text-2xl font-bold transition-all duration-300 hover:bg-white hover:text-black hover:scale-105"
+            className="bg-transparent border-4 border-red-400 text-red-400 px-12 py-3 rounded-full text-xl font-bold transition-all duration-300 hover:bg-red-400 hover:text-white hover:scale-105"
           >
-            quit
-          </button>
-
-          <button
-            onClick={() => navigate("settings")}
-            className="bg-transparent border-4 border-white text-white px-12 py-3 rounded-full text-2xl font-bold transition-all duration-300 hover:bg-white hover:text-black hover:scale-105"
-          >
-            settings
+            QUIT GAME
           </button>
         </div>
+
+        {/* Instructions de contrôle pour multiplayer */}
+        {gameMode === 'multiplayer' && (
+          <div className="mt-6 text-center">
+            <div className="text-white/70 text-sm">
+              <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+                <div>
+                  <span className="font-bold" style={{ color: players[0]?.color }}>
+                    {players[0]?.name}:
+                  </span> W/S
+                </div>
+                <div>
+                  <span className="font-bold" style={{ color: players[1]?.color }}>
+                    {players[1]?.name}:
+                  </span> ↑/↓
+                </div>
+                <div>
+                  <span className="font-bold" style={{ color: players[2]?.color }}>
+                    {players[2]?.name}:
+                  </span> I/K
+                </div>
+                <div>
+                  <span className="font-bold" style={{ color: players[3]?.color }}>
+                    {players[3]?.name}:
+                  </span> 8/5
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </GradientBackground>
   );
