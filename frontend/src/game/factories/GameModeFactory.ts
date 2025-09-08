@@ -1,6 +1,6 @@
 import { GameType } from "@/game/utils/pongData";
 import { DefaultPongMode, IPongGameMode } from "@/game/modes/DefaultPongMode";
-import { FourPlayerPongMode } from "@/game/modes/FourPlayerPongMode";
+import { MultiplayerPongMode } from "@/game/modes/MultiplayerPongMode";
 
 /**
  * Factory pour créer le mode de jeu approprié en fonction du type
@@ -13,8 +13,8 @@ export class GameModeFactory {
      */
     static createGameMode(gameType: GameType): IPongGameMode {
         switch (gameType) {
-            case GameType.FOUR_PLAYER_PONG:
-                return new FourPlayerPongMode();
+            case GameType.MULTIPLAYER_PONG:
+                return new MultiplayerPongMode();
             case GameType.DEFAULT_PONG:
             default:
                 return new DefaultPongMode();
