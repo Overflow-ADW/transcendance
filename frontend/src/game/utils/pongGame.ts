@@ -22,15 +22,15 @@ export interface GlowLayerOptions {
 // Modifier la classe PongBall
 
 export class PongBall {
-    private ball: Mesh;
-    private player0: Mesh;
-    private player1: Mesh;
-    private velocity: Vector3 = new Vector3(0, 0, 0);
-    private options: BallOptions;
-    private topWall: Mesh;
-    private bottomWall: Mesh;
+    protected ball: Mesh; // Changé de private à protected
+    protected player0: Mesh; // Changé de private à protected
+    protected player1: Mesh; // Changé de private à protected
+    protected velocity: Vector3 = new Vector3(0, 0, 0);
+    protected options: BallOptions;
+    protected topWall: Mesh;
+    protected bottomWall: Mesh;
     private wallCollisionThreshold = BALL_CONFIG.COLLISION_THRESHOLD;
-    private gameData: PongData;
+    protected gameData: PongData; // Changé de private à protected
     private lastScoredPlayer = -1; // -1: initial, 0: player0 scored, 1: player1 scored
     private ballMaterial: PBRMaterial;
     private isResetting = false;
@@ -52,7 +52,7 @@ export class PongBall {
     private playerGlowAnimationDuration = 300; // même durée que pour les murs
     private controls: PongControls | null = null;
     private particleReductionFactor = GAME_CONFIG.OPTIMIZATION.PARTICLE_REDUCTION_FACTOR;
-    private pongInstance?: any; // Référence optionnelle à l'instance Pong
+    protected pongInstance?: any; // Changé de private à protected
 
     constructor(
         private scene: Scene,
@@ -222,10 +222,9 @@ export class PongBall {
         this.spawnParticleSystem.stop();
     }
 
-    private resetBallWithAnimation(isGoal = false): void {
+    protected resetBallWithAnimation(isGoal = false): void { // Changé de private à protected
         // Ne pas réinitialiser si le jeu est en état GAME_OVER
         if (this.gameData.gameState === GameState.GAME_OVER) {
-            console.log("Tentative de réinitialisation pendant GAME_OVER - ignorée");
             return;
         }
         
@@ -261,43 +260,32 @@ export class PongBall {
         }
         
         if (isGoal) {
-            // La balle reste invisible car elle a été désintégrée
-            
-            // Émettre l'événement PLAYERS_REPOSITIONED pour commencer la transition des murs
-            this.gameData.emit('PLAYERS_REPOSITIONED');
-            
-            // Wait for delay then show animation
             setTimeout(() => {
-                // Animation Tron-like pour l'apparition
                 this.createTronSpawnEffect();
-                
-                // Set direction based on who scored last after animation completes
                 setTimeout(() => {
                     this.setInitialVelocity();
                     this.isResetting = false;
                     
-                    // Déverrouiller les contrôles 500ms avant que la balle ne bouge
+                    // Déverrouiller les contrôles
                     if (this.controls) {
                         this.controls.setControlsLocked(false);
                     }
-                }, 800); // Animation duration
-            }, this.goalDelayMs);
+                }, this.goalDelayMs);
+            }, 200);
         } else {
-            // Initial game start
-            this.createTronSpawnEffect();
-            
-            // Émettre l'événement PLAYERS_REPOSITIONED pour initialiser la texture des murs
-            this.gameData.emit('PLAYERS_REPOSITIONED');
-            
+            // Pour les débuts de partie ou les remises en jeu non-goal
             setTimeout(() => {
-                this.setInitialVelocity();
-                this.isResetting = false;
-                
-                // Déverrouiller les contrôles 500ms avant que la balle ne bouge
-                if (this.controls) {
-                    this.controls.setControlsLocked(false);
-                }
-            }, 800); // Animation duration
+                this.createTronSpawnEffect();
+                setTimeout(() => {
+                    this.setInitialVelocity();
+                    this.isResetting = false;
+                    
+                    // Déverrouiller les contrôles
+                    if (this.controls) {
+                        this.controls.setControlsLocked(false);
+                    }
+                }, 500);
+            }, 100);
         }
     }
 
@@ -871,7 +859,7 @@ export class PongBall {
         }
     }
 
-    private handlePlayerCollisions(): void {
+    protected handlePlayerCollisions(): void {
         const ballRadius = this.ball.getBoundingInfo().boundingSphere.radius;
         const player0Pos = this.player0.position;
         const player1Pos = this.player1.position;
@@ -937,7 +925,7 @@ export class PongBall {
         }
     }
 
-    private checkScoring(): void {
+    protected checkScoring(): void {
         // Ajouter une variable pour éviter les déclenchements multiples
         if (this.isResetting) return;
         

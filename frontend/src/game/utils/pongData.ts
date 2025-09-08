@@ -6,10 +6,7 @@ import { EventEmitter } from './eventEmitter';
  */
 export enum GameType {
     DEFAULT_PONG = 0,
-    SPEED_PONG = 1,
-    OBSTACLE_PONG = 2,
-    CUSTOM_PONG = 3,
-    FOUR_PLAYER_PONG = 4
+    MULTIPLAYER_PONG = 1
 }
 
 /**
