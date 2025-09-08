@@ -66,8 +66,13 @@ export const MAIN_COLORS = {
     RGB_BLUE: new Color3(0.137, 0.137, 1),
     HEX_BLUE: "#2323FF",
     RGB_PURPLE: new Color3(0.54, 0, 0.77),
-    HEX_PURPLE: "#8A00C4"
+    HEX_PURPLE: "#8A00C4",
+    RGB_YELLOW: new Color3(1, 0.843, 0),
+    HEX_YELLOW: "#FFD700",
+    RGB_GREEN: new Color3(0.157, 0.647, 0.271),
+    HEX_GREEN: "#28A745"
 };
+
 
 // Player Controls - Common to all game modes
 export const CONTROLS_CONFIG = {
@@ -82,6 +87,14 @@ export const CONTROLS_CONFIG = {
         PLAYER1: {
             UP: ["o", "O"],
             DOWN: ["l", "L"]
+        },
+        PLAYER2: {
+            UP: ["i", "I"],
+            DOWN: ["k", "K"]
+        },
+        PLAYER3: {
+            UP: ["Numpad8", "8"],
+            DOWN: ["Numpad5", "5"]
         }
     }
 };
@@ -162,6 +175,14 @@ export const GAME_MODE_CONFIGS: Record<GameType, GameModeConfig> = {
         CONTROLS: {
             SPEED: CONTROLS_CONFIG.SPEED
         }
+    },
+    [GameType.FOUR_PLAYER_PONG]: {
+        // Four player mode - Battle royale style
+        BALL_PHYSICS: {
+            INITIAL_SPEED: BALL_CONFIG.PHYSICS.INITIAL_SPEED,
+            SPEED_INCREMENT: BALL_CONFIG.PHYSICS.SPEED_INCREMENT,
+            MAX_SPEED: BALL_CONFIG.PHYSICS.MAX_SPEED
+        },
     }
 };
 

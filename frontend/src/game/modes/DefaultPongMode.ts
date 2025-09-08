@@ -9,8 +9,9 @@ import { getGameModeConfig } from "@/game/utils/pongValues";
  */
 export interface IPongGameMode {
     initialize(scene: Scene, ball: Mesh, player0: Mesh, player1: Mesh, 
-               topWall: Mesh, bottomWall: Mesh, gameData: PongData,
-               controls: PongControls, parent: any): void;
+               topWall: Mesh, bottomWall: Mesh, gameData: any,
+               controls: any, parent: any, glowLayers?: any,
+               topWallPlane?: Mesh, bottomWallPlane?: Mesh): void;
     cleanup(): void;
     getType(): GameType;
 }

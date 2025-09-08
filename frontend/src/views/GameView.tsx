@@ -3,9 +3,17 @@
 
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useApp } from "@/lib_front/store";
+import Pong from "@/game/components/Pong";
 
 export default function GameView() {
   const { navigate } = useApp();
+
+  // Nettoyer le localStorage quand on quitte le jeu
+  const handleQuit = () => {
+    localStorage.removeItem('game-mode');
+    localStorage.removeItem('ai-difficulty');
+    navigate("tournament");
+  };
 
   return (
     <GradientBackground className="bg-black">
@@ -18,8 +26,8 @@ export default function GameView() {
               className="relative bg-black rounded-xl overflow-hidden"
               style={{ aspectRatio: "16/10" }}
             >
-              {/* POINT DE MONTAGE POUR TON PONG CUSTOM */}
-              <div id="pong-root" className="absolute inset-0 z-0" />
+              {/* Composant Pong intégré */}
+              <Pong />
             </div>
           </div>
         </div>
@@ -36,7 +44,7 @@ export default function GameView() {
           </button>
 
           <button
-            onClick={() => navigate("tournament")}
+            onClick={handleQuit}
             className="bg-transparent border-4 border-white text-white px-12 py-3 rounded-full text-2xl font-bold transition-all duration-300 hover:bg-white hover:text-black hover:scale-105"
           >
             quit

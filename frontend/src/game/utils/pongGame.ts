@@ -771,15 +771,19 @@ export class PongBall {
         
         this.updateBallColor();
         
-        // FIX : Forcer un snapshot IA après le lancement
-        if (this.controls && this.controls.isAIActive()) {
+        // NOUVEAU : Notifier l'IA du début de partie avec la vraie vélocité
+        if (this.controls && this.controls.ai && this.controls.ai.isAIActive()) {
+            // Attendre un frame pour que la vélocité soit stable
             setTimeout(() => {
-                if (this.controls) {
-                    if (this.controls.ai)
-                    this.controls.ai.forceSnapshot();
-                    console.log("🎯 Snapshot IA forcé après lancement de la balle");
+                const ballPos = this.ball.position.clone();
+                const ballVel = this.velocity.clone();
+                
+                // Si la balle va vers l'IA (X > 0), notifier le début de partie
+                if (ballVel.x > 0) {
+                    this.controls!.ai!.notifyGameStart(ballPos, ballVel);
+                    console.log("🎯 Notification début de partie envoyée à l'IA");
                 }
-            }, 200); // Attendre que la balle bouge un peu
+            }, 16); // 1 frame à 60fps
         }
     }
 
@@ -868,12 +872,12 @@ export class PongBall {
     }
 
     private handlePlayerCollisions(): void {
+        const ballRadius = this.ball.getBoundingInfo().boundingSphere.radius;
         const player0Pos = this.player0.position;
         const player1Pos = this.player1.position;
         const paddleWidth = PLAYER_CONFIG.WIDTH;
         const paddleDepth = PLAYER_CONFIG.DEPTH;
-        const ballRadius = this.ball.getBoundingInfo().boundingSphere.radius;
-        
+
         // Player 0 (left) collision
         if (this.ball.position.x - ballRadius <= player0Pos.x + paddleWidth/2 && 
             this.ball.position.x > player0Pos.x &&
@@ -888,6 +892,16 @@ export class PongBall {
             this.velocity.z = this.velocity.length() * maxDeflection * hitPosition;
             
             this.increaseVelocity();
+            
+            // NOUVEAU : Notifier l'IA de la collision avec Player 0
+            if (this.controls && this.controls.ai && this.controls.ai.isAIActive()) {
+                // Attendre un frame pour que la nouvelle vélocité soit stable
+                setTimeout(() => {
+                    const ballPos = this.ball.position.clone();
+                    const ballVel = this.velocity.clone();
+                    this.controls!.ai!.notifyPlayer0Hit(ballPos, ballVel);
+                }, 16); // 1 frame à 60fps
+            }
             
             // IMPORTANT: Appeler l'animation depuis l'instance Pong
             if (this.pongInstance && this.pongInstance.animatePlayerGlow) {
