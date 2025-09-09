@@ -53,9 +53,9 @@ export const BALL_CONFIG = {
         Z: 0
     },
     PHYSICS: {
-        INITIAL_SPEED: 3,
-        SPEED_INCREMENT: 0.5,
-        MAX_SPEED: 15
+        INITIAL_SPEED: 2.5,
+        SPEED_INCREMENT: 0.3,
+        MAX_SPEED: 12
     },
     COLLISION_THRESHOLD: 5,
     OUT_OF_BOUNDS_X: 510
@@ -133,10 +133,9 @@ interface GameModeConfig {
     };
 }
 
-// Mode-specific configurations - Seulement DEFAULT_PONG et MULTIPLAYER_PONG
+// Mode-specific configurations - Support pour les modes de jeu
 export const GAME_MODE_CONFIGS: Record<GameType, GameModeConfig> = {
     [GameType.DEFAULT_PONG]: {
-        // Default mode uses the standard configurations above
         BALL_PHYSICS: {
             INITIAL_SPEED: BALL_CONFIG.PHYSICS.INITIAL_SPEED,
             SPEED_INCREMENT: BALL_CONFIG.PHYSICS.SPEED_INCREMENT,
@@ -144,11 +143,11 @@ export const GAME_MODE_CONFIGS: Record<GameType, GameModeConfig> = {
         }
     },
     [GameType.MULTIPLAYER_PONG]: {
-        // Multiplayer mode - Same physics as default
+        // Multiplayer mode - Vitesses réduites pour un meilleur contrôle
         BALL_PHYSICS: {
-            INITIAL_SPEED: BALL_CONFIG.PHYSICS.INITIAL_SPEED,
-            SPEED_INCREMENT: BALL_CONFIG.PHYSICS.SPEED_INCREMENT,
-            MAX_SPEED: BALL_CONFIG.PHYSICS.MAX_SPEED
+            INITIAL_SPEED: 2.5,        // Plus lent au début
+            SPEED_INCREMENT: 0.3,    // Augmentation plus douce
+            MAX_SPEED: 15            // Vitesse max plus raisonnable
         },
         CONTROLS: {
             SPEED: CONTROLS_CONFIG.SPEED

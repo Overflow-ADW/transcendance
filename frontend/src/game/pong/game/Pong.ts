@@ -66,6 +66,7 @@ export class Pong {
 
     private player0GlowLayer!: GlowLayer;
     private player1GlowLayer!: GlowLayer;
+    private _player2GlowLayer!: GlowLayer; // Changé de player2GlowLayer à _player2GlowLayer
     private isGameStopped = false; // Flag pour indiquer si le jeu a été arrêté manuellement
 
     constructor(private canvas: HTMLCanvasElement) {
@@ -89,9 +90,6 @@ export class Pong {
         // Initialiser le mode de jeu par défaut
         this.setGameMode(this.gameData.gameType);
         
-        // Start the game
-        this.gameData.startGame();
-
         this.engine.runRenderLoop(() => {
             this.scene.render();
         });
@@ -99,236 +97,6 @@ export class Pong {
         window.addEventListener("resize", () => {
             this.engine.resize();
         });
-    }
-
-    /**
-     * Définit le mode de jeu actuel
-     * @param gameType Type de jeu à charger
-     */
-    public setGameMode(gameType: GameType): void {
-        // Nettoyer le mode de jeu précédent s'il existe
-        if (this.currentGameMode) {
-            this.currentGameMode.cleanup();
-        }
-        
-        // Créer le nouveau mode de jeu
-        this.currentGameMode = GameModeFactory.createGameMode(gameType);
-        
-        // Rassembler les glow layers pour les passer au mode de jeu
-        const glowLayers = {
-            ballGlowLayer: this.glowLayer,
-            topWallGlowLayer: this.topWallGlowLayer,
-            bottomWallGlowLayer: this.bottomWallGlowLayer,
-            player0GlowLayer: this.player0GlowLayer,
-            player1GlowLayer: this.player1GlowLayer
-        };
-        
-        // Initialiser le nouveau mode de jeu
-        this.currentGameMode.initialize(
-            this.scene,
-            this.ball,
-            this.player0,
-            this.player1,
-            this.topWall,
-            this.bottomWall,
-            this.gameData,
-            this.controls,
-            this,
-
-        );
-        
-        // Mettre à jour le type de jeu dans les données
-        this.gameData.setGameType(gameType);
-    }
-
-    /**
-     * Configure et active l'IA
-     * @param difficulty Niveau de difficulté (1-3)
-     */
-    public enableAI(difficulty: AIDifficulty = AIDifficulty.MEDIUM): void {
-        // Configurer l'IA
-        this.controls.setupAI(difficulty);
-        
-        // Activer l'IA
-        this.controls.activateAI();
-        
-        // Mettre à jour le nom du joueur pour refléter l'IA
-        const currentDifficulty = this.controls.getAIDifficulty();
-        this.gameData.setPlayerNames(
-            this.gameData.player0Name, 
-            `IA ${currentDifficulty ? this.getDifficultyName(currentDifficulty) : 'Moyen'}`
-        );
-        
-        console.log(`IA activée avec difficulté: ${this.getDifficultyName(difficulty)}`);
-    }
-
-    /**
-     * Désactive l'IA
-     */
-    public disableAI(): void {
-        this.controls.deactivateAI();
-        
-        // Restaurer le nom du joueur
-        this.gameData.setPlayerNames(
-            this.gameData.player0Name, 
-            "Player 2"
-        );
-        
-        console.log("IA désactivée");
-    }
-
-    /**
-     * Change la difficulté de l'IA
-     */
-    public setAIDifficulty(difficulty: AIDifficulty): void {
-        this.controls.setAIDifficulty(difficulty);
-        
-        // Mettre à jour le nom du joueur
-        if (this.controls.isAIActive()) {
-            this.gameData.setPlayerNames(
-                this.gameData.player0Name, 
-                `IA ${this.getDifficultyName(difficulty)}`
-            );
-        }
-        
-        console.log(`Difficulté IA changée: ${this.getDifficultyName(difficulty)}`);
-    }
-
-    /**
-     * Obtient le nom de la difficulté
-     */
-    private getDifficultyName(difficulty: AIDifficulty): string {
-        return getDifficultyName(difficulty);
-    }
-
-    /**
-     * Vérifie si l'IA est active
-     */
-    public isAIEnabled(): boolean {
-        return this.controls.isAIActive();
-    }
-
-    /**
-     * Anime l'effet de glow quand une raquette touche la balle
-     * @param playerIndex Index du joueur (0 ou 1)
-     */
-    public animatePlayerGlow(playerIndex: number): void {
-        const player = playerIndex === 0 ? this.player0 : this.player1;
-        const playerGlowLayer = playerIndex === 0 ? this.player0GlowLayer : this.player1GlowLayer;
-        
-        if (!player || !playerGlowLayer) {
-            console.error(`Joueur ${playerIndex} ou glow layer non trouvé`);
-            return;
-        }
-        
-        // Sauvegarder l'intensité originale et la couleur d'émission
-        const originalGlowIntensity = playerGlowLayer.intensity;
-        const material = player.material as StandardMaterial;
-        const originalEmissiveColor = material.emissiveColor ? material.emissiveColor.clone() : 
-            playerIndex === 0 ? MAIN_COLORS.RGB_BLUE.scale(0.5) : MAIN_COLORS.RGB_PURPLE.scale(0.5);
-        
-        // Augmenter la brillance
-        material.emissiveColor = new Color3(1, 1, 1); // Blanc brillant
-        playerGlowLayer.intensity = 2.0;
-        
-        // Créer des particules à l'impact
-        this.createPlayerImpactParticles(playerIndex);
-        
-        // Animation de décroissance de la lueur
-        const startTime = performance.now();
-        const animationDuration = 500; // ms
-        
-        const animate = () => {
-            const currentTime = performance.now();
-            const elapsedTime = currentTime - startTime;
-            const progress = Math.min(elapsedTime / animationDuration, 1);
-            
-            if (progress < 1) {
-                // Interpoler vers les valeurs originales
-                const currentEmissiveColor = new Color3(
-                    1 - progress * (1 - originalEmissiveColor.r),
-                    1 - progress * (1 - originalEmissiveColor.g),
-                    1 - progress * (1 - originalEmissiveColor.b)
-                );
-                
-                material.emissiveColor = currentEmissiveColor;
-                playerGlowLayer.intensity = 2.0 - (progress * (2.0 - originalGlowIntensity));
-                
-                requestAnimationFrame(animate);
-            } else {
-                // Restaurer les valeurs originales
-                material.emissiveColor = originalEmissiveColor;
-                playerGlowLayer.intensity = originalGlowIntensity;
-            }
-        };
-        
-        requestAnimationFrame(animate);
-    }
-
-    /**
-     * Crée des particules d'impact quand une raquette touche la balle
-     * @param playerIndex Index du joueur (0 ou 1)
-     */
-    private createPlayerImpactParticles(playerIndex: number): void {
-        const player = playerIndex === 0 ? this.player0 : this.player1;
-        const playerColor = playerIndex === 0 ? MAIN_COLORS.RGB_BLUE : MAIN_COLORS.RGB_PURPLE;
-        
-        // Créer un système de particules d'impact
-        const impactParticles = new ParticleSystem("playerImpactParticles", 50, this.scene);
-        
-        // Texture des particules
-        const particleTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
-        impactParticles.particleTexture = particleTexture;
-        
-        // Position de l'émetteur à la raquette
-        impactParticles.emitter = player.position.clone();
-        
-        // Zone d'émission autour de la raquette
-        impactParticles.minEmitBox = new Vector3(-PLAYER_CONFIG.WIDTH/2, -PLAYER_CONFIG.HEIGHT/2, -PLAYER_CONFIG.DEPTH/2);
-        impactParticles.maxEmitBox = new Vector3(PLAYER_CONFIG.WIDTH/2, PLAYER_CONFIG.HEIGHT/2, PLAYER_CONFIG.DEPTH/2);
-        
-        // Couleurs brillantes
-        impactParticles.color1 = new Color4(
-            Math.min(1, playerColor.r * 2.0),
-            Math.min(1, playerColor.g * 2.0),
-            Math.min(1, playerColor.b * 2.0),
-            1.0
-        );
-        impactParticles.color2 = new Color4(1, 1, 1, 1.0);
-        impactParticles.colorDead = new Color4(playerColor.r, playerColor.g, playerColor.b, 0);
-        
-        // Configuration
-        impactParticles.minSize = 0.2;
-        impactParticles.maxSize = 0.8;
-        impactParticles.minLifeTime = 0.2;
-        impactParticles.maxLifeTime = 0.5;
-        impactParticles.blendMode = ParticleSystem.BLENDMODE_ADD;
-        
-        // Direction des particules vers l'extérieur
-        const directionX = playerIndex === 0 ? -1 : 1;
-        impactParticles.direction1 = new Vector3(directionX * 2, -2, -2);
-        impactParticles.direction2 = new Vector3(directionX * 2, 2, 2);
-        
-        // Émission
-        impactParticles.createSphereEmitter(2.0);
-        impactParticles.minEmitPower = 3;
-        impactParticles.maxEmitPower = 8;
-        impactParticles.gravity = new Vector3(0, -1, 0);
-        
-        // Émission unique
-        impactParticles.emitRate = 0;
-        impactParticles.manualEmitCount = 30;
-        
-        // Démarrer
-        impactParticles.start();
-        
-        // Nettoyage
-        setTimeout(() => {
-            impactParticles.stop();
-            setTimeout(() => {
-                impactParticles.dispose();
-            }, 500);
-        }, 100);
     }
 
     private createScene(): Scene {
@@ -452,6 +220,12 @@ export class Pong {
         this.bottomWallGlowLayer.blurKernelSize = GAME_CONFIG.OPTIMIZATION.GLOW_BLUR_KERNEL;
         this.bottomWallGlowLayer.addIncludedOnlyMesh(this.bottomWallPlane);
 
+        // Glow layer pour la paddle centrale (Player 2) - sera utilisé en mode multijoueur
+        this._player2GlowLayer = new GlowLayer("player2Glow", this.scene); // Utiliser _player2GlowLayer
+        this._player2GlowLayer.intensity = 0.8; // Intensité constante
+        this._player2GlowLayer.blurKernelSize = GAME_CONFIG.OPTIMIZATION.GLOW_BLUR_KERNEL;
+        // Note: La paddle centrale sera ajoutée au glow layer lors de sa création dans MultiplayerPongMode
+
         // Setup controls
         this.controls = new PongControls(
             scene, 
@@ -469,6 +243,316 @@ export class Pong {
         this.controls.setBallReference(this.ball);
 
         return scene;
+    }
+
+    /**
+     * Définit le mode de jeu actuel
+     * @param gameType Type de jeu à charger
+     */
+    public setGameMode(gameType: GameType): void {
+        console.log("🎮 Pong.setGameMode() appelé avec:", gameType);
+        
+        // Nettoyer le mode de jeu précédent s'il existe
+        if (this.currentGameMode) {
+            console.log("🧹 Nettoyage du mode de jeu précédent:", this.currentGameMode.getType());
+            this.currentGameMode.cleanup();
+        }
+        
+        // Créer le nouveau mode de jeu
+        console.log("🏭 Création du nouveau mode de jeu via GameModeFactory...");
+        this.currentGameMode = GameModeFactory.createGameMode(gameType);
+        console.log("✅ Mode de jeu créé:", this.currentGameMode.getType());
+        
+        // Rassembler les glow layers pour les passer au mode de jeu
+        const glowLayers = {
+            ballGlowLayer: this.glowLayer,
+            topWallGlowLayer: this.topWallGlowLayer,
+            bottomWallGlowLayer: this.bottomWallGlowLayer,
+            player0GlowLayer: this.player0GlowLayer,
+            player1GlowLayer: this.player1GlowLayer
+        };
+        
+        console.log("🎨 GlowLayers préparés:", Object.keys(glowLayers));
+        
+        // Initialiser le nouveau mode de jeu
+        console.log("🚀 Initialisation du mode de jeu...");
+        this.currentGameMode.initialize(
+            this.scene,
+            this.ball,
+            this.player0,
+            this.player1,
+            this.topWall,
+            this.bottomWall,
+            this.gameData,
+            this.controls,
+            this,
+            glowLayers,
+            this.topWallPlane,
+            this.bottomWallPlane
+        );
+        
+        // Mettre à jour le type de jeu dans les données
+        this.gameData.setGameType(gameType);
+        
+        // NOUVEAU : Repositionner les scores selon le nouveau mode de jeu
+        if (this.scorePlayer0Mesh && this.scorePlayer1Mesh) {
+            this.positionScoresForGameMode();
+        }
+        
+        console.log("✅ Mode de jeu défini et initialisé avec succès");
+        
+        // NOUVEAU : Démarrer le jeu seulement après l'initialisation complète du mode
+        if (this.gameData.gameState === GameState.IDLE) {
+            setTimeout(() => {
+                this.gameData.startGame();
+                console.log("🎯 Jeu démarré pour le mode:", GameType[gameType]);
+            }, 100);
+        }
+    }
+
+    /**
+     * Configure et active l'IA
+     * @param difficulty Niveau de difficulté (1-3)
+     */
+    public enableAI(difficulty: AIDifficulty = AIDifficulty.MEDIUM): void {
+        // Configurer l'IA
+        this.controls.setupAI(difficulty);
+        
+        // Activer l'IA
+        this.controls.activateAI();
+        
+        // Mettre à jour le nom du joueur pour refléter l'IA
+        const currentDifficulty = this.controls.getAIDifficulty();
+        this.gameData.setPlayerNames(
+            this.gameData.player0Name, 
+            `IA ${currentDifficulty ? this.getDifficultyName(currentDifficulty) : 'Moyen'}`
+        );
+        
+        console.log(`IA activée avec difficulté: ${this.getDifficultyName(difficulty)}`);
+    }
+
+    /**
+     * Désactive l'IA
+     */
+    public disableAI(): void {
+        this.controls.deactivateAI();
+        
+        // Restaurer le nom du joueur
+        this.gameData.setPlayerNames(
+            this.gameData.player0Name, 
+            "Player 2"
+        );
+        
+        console.log("IA désactivée");
+    }
+
+    /**
+     * Change la difficulté de l'IA
+     */
+    public setAIDifficulty(difficulty: AIDifficulty): void {
+        this.controls.setAIDifficulty(difficulty);
+        
+        // Mettre à jour le nom du joueur
+        if (this.controls.isAIActive()) {
+            this.gameData.setPlayerNames(
+                this.gameData.player0Name, 
+                `IA ${this.getDifficultyName(difficulty)}`
+            );
+        }
+        
+        console.log(`Difficulté IA changée: ${this.getDifficultyName(difficulty)}`);
+    }
+
+    /**
+     * Obtient le nom de la difficulté
+     */
+    private getDifficultyName(difficulty: AIDifficulty): string {
+        return getDifficultyName(difficulty);
+    }
+
+    /**
+     * Vérifie si l'IA est active
+     */
+    public isAIEnabled(): boolean {
+        return this.controls.isAIActive();
+    }
+
+    /**
+     * Anime l'effet de glow quand une raquette touche la balle
+     * @param playerIndex Index du joueur (0, 1, ou 2 pour la paddle centrale)
+     */
+    public animatePlayerGlow(playerIndex: number): void {
+        let player: Mesh;
+        let playerGlowLayer: GlowLayer;
+        let originalEmissiveColor: Color3;
+
+        // Gérer les différents joueurs, y compris la paddle centrale
+        if (playerIndex === 0) {
+            player = this.player0;
+            playerGlowLayer = this.player0GlowLayer;
+            originalEmissiveColor = MAIN_COLORS.RGB_BLUE.scale(0.5);
+        } else if (playerIndex === 1) {
+            player = this.player1;
+            playerGlowLayer = this.player1GlowLayer;
+            originalEmissiveColor = MAIN_COLORS.RGB_PURPLE.scale(0.5);
+        } else if (playerIndex === 2) {
+            // Support pour la paddle centrale verte
+            const centerPaddle = this.scene.getMeshByName("centerPaddle") as Mesh;
+            if (!centerPaddle || !this._player2GlowLayer) { // Utiliser _player2GlowLayer
+                console.error("Paddle centrale ou glow layer non trouvé");
+                return;
+            }
+            player = centerPaddle;
+            playerGlowLayer = this._player2GlowLayer; // Utiliser _player2GlowLayer
+            originalEmissiveColor = MAIN_COLORS.RGB_GREEN.scale(0.5);
+        } else {
+            console.error(`Index de joueur invalide: ${playerIndex}`);
+            return;
+        }
+        
+        if (!player || !playerGlowLayer) {
+            console.error(`Joueur ${playerIndex} ou glow layer non trouvé`);
+            return;
+        }
+        
+        // Sauvegarder l'intensité originale et la couleur d'émission
+        const originalGlowIntensity = playerGlowLayer.intensity;
+        const material = player.material as StandardMaterial;
+        const currentEmissiveColor = material.emissiveColor ? material.emissiveColor.clone() : originalEmissiveColor;
+        
+        // Augmenter la brillance
+        material.emissiveColor = new Color3(1, 1, 1); // Blanc brillant
+        playerGlowLayer.intensity = 2.0;
+        
+        // Créer des particules à l'impact
+        this.createPlayerImpactParticles(playerIndex);
+        
+        // Animation de décroissance de la lueur
+        const startTime = performance.now();
+        const animationDuration = 500; // ms
+        
+        const animate = () => {
+            const currentTime = performance.now();
+            const elapsedTime = currentTime - startTime;
+            const progress = Math.min(elapsedTime / animationDuration, 1);
+            
+            if (progress < 1) {
+                // Interpoler vers les valeurs originales
+                const interpolatedEmissiveColor = new Color3(
+                    1 - progress * (1 - currentEmissiveColor.r),
+                    1 - progress * (1 - currentEmissiveColor.g),
+                    1 - progress * (1 - currentEmissiveColor.b)
+                );
+                
+                material.emissiveColor = interpolatedEmissiveColor;
+                playerGlowLayer.intensity = 2.0 - (progress * (2.0 - originalGlowIntensity));
+                
+                requestAnimationFrame(animate);
+            } else {
+                // Restaurer les valeurs originales
+                material.emissiveColor = currentEmissiveColor;
+                playerGlowLayer.intensity = originalGlowIntensity;
+            }
+        };
+        
+        requestAnimationFrame(animate);
+    }
+
+    /**
+     * Crée des particules d'impact quand une raquette touche la balle
+     * @param playerIndex Index du joueur (0, 1, ou 2 pour la paddle centrale)
+     */
+    private createPlayerImpactParticles(playerIndex: number): void {
+        let player: Mesh;
+        let playerColor: Color3;
+
+        // Gérer les différents joueurs, y compris la paddle centrale
+        if (playerIndex === 0) {
+            player = this.player0;
+            playerColor = MAIN_COLORS.RGB_BLUE;
+        } else if (playerIndex === 1) {
+            player = this.player1;
+            playerColor = MAIN_COLORS.RGB_PURPLE;
+        } else if (playerIndex === 2) {
+            // Support pour la paddle centrale verte
+            const centerPaddle = this.scene.getMeshByName("centerPaddle") as Mesh;
+            if (!centerPaddle) {
+                console.error("Paddle centrale non trouvée pour les particules d'impact");
+                return;
+            }
+            player = centerPaddle;
+            playerColor = MAIN_COLORS.RGB_GREEN;
+        } else {
+            console.error(`Index de joueur invalide pour les particules: ${playerIndex}`);
+            return;
+        }
+        
+        // Créer un système de particules d'impact
+        const impactParticles = new ParticleSystem("playerImpactParticles", 50, this.scene);
+        
+        // Texture des particules
+        const particleTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
+        impactParticles.particleTexture = particleTexture;
+        
+        // Position de l'émetteur à la raquette
+        impactParticles.emitter = player.position.clone();
+        
+        // Zone d'émission autour de la raquette
+        impactParticles.minEmitBox = new Vector3(-PLAYER_CONFIG.WIDTH/2, -PLAYER_CONFIG.HEIGHT/2, -PLAYER_CONFIG.DEPTH/2);
+        impactParticles.maxEmitBox = new Vector3(PLAYER_CONFIG.WIDTH/2, PLAYER_CONFIG.HEIGHT/2, PLAYER_CONFIG.DEPTH/2);
+        
+        // Couleurs brillantes selon le joueur
+        impactParticles.color1 = new Color4(
+            Math.min(1, playerColor.r * 2.0),
+            Math.min(1, playerColor.g * 2.0),
+            Math.min(1, playerColor.b * 2.0),
+            1.0
+        );
+        impactParticles.color2 = new Color4(1, 1, 1, 1.0);
+        impactParticles.colorDead = new Color4(playerColor.r, playerColor.g, playerColor.b, 0);
+        
+        // Configuration
+        impactParticles.minSize = 0.2;
+        impactParticles.maxSize = 0.8;
+        impactParticles.minLifeTime = 0.2;
+        impactParticles.maxLifeTime = 0.5;
+        impactParticles.blendMode = ParticleSystem.BLENDMODE_ADD;
+        
+        // Direction des particules selon le joueur
+        if (playerIndex === 0) {
+            // Player 0 (gauche) - particules vers la gauche
+            impactParticles.direction1 = new Vector3(-2, -2, -2);
+            impactParticles.direction2 = new Vector3(-2, 2, 2);
+        } else if (playerIndex === 1) {
+            // Player 1 (droite) - particules vers la droite
+            impactParticles.direction1 = new Vector3(2, -2, -2);
+            impactParticles.direction2 = new Vector3(2, 2, 2);
+        } else if (playerIndex === 2) {
+            // Player 2 (centre) - particules radiales
+            impactParticles.direction1 = new Vector3(-3, -2, -3);
+            impactParticles.direction2 = new Vector3(3, 2, 3);
+        }
+        
+        // Émission
+        impactParticles.createSphereEmitter(2.0);
+        impactParticles.minEmitPower = 3;
+        impactParticles.maxEmitPower = 8;
+        impactParticles.gravity = new Vector3(0, -1, 0);
+        
+        // Émission unique
+        impactParticles.emitRate = 0;
+        impactParticles.manualEmitCount = 30;
+        
+        // Démarrer
+        impactParticles.start();
+        
+        // Nettoyage
+        setTimeout(() => {
+            impactParticles.stop();
+            setTimeout(() => {
+                impactParticles.dispose();
+            }, 500);
+        }, 100);
     }
 
     private createSplitColorMaterialForWalls(topWallPlane: Mesh, bottomWallPlane: Mesh): void {
@@ -561,7 +645,8 @@ export class Pong {
         const scorePlayer1Material = new StandardMaterial("scoreMat1", this.scene);
         scorePlayer1Material.diffuseTexture = this.scorePlayer1Texture;
         scorePlayer1Material.emissiveTexture = this.scorePlayer1Texture; // Ajouter texture émissive
-        scorePlayer1Material.emissiveColor = MAIN_COLORS.RGB_PURPLE;
+        // MODIFICATION : La couleur sera déterminée dynamiquement selon le mode de jeu
+        scorePlayer1Material.emissiveColor = MAIN_COLORS.RGB_PURPLE; // Par défaut, sera modifié si nécessaire
         scorePlayer1Material.specularColor = new Color3(0.2, 0.2, 0.2); // Comme les raquettes
         scorePlayer1Material.useAlphaFromDiffuseTexture = true;
         scorePlayer1Material.backFaceCulling = false;
@@ -575,32 +660,56 @@ export class Pong {
             this.scene
         );
         
-        this.scorePlayer0Mesh.position = new Vector3(
-            -GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_X_OFFSET, 
-            GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_Y, 
-            0
-        );
-        
-        this.scorePlayer0Mesh.rotation = new Vector3(Tools.ToRadians(CAMERA_CONFIG.ROTATION_DEGREES), 0, 0);
-        this.scorePlayer0Mesh.material = scorePlayer0Material;
-        
         this.scorePlayer1Mesh = MeshBuilder.CreatePlane(
             "scoreDisplay1", 
             { width: GAME_CONFIG.DISPLAY.SCORE_PLANE_WIDTH, height: GAME_CONFIG.DISPLAY.SCORE_PLANE_HEIGHT }, 
             this.scene
         );
         
-        this.scorePlayer1Mesh.position = new Vector3(
-            GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_X_OFFSET, 
-            GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_Y, 
-            0
-        );
+        // MODIFICATION : Positionnement initial par défaut (sera ajusté selon le mode de jeu)
+        this.positionScoresForGameMode();
+        
+        this.scorePlayer0Mesh.rotation = new Vector3(Tools.ToRadians(CAMERA_CONFIG.ROTATION_DEGREES), 0, 0);
+        this.scorePlayer0Mesh.material = scorePlayer0Material;
         
         this.scorePlayer1Mesh.rotation = new Vector3(Tools.ToRadians(CAMERA_CONFIG.ROTATION_DEGREES), 0, 0);
         this.scorePlayer1Mesh.material = scorePlayer1Material;
         
         // Initialize scores
         this.updateScoreDisplays(0, 0);
+    }
+
+    // NOUVELLE MÉTHODE : Positionner les scores selon le mode de jeu
+    private positionScoresForGameMode(): void {
+        if (this.gameData.gameType === GameType.MULTIPLAYER_PONG) {
+            // Mode multijoueur : layout vertical avec positions ajustées
+            // Score de la TEAM (Player 0) en haut - entre le centre et le TopWall
+            this.scorePlayer0Mesh.position = new Vector3(
+                0, // Centré horizontalement
+                GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_Y - 3000, // Position entre centre et TopWall
+                250 // Positionnement Z entre centre (0) et TopWall (~400)
+            );
+            
+            // Score du PLAYER 2 (Player 1) en bas - entre le centre et le BottomWall
+            this.scorePlayer1Mesh.position = new Vector3(
+                0, // Centré horizontalement  
+                GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_Y - 3000, // Position entre centre et BottomWall
+                -250 // Positionnement Z entre centre (0) et BottomWall (~-400)
+            );
+        } else {
+            // Mode classique : layout horizontal (positions originales)
+            this.scorePlayer0Mesh.position = new Vector3(
+                -GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_X_OFFSET, 
+                GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_Y, 
+                0
+            );
+            
+            this.scorePlayer1Mesh.position = new Vector3(
+                GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_X_OFFSET, 
+                GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_Y, 
+                0
+            );
+        }
     }
 
     private updateScoreDisplays(score0: number, score1: number): void {
@@ -620,13 +729,25 @@ export class Pong {
         const fontSize = GAME_CONFIG.DISPLAY.SCORE_FONT_SIZE;
         const font = `bold ${fontSize}px Arial`;
         
-        // Pour le joueur 0 (bleu) - utiliser la couleur bleue
+        // Pour le joueur 0 (toujours bleu) - TEAM dans le mode multijoueur
         context0.font = font;
         context0.fillStyle = MAIN_COLORS.HEX_BLUE;
         
-        // Pour le joueur 1 (mauve) - utiliser la couleur mauve
+        // CORRECTION MAJEURE : Pour le joueur 1 - vert en mode multijoueur, violet sinon
         context1.font = font;
-        context1.fillStyle = MAIN_COLORS.HEX_PURPLE;
+        if (this.gameData.gameType === GameType.MULTIPLAYER_PONG) {
+            context1.fillStyle = MAIN_COLORS.HEX_GREEN; // Vert pour Player 2 en mode multijoueur
+            
+            // NOUVEAU : Mettre à jour aussi la couleur émissive du matériau du score
+            const scorePlayer1Material = this.scorePlayer1Mesh.material as StandardMaterial;
+            scorePlayer1Material.emissiveColor = MAIN_COLORS.RGB_GREEN;
+        } else {
+            context1.fillStyle = MAIN_COLORS.HEX_PURPLE; // Violet pour le mode classique
+            
+            // Restaurer la couleur violette pour le mode classique
+            const scorePlayer1Material = this.scorePlayer1Mesh.material as StandardMaterial;
+            scorePlayer1Material.emissiveColor = MAIN_COLORS.RGB_PURPLE;
+        }
         
         // Draw scores
         context0.fillText(
@@ -639,6 +760,44 @@ export class Pong {
             score1.toString(), 
             GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2, 
             GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2
+        );
+        
+        // NOUVEAU : Afficher les noms des équipes selon le mode de jeu
+        const smallerFontSize = GAME_CONFIG.DISPLAY.PLAYER_NAME_FONT_SIZE;
+        const smallerFont = `bold ${smallerFontSize}px Arial`;
+        
+        // CORRECTION : Déterminer correctement les noms à afficher selon le mode de jeu
+        let player0Name: string;
+        let player1Name: string;
+        
+        if (this.gameData.gameType === GameType.MULTIPLAYER_PONG) {
+            player0Name = "TEAM";
+            player1Name = "PLAYER 2";
+        } else {
+            player0Name = this.gameData.player0Name;
+            player1Name = this.gameData.player1Name; // CORRECTION : Cette ligne était manquante
+        }
+        
+        // Afficher le nom sous le score pour Player 0 (toujours bleu) - TEAM en haut
+        context0.font = smallerFont;
+        context0.fillStyle = MAIN_COLORS.HEX_BLUE;
+        context0.fillText(
+            player0Name,
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2,
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2 + fontSize/2 + 10
+        );
+        
+        // Afficher le nom sous le score pour Player 1 (vert en mode multijoueur) - PLAYER 2 en bas
+        context1.font = smallerFont;
+        if (this.gameData.gameType === GameType.MULTIPLAYER_PONG) {
+            context1.fillStyle = MAIN_COLORS.HEX_GREEN; // Vert pour le nom aussi
+        } else {
+            context1.fillStyle = MAIN_COLORS.HEX_PURPLE; // Violet pour le mode classique
+        }
+        context1.fillText(
+            player1Name,
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2,
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2 + fontSize/2 + 10
         );
         
         // Update textures
@@ -678,9 +837,16 @@ export class Pong {
     }
 
     private showGameOverMessage(): void {
-        const winnerName = this.gameData.winner === 0 ? 
-            this.gameData.player0Name : 
-            this.gameData.player1Name;
+        let winnerName: string;
+        
+        // Déterminer le nom du gagnant selon le mode de jeu
+        if (this.gameData.gameType === GameType.MULTIPLAYER_PONG) {
+            winnerName = this.gameData.winner === 0 ? "TEAM" : "PLAYER 2";
+        } else {
+            winnerName = this.gameData.winner === 0 ? 
+                this.gameData.player0Name : 
+                this.gameData.player1Name;
+        }
         
         const context = this.gameOverTexture.getContext() as unknown as CanvasRenderingContext2D;
         
@@ -703,7 +869,7 @@ export class Pong {
         let prevScorePlayer1 = 0;
 
         // Score change listener
-        this.gameData.on(GameEvents.SCORE_CHANGED, (scores) => {
+        this.gameData.on(GameEvents.SCORE_CHANGED, (scores: { player0: number; player1: number }) => {
             console.log("Scores mis à jour:", scores);
             this.updateScoreDisplays(scores.player0, scores.player1);
             
@@ -713,25 +879,25 @@ export class Pong {
             
             // Comparer avec les scores précédents pour déterminer qui a marqué
             if (scores.player0 > prevScorePlayer0) {
-                // Player 0 a marqué - désactiver le suivi et déclencher l'animation
-                this.barColorTrackingActive = false;
-                
-                // Vérifier si c'est le point gagnant
-                if (scores.player0 >= this.gameData.maxScore) {
-                    this.animateWallColorTransitionFinal(0);
-                } else {
-                    this.animateWallColorTransition(0);
-                }
+            // Player 0 a marqué - désactiver le suivi et déclencher l'animation
+            this.barColorTrackingActive = false;
+            
+            // Vérifier si c'est le point gagnant
+            if (scores.player0 >= this.gameData.maxScore) {
+                this.animateWallColorTransitionFinal(0);
+            } else {
+                this.animateWallColorTransition(0);
+            }
             } else if (scores.player1 > prevScorePlayer1) {
-                // Player 1 a marqué - désactiver le suivi et déclencher l'animation
-                this.barColorTrackingActive = false;
-                
-                // Vérifier si c'est le point gagnant
-                if (scores.player1 >= this.gameData.maxScore) {
-                    this.animateWallColorTransitionFinal(1);
-                } else {
-                    this.animateWallColorTransition(1);
-                }
+            // Player 1 a marqué - désactiver le suivi et déclencher l'animation
+            this.barColorTrackingActive = false;
+            
+            // Vérifier si c'est le point gagnant
+            if (scores.player1 >= this.gameData.maxScore) {
+                this.animateWallColorTransitionFinal(1);
+            } else {
+                this.animateWallColorTransition(1);
+            }
             }
             
             // Mettre à jour les scores précédents
@@ -797,14 +963,14 @@ export class Pong {
         });
 
         // Game state change listener
-        this.gameData.on(GameEvents.GAME_STATE_CHANGED, (state) => {
+        this.gameData.on(GameEvents.GAME_STATE_CHANGED, (state: GameState) => {
             console.log("Game state changed to:", state);
             if (state === GameState.PLAYING) {
-                this.gameOverMesh.isVisible = false;
-                
-                // S'assurer que les scores sont visibles quand le jeu commence
-                this.scorePlayer0Mesh.isVisible = true;
-                this.scorePlayer1Mesh.isVisible = true;
+            this.gameOverMesh.isVisible = false;
+            
+            // S'assurer que les scores sont visibles quand le jeu commence
+            this.scorePlayer0Mesh.isVisible = true;
+            this.scorePlayer1Mesh.isVisible = true;
             }
         });
         
@@ -1005,7 +1171,6 @@ export class Pong {
                     // Appliquer cette texture intermédiaire avant de passer au tracking
                     wallMaterial.diffuseTexture = transitionTexture;
                     wallMaterial.emissiveTexture = transitionTexture;
-                    wallMaterial.emissiveColor = originalEmissiveColor; // Restaurer la couleur émissive
                     wallMaterial.markAsDirty(Material.TextureDirtyFlag);
                     
                     // Nettoyer les ressources
@@ -1611,5 +1776,12 @@ export class Pong {
      */
     public isManuallystopped(): boolean {
         return this.isGameStopped;
+    }
+
+    /**
+     * Expose le glow layer Player2 pour les modes de jeu qui en ont besoin
+     */
+    public get player2GlowLayer(): GlowLayer {
+        return this._player2GlowLayer; // Retourner _player2GlowLayer
     }
 }

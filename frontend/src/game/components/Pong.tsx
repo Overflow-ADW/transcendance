@@ -20,8 +20,8 @@ export default function Pong({ msg }: PongProps) {
       const gameMode = localStorage.getItem('game-mode');
       
       if (gameMode === 'multiplayer') {
-        // Mode multijoueur 4 joueurs
-        console.log('Démarrage du mode multijoueur');
+        // Mode multijoueur avec paddle centrale
+        console.log('Démarrage du mode multijoueur avec paddle centrale');
         pongGameRef.current.setGameMode(GameType.MULTIPLAYER_PONG);
       } else if (gameMode === 'ai') {
         // Mode IA
