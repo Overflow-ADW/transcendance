@@ -253,6 +253,7 @@ class ApiClient {
     return response.json();
   }
 
+<<<<<<< Updated upstream
   // ============ MÉTHODES AVATAR ============
 
   async uploadAvatar(file: File): Promise<{avatarUrl: string, fileName: string, fileSize: number, message: string}> {
@@ -288,6 +289,17 @@ class ApiClient {
   }
 
   async deleteAvatar(): Promise<{message: string}> {
+=======
+  async changeUsername(username: string) {
+    const response = await this.request('/api/users/username', {
+      method: 'PUT',
+      body: JSON.stringify({ username })
+    });
+    return response.json();
+  }
+
+  async uploadAvatar(avatarUrl: string) {
+>>>>>>> Stashed changes
     const response = await this.request('/api/users/avatar', {
       method: 'DELETE'
     });

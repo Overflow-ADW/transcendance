@@ -7,6 +7,7 @@ interface User {
   username: string;
   email: string;
   avatar?: string;
+  display_name?: string;
   twoFactorEnabled: boolean;
   stats?: {
     gamesPlayed: number;
