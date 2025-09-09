@@ -2,13 +2,18 @@ import type { MatchItem, Winrate, GameHistoryResponse } from "./types";
 
 // Configuration API centralisée avec détection automatique
 function getApiBaseUrl(): string {
-  // En mode SPA avec proxy Nginx, utiliser l'origine actuelle
+  // En mode développement, pointer vers le backend Fastify
   if (typeof window !== 'undefined') {
+    // En développement, utiliser le backend sur port 3000
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:3000';
+    }
+    // En production, utiliser l'origine actuelle (avec proxy Nginx)
     return window.location.origin;
   }
   
   // Fallback pour le build-time
-  return 'http://localhost:8080';
+  return 'http://localhost:3000';
 }
 
 const BASE_URL = getApiBaseUrl().replace(/\/+$/, ""); // Supprimer les slashes finaux
@@ -248,10 +253,43 @@ class ApiClient {
     return response.json();
   }
 
-  async uploadAvatar(avatarUrl: string) {
+  // ============ MÉTHODES AVATAR ============
+
+  async uploadAvatar(file: File): Promise<{avatarUrl: string, fileName: string, fileSize: number, message: string}> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const imageData = reader.result as string;
+          
+          const response = await this.request('/api/users/avatar', {
+            method: 'POST',
+            body: JSON.stringify({
+              imageData,
+              fileName: file.name,
+              mimeType: file.type
+            })
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Erreur lors de l\'upload');
+          }
+
+          const result = await response.json();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Erreur lors de la lecture du fichier'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async deleteAvatar(): Promise<{message: string}> {
     const response = await this.request('/api/users/avatar', {
-      method: 'POST',
-      body: JSON.stringify({ avatarUrl })
+      method: 'DELETE'
     });
     return response.json();
   }

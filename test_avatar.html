@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Avatar Upload</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #ddd;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin: 10px auto;
+            display: block;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #005a87; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .error { color: red; margin: 10px 0; }
+        .success { color: green; margin: 10px 0; }
+        .info { color: blue; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Avatar Upload API</h1>
+        
+        <div class="info">
+            <strong>Instructions:</strong>
+            <ol>
+                <li>Connectez-vous d'abord via l'application</li>
+                <li>Copiez votre token JWT depuis le localStorage</li>
+                <li>Collez-le dans le champ ci-dessous</li>
+                <li>Sélectionnez une image à uploader</li>
+            </ol>
+        </div>
+        
+        <div>
+            <label>JWT Token:</label><br>
+            <input type="text" id="jwtToken" placeholder="Bearer token..." style="width: 100%; padding: 8px; margin: 5px 0;">
+        </div>
+        
+        <div class="upload-area">
+            <input type="file" id="fileInput" accept="image/*" style="margin: 10px 0;">
+            <div id="preview"></div>
+        </div>
+        
+        <div>
+            <button onclick="uploadAvatar()">Upload Avatar</button>
+            <button onclick="deleteAvatar()">Delete Avatar</button>
+            <button onclick="getProfile()">Get Profile</button>
+        </div>
+        
+        <div id="result"></div>
+        
+        <h3>Logs:</h3>
+        <div id="logs" style="background: #f8f8f8; padding: 10px; border-radius: 5px; max-height: 300px; overflow-y: auto;"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logs.innerHTML += `<div class="${type}">[${timestamp}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+        
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const preview = document.getElementById('preview');
+                const url = URL.createObjectURL(file);
+                preview.innerHTML = `<img src="${url}" class="preview" alt="Preview">`;
+                log(`File selected: ${file.name} (${file.size} bytes, ${file.type})`);
+            }
+        });
+        
+        async function uploadAvatar() {
+            const fileInput = document.getElementById('fileInput');
+            const token = document.getElementById('jwtToken').value;
+            const result = document.getElementById('result');
+            
+            if (!fileInput.files[0]) {
+                result.innerHTML = '<div class="error">Please select a file</div>';
+                return;
+            }
+            
+            if (!token) {
+                result.innerHTML = '<div class="error">Please enter JWT token</div>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('avatar', fileInput.files[0]);
+            
+            log('Starting avatar upload...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/users/avatar`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.innerHTML = `<div class="success">Success: ${data.message}</div>
+                                      <div>Avatar URL: ${data.avatarUrl}</div>
+                                      <div>File: ${data.fileName}</div>
+                                      <div>Size: ${data.fileSize} bytes</div>`;
+                    log(`Avatar uploaded successfully: ${data.fileName}`, 'success');
+                } else {
+                    result.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    log(`Upload failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Network error: ${error.message}</div>`;
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function deleteAvatar() {
+            const token = document.getElementById('jwtToken').value;
+            const result = document.getElementById('result');
+            
+            if (!token) {
+                result.innerHTML = '<div class="error">Please enter JWT token</div>';
+                return;
+            }
+            
+            log('Deleting avatar...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/users/avatar`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.innerHTML = `<div class="success">Success: ${data.message}</div>`;
+                    log('Avatar deleted successfully', 'success');
+                } else {
+                    result.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    log(`Delete failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Network error: ${error.message}</div>`;
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getProfile() {
+            const token = document.getElementById('jwtToken').value;
+            const result = document.getElementById('result');
+            
+            if (!token) {
+                result.innerHTML = '<div class="error">Please enter JWT token</div>';
+                return;
+            }
+            
+            log('Getting profile...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/users/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.innerHTML = `<div class="success">Profile loaded</div>
+                                      <div>Username: ${data.username}</div>
+                                      <div>Avatar: ${data.avatar_url || 'None'}</div>
+                                      ${data.avatar_url ? `<img src="${API_URL}${data.avatar_url}" class="preview" alt="Current avatar">` : ''}`;
+                    log('Profile loaded successfully', 'success');
+                } else {
+                    result.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    log(`Profile load failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Network error: ${error.message}</div>`;
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+        
+        log('Avatar Upload Test loaded. Ready to test!');
+    </script>
+</body>
+</html>

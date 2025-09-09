@@ -61,6 +61,8 @@ export default function ProfileView() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [avatarURL, setAvatarURL] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [tempPreviewURL, setTempPreviewURL] = useState<string | null>(null);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -149,6 +151,8 @@ export default function ProfileView() {
           date: game.created_at
         })) : []
       });
+      
+      // L'avatar URL vient du backend et sera servi par le proxy Nginx
       setAvatarURL(data.avatar_url || data.avatar || "");
       setProfileError(null);
     } catch (error: any) {
@@ -331,27 +335,73 @@ export default function ProfileView() {
                   )}
                 </div>
                 <AvatarUploader
-                  value={avatarURL}
-                  onPickTemp={(url) => setAvatarURL(url)}
+                  value={tempPreviewURL || avatarURL}
+                  onPickTemp={(file, url) => {
+                    setSelectedFile(file);
+                    setTempPreviewURL(url);
+                  }}
                   onSave={async () => {
+                    if (!selectedFile) return;
+                    
                     try {
                       setIsSavingAvatar(true);
-                      const response = await apiClient.uploadAvatar(avatarURL);
+                      const response = await apiClient.uploadAvatar(selectedFile);
                       if (response.avatarUrl && profile) {
+                        // L'avatar URL vient du backend, on l'utilise tel quel
+                        // car Nginx proxy /uploads/ vers le backend
                         setProfile({
                           ...profile,
                           avatar_url: response.avatarUrl
                         });
+                        setAvatarURL(response.avatarUrl);
+                        
+                        // Nettoyer les états temporaires
+                        if (tempPreviewURL) {
+                          URL.revokeObjectURL(tempPreviewURL);
+                        }
+                        setTempPreviewURL(null);
+                        setSelectedFile(null);
                       }
-                    } catch (error) {
+                    } catch (error: any) {
                       console.error('Error updating avatar:', error);
-                      alert('Failed to update avatar');
+                      alert(error.message || 'Failed to update avatar');
+                    } finally {
+                      setIsSavingAvatar(false);
+                    }
+                  }}
+                  onDelete={async () => {
+                    if (!avatarURL && !tempPreviewURL) return;
+                    
+                    try {
+                      setIsSavingAvatar(true);
+                      await apiClient.deleteAvatar();
+                      
+                      if (profile) {
+                        setProfile({
+                          ...profile,
+                          avatar_url: undefined
+                        });
+                      }
+                      
+                      setAvatarURL("");
+                      
+                      // Nettoyer les états temporaires
+                      if (tempPreviewURL) {
+                        URL.revokeObjectURL(tempPreviewURL);
+                      }
+                      setTempPreviewURL(null);
+                      setSelectedFile(null);
+                      
+                    } catch (error: any) {
+                      console.error('Error deleting avatar:', error);
+                      alert(error.message || 'Failed to delete avatar');
                     } finally {
                       setIsSavingAvatar(false);
                     }
                   }}
                   pickLabel="Pick Photo"
                   saveLabel={isSavingAvatar ? "Saving..." : "Save"}
+                  deleteLabel="Remove"
                 />
               </div>
             </div>

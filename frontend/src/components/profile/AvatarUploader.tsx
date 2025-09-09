@@ -6,14 +6,18 @@ export function AvatarUploader({
   value,
   onPickTemp,
   onSave,
+  onDelete,
   pickLabel,
-  saveLabel
+  saveLabel,
+  deleteLabel
 }: {
   value: string | null;
-  onPickTemp: (fileUrl: string) => void;
+  onPickTemp: (file: File, previewUrl: string) => void;
   onSave: () => void;
+  onDelete?: () => void;
   pickLabel: string;
   saveLabel: string;
+  deleteLabel?: string;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -27,7 +31,7 @@ export function AvatarUploader({
           <div className="text-white/70">Aucune photo</div>
         )}
       </div>
-      <div className="flex items-center gap-3 mt-3">
+      <div className="flex items-center gap-2 mt-3 flex-wrap">
         <button
           onClick={() => fileRef.current?.click()}
           className="px-4 py-2 rounded-full border-[3px] border-white font-bold hover:bg-white hover:text-black transition"
@@ -45,6 +49,14 @@ export function AvatarUploader({
         >
           {saveLabel}
         </button>
+        {onDelete && value && (
+          <button
+            onClick={onDelete}
+            className="px-4 py-2 rounded-full border-[3px] border-red-400 text-red-300 font-bold hover:bg-red-400 hover:text-black transition"
+          >
+            {deleteLabel || "Supprimer"}
+          </button>
+        )}
         <input
           ref={fileRef}
           type="file"
@@ -54,7 +66,7 @@ export function AvatarUploader({
             const f = e.target.files?.[0];
             if (!f) return;
             const url = URL.createObjectURL(f);
-            onPickTemp(url);
+            onPickTemp(f, url);
           }}
         />
       </div>

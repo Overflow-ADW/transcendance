@@ -498,25 +498,155 @@ async function userRoutes(fastify, options) {
   });
 
   // ========================================
-  // ROUTE D'UPLOAD D'AVATAR (BASIQUE)
+  // ROUTE D'UPLOAD D'AVATAR EN BASE64
   // ========================================
   fastify.post('/avatar', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
-      // Pour l'instant, on simule juste l'upload
-      // TODO: Implémenter multipart/form-data avec @fastify/multipart
+      fastify.log.info(`📸 Upload avatar demandé par utilisateur: ${request.user.username} (ID: ${request.user.userId})`);
       
-      const { avatarUrl } = request.body;
+      const { imageData, fileName, mimeType } = request.body;
       
-      if (!avatarUrl) {
+      fastify.log.info(`📝 Données reçues: fileName=${fileName}, mimeType=${mimeType}, dataLength=${imageData?.length || 0}`);
+      
+      if (!imageData || !fileName || !mimeType) {
+        fastify.log.warn('❌ Données manquantes pour l\'upload d\'avatar');
         return reply.status(400).send({
-          error: 'URL d\'avatar requise',
-          code: 'AVATAR_URL_REQUIRED'
+          error: 'Données d\'image, nom de fichier et type MIME requis',
+          code: 'MISSING_IMAGE_DATA'
         });
       }
 
-      // Mettre à jour l'avatar en base
+      // Vérification du type de fichier (PNG et JPG prioritaires)
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(mimeType.toLowerCase())) {
+        return reply.status(400).send({
+          error: 'Type de fichier non supporté. Utilisez PNG, JPG, JPEG, GIF ou WebP',
+          code: 'INVALID_FILE_TYPE',
+          acceptedTypes: allowedTypes
+        });
+      }
+
+      // Décoder les données base64
+      let buffer;
+      try {
+        const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+        buffer = Buffer.from(base64Data, 'base64');
+      } catch (error) {
+        return reply.status(400).send({
+          error: 'Données d\'image invalides',
+          code: 'INVALID_IMAGE_DATA'
+        });
+      }
+
+      // Vérification de la taille (5MB max)
+      const maxSize = 5 * 1024 * 1024;
+      if (buffer.length > maxSize) {
+        return reply.status(400).send({
+          error: 'Le fichier est trop volumineux (max 5MB)',
+          code: 'FILE_TOO_LARGE'
+        });
+      }
+
+      // Génération d'un nom de fichier unique
+      const fileExtension = mimeType.split('/')[1];
+      const uniqueFileName = `${request.user.userId}_${Date.now()}.${fileExtension}`;
+      const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'avatars');
+      const filePath = path.join(uploadsDir, uniqueFileName);
+
+      // S'assurer que le dossier existe
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Supprimer l'ancien avatar s'il existe
+      const currentUser = db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(request.user.userId);
+      if (currentUser?.avatar_url) {
+        const oldFileName = currentUser.avatar_url.split('/').pop();
+        if (oldFileName && oldFileName !== uniqueFileName) {
+          const oldFilePath = path.join(uploadsDir, oldFileName);
+          if (fs.existsSync(oldFilePath)) {
+            try {
+              fs.unlinkSync(oldFilePath);
+              fastify.log.info(`🗑️ Ancien avatar supprimé: ${oldFileName}`);
+            } catch (err) {
+              fastify.log.warn('⚠️ Impossible de supprimer l\'ancien avatar:', err.message);
+            }
+          }
+        }
+      }
+
+      // Écrire le nouveau fichier
+      await fs.promises.writeFile(filePath, buffer);
+
+      // URL relative pour l'accès web
+      const avatarUrl = `/uploads/avatars/${uniqueFileName}`;
+
+      // Mettre à jour la base de données
       const result = db.prepare('UPDATE users SET avatar_url = ?, updated_at = datetime(\'now\') WHERE id = ?')
         .run(avatarUrl, request.user.userId);
+
+      if (result.changes === 0) {
+        // Nettoyer le fichier uploadé si l'update échoue
+        fs.unlinkSync(filePath);
+        return reply.status(404).send({
+          error: 'Utilisateur non trouvé',
+          code: 'USER_NOT_FOUND'
+        });
+      }
+
+      fastify.log.info(`📸 Avatar uploadé avec succès pour: ${request.user.username} -> ${uniqueFileName}`);
+
+      return reply.send({
+        message: 'Avatar uploadé avec succès',
+        avatarUrl: avatarUrl,
+        fileName: uniqueFileName,
+        fileSize: buffer.length,
+        code: 'AVATAR_UPLOADED'
+      });
+
+    } catch (error) {
+      fastify.log.error('❌ Erreur lors de l\'upload de l\'avatar:', error);
+      return reply.status(500).send({
+        error: 'Erreur lors de l\'upload de l\'avatar',
+        code: 'UPLOAD_ERROR'
+      });
+    }
+  });
+
+  // ========================================
+  // ROUTE DE SUPPRESSION D'AVATAR
+  // ========================================
+  fastify.delete('/avatar', { preHandler: [authenticateToken] }, async (request, reply) => {
+    try {
+      fastify.log.info(`🗑️ Suppression avatar demandée par utilisateur: ${request.user.username} (ID: ${request.user.userId})`);
+      
+      const currentUser = db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(request.user.userId);
+      
+      if (currentUser?.avatar_url) {
+        const fileName = currentUser.avatar_url.split('/').pop();
+        if (fileName) {
+          const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'avatars');
+          const filePath = path.join(uploadsDir, fileName);
+          
+          // Supprimer le fichier s'il existe
+          if (fs.existsSync(filePath)) {
+            try {
+              fs.unlinkSync(filePath);
+              fastify.log.info(`🗑️ Fichier avatar supprimé: ${fileName}`);
+            } catch (err) {
+              fastify.log.warn('⚠️ Impossible de supprimer le fichier avatar:', err.message);
+            }
+          } else {
+            fastify.log.warn(`⚠️ Fichier avatar introuvable: ${filePath}`);
+          }
+        }
+      } else {
+        fastify.log.info('ℹ️ Aucun avatar à supprimer pour cet utilisateur');
+      }
+
+      // Mettre à jour la base de données
+      const result = db.prepare('UPDATE users SET avatar_url = NULL, updated_at = datetime(\'now\') WHERE id = ?')
+        .run(request.user.userId);
 
       if (result.changes === 0) {
         return reply.status(404).send({
@@ -525,19 +655,85 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      fastify.log.info(`📸 Avatar mis à jour pour: ${request.user.username}`);
+      fastify.log.info(`�️ Avatar supprimé pour: ${request.user.username}`);
 
       return reply.send({
-        message: 'Avatar mis à jour avec succès',
-        avatarUrl: avatarUrl,
-        code: 'AVATAR_UPDATED'
+        message: 'Avatar supprimé avec succès',
+        code: 'AVATAR_DELETED'
       });
 
     } catch (error) {
-      fastify.log.error('❌ Erreur lors de la mise à jour de l\'avatar:', error);
+      fastify.log.error('❌ Erreur lors de la suppression de l\'avatar:', error);
       return reply.status(500).send({
-        error: 'Erreur interne du serveur',
-        code: 'INTERNAL_ERROR'
+        error: 'Erreur lors de la suppression de l\'avatar',
+        code: 'DELETE_ERROR'
+      });
+    }
+  });
+
+  // ========================================
+  // ROUTE UTILITAIRE : NETTOYER LES AVATARS ORPHELINS (ADMIN ONLY)
+  // ========================================
+  fastify.post('/avatar/cleanup', { preHandler: [authenticateToken] }, async (request, reply) => {
+    try {
+      // Vérifier si l'utilisateur est admin
+      const user = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(request.user.userId);
+      if (!user?.is_admin) {
+        return reply.status(403).send({
+          error: 'Accès refusé - Administrateur requis',
+          code: 'ACCESS_DENIED'
+        });
+      }
+
+      const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'avatars');
+      
+      if (!fs.existsSync(uploadsDir)) {
+        return reply.send({
+          message: 'Dossier avatars introuvable',
+          cleaned: 0
+        });
+      }
+
+      // Lister tous les fichiers dans le dossier avatars
+      const files = fs.readdirSync(uploadsDir);
+      
+      // Récupérer tous les avatar_url de la base de données
+      const avatarsInDB = db.prepare('SELECT avatar_url FROM users WHERE avatar_url IS NOT NULL').all();
+      const activeAvatars = avatarsInDB.map(row => {
+        const url = row.avatar_url;
+        return url ? url.split('/').pop() : null;
+      }).filter(Boolean);
+
+      let cleanedCount = 0;
+      
+      // Supprimer les fichiers orphelins
+      for (const file of files) {
+        if (!activeAvatars.includes(file)) {
+          try {
+            const filePath = path.join(uploadsDir, file);
+            fs.unlinkSync(filePath);
+            fastify.log.info(`🗑️ Avatar orphelin supprimé: ${file}`);
+            cleanedCount++;
+          } catch (err) {
+            fastify.log.warn(`⚠️ Impossible de supprimer l'avatar orphelin ${file}:`, err.message);
+          }
+        }
+      }
+
+      fastify.log.info(`🧹 Nettoyage terminé: ${cleanedCount} avatars orphelins supprimés`);
+
+      return reply.send({
+        message: `Nettoyage terminé avec succès`,
+        cleaned: cleanedCount,
+        totalFiles: files.length,
+        activeAvatars: activeAvatars.length
+      });
+
+    } catch (error) {
+      fastify.log.error('❌ Erreur lors du nettoyage des avatars:', error);
+      return reply.status(500).send({
+        error: 'Erreur lors du nettoyage',
+        code: 'CLEANUP_ERROR'
       });
     }
   });
