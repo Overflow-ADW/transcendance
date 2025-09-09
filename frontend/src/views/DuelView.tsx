@@ -109,8 +109,23 @@ export default function DuelView() {
     if (savedPlayers) {
       setPlayers(JSON.parse(savedPlayers));
     } else {
-      // Sauvegarder le joueur par défaut
-      const defaultPlayers = [{ id: 1, name: "YOU", color: "#8A00C4", isMainPlayer: true }];
+      // NOUVEAU : Récupérer l'utilisateur connecté et l'utiliser comme joueur par défaut
+      let currentUser = null;
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          currentUser = JSON.parse(storedUser);
+        }
+      } catch (e) {
+        console.warn('Erreur lors de la récupération des données utilisateur:', e);
+      }
+
+      // Utiliser le nom de l'utilisateur connecté s'il existe
+      const hostName = currentUser?.display_name || currentUser?.username || "YOU";
+      
+      // Sauvegarder le joueur par défaut avec le vrai nom
+      const defaultPlayers = [{ id: 1, name: hostName, color: "#8A00C4", isMainPlayer: true }];
+      setPlayers(defaultPlayers);
       localStorage.setItem('duel-players', JSON.stringify(defaultPlayers));
     }
   }, []);

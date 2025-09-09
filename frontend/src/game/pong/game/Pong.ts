@@ -87,6 +87,63 @@ export class Pong {
         const gameMode = localStorage.getItem('game-mode');
         this.gameMode = gameMode || 'classic';
         
+        // NOUVEAU : Récupérer les vrais noms des joueurs connectés
+        const getUserNames = () => {
+            let currentUser = null;
+            try {
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                    currentUser = JSON.parse(storedUser);
+                }
+            } catch (e) {
+                console.warn('Erreur lors de la récupération des données utilisateur:', e);
+            }
+
+            const gameMode = localStorage.getItem('game-mode');
+            
+            // Pour le mode duel, récupérer les vrais noms des 2 joueurs
+            if (gameMode === 'duel') {
+                try {
+                    const duelPlayers = localStorage.getItem('duel-players');
+                    if (duelPlayers) {
+                        const players = JSON.parse(duelPlayers);
+                        const player0Name = players[0]?.name || (currentUser?.display_name || currentUser?.username || "Player 0");
+                        const player1Name = players[1]?.name || "Player 1";
+                        return { player0Name, player1Name };
+                    }
+                } catch (e) {
+                    console.warn('Erreur lors de la récupération des joueurs duel:', e);
+                }
+                
+                // Si pas de données duel, utiliser l'utilisateur connecté
+                const defaultPlayer0Name = currentUser?.display_name || currentUser?.username || "Player 0";
+                return { player0Name: defaultPlayer0Name, player1Name: "Player 1" };
+            }
+            
+            // Pour le mode multijoueur, récupérer le nom du premier joueur connecté
+            if (gameMode === 'multiplayer') {
+                try {
+                    const multiplayerPlayers = localStorage.getItem('multiplayer-players');
+                    if (multiplayerPlayers) {
+                        const players = JSON.parse(multiplayerPlayers);
+                        // Player 0 = premier joueur connecté (Host)
+                        const player0Name = players[0]?.name || (currentUser?.display_name || currentUser?.username || "Player 0");
+                        // Player 1 = deuxième joueur (ou "Player 2" car ce sera affiché comme "Player 2" dans le mode multijoueur)
+                        const player1Name = players[2]?.name || "Player 2"; // players[2] car c'est la paddle centrale
+                        return { player0Name, player1Name };
+                    }
+                } catch (e) {
+                    console.warn('Erreur lors de la récupération des joueurs multijoueur:', e);
+                }
+            }
+
+            // Valeurs par défaut
+            const defaultPlayer0Name = currentUser?.display_name || currentUser?.username || "Player 0";
+            return { player0Name: defaultPlayer0Name, player1Name: "Player 1" };
+        };
+
+        const { player0Name, player1Name } = getUserNames();
+        
         // Vérifier si c'est un jeu contre IA
         if (gameMode === 'ai') {
             this.isAIGame = true;
@@ -112,8 +169,8 @@ export class Pong {
         this.gameData = new PongData({
             maxScore: GAME_CONFIG.DEFAULT_MAX_SCORE,
             gameType: GameType.DEFAULT_PONG,
-            player0Name: "YOU",
-            player1Name: this.isAIGame ? `${this.aiDifficultyName} AI` : "Player 2"
+            player0Name: player0Name,
+            player1Name: this.isAIGame ? `${this.aiDifficultyName} AI` : player1Name
         });
         
         this.scene = this.createScene();
@@ -724,15 +781,15 @@ export class Pong {
             // Score de la TEAM (Player 0) en haut - entre le centre et le TopWall
             this.scorePlayer0Mesh.position = new Vector3(
                 0, // Centré horizontalement
-                GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_Y - 3000, // Position entre centre et TopWall
-                250 // Positionnement Z entre centre (0) et TopWall (~400)
+                GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_Y, // Position entre centre et TopWall
+                2500 // Positionnement Z entre centre (0) et TopWall (~400)
             );
             
             // Score du PLAYER 2 (Player 1) en bas - entre le centre et le BottomWall
             this.scorePlayer1Mesh.position = new Vector3(
                 0, // Centré horizontalement  
-                GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_Y - 3000, // Position entre centre et BottomWall
-                -250 // Positionnement Z entre centre (0) et BottomWall (~-400)
+                GAME_CONFIG.DISPLAY.SCORE_PLANE_POSITION_Y, // Position entre centre et BottomWall
+                2500 // Positionnement Z entre centre (0) et BottomWall (~-400)
             );
         } else {
             // Mode classique : layout horizontal (positions originales)
@@ -879,8 +936,31 @@ export class Pong {
         
         // Déterminer le nom du gagnant selon le mode de jeu
         if (this.gameData.gameType === GameType.MULTIPLAYER_PONG) {
-            winnerName = this.gameData.winner === 0 ? "TEAM" : "PLAYER 2";
+            // En mode multijoueur, récupérer les vrais noms depuis localStorage
+            try {
+                const multiplayerPlayers = localStorage.getItem('multiplayer-players');
+                if (multiplayerPlayers) {
+                    const players = JSON.parse(multiplayerPlayers);
+                    
+                    if (this.gameData.winner === 0) {
+                        // La Team gagne (Player 0 + Player 1)
+                        const hostName = players[0]?.name || "Player 0";
+                        const player1Name = players[1]?.name || "Player 1";
+                        winnerName = `${hostName} & ${player1Name}`;
+                    } else {
+                        // Player 2 gagne (paddle centrale)
+                        winnerName = players[2]?.name || "Player 2";
+                    }
+                } else {
+                    // Fallback si pas de données
+                    winnerName = this.gameData.winner === 0 ? "TEAM" : "PLAYER 2";
+                }
+            } catch (e) {
+                console.warn('Erreur lors de la récupération des noms pour le game over:', e);
+                winnerName = this.gameData.winner === 0 ? "TEAM" : "PLAYER 2";
+            }
         } else {
+            // Mode classique : utiliser les noms des joueurs stockés dans gameData
             winnerName = this.gameData.winner === 0 ? 
                 this.gameData.player0Name : 
                 this.gameData.player1Name;

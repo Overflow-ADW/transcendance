@@ -145,7 +145,7 @@ export const GAME_MODE_CONFIGS: Record<GameType, GameModeConfig> = {
     [GameType.MULTIPLAYER_PONG]: {
         // Multiplayer mode - Vitesses réduites pour un meilleur contrôle
         BALL_PHYSICS: {
-            INITIAL_SPEED: 2.5,        // Plus lent au début
+            INITIAL_SPEED: 1.5,        // Plus lent au début
             SPEED_INCREMENT: 0.3,    // Augmentation plus douce
             MAX_SPEED: 15            // Vitesse max plus raisonnable
         },

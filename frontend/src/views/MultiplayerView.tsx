@@ -82,9 +82,8 @@ const AddPlayerModal = ({ isOpen, onClose, onAdd }: AddPlayerModalProps) => {
 
 export default function MultiplayerView() {
   const router = useRouter();
-  const [players, setPlayers] = useState<Player[]>([
-    { id: 1, name: "YOU", color: "#2323FF", isHost: true }
-  ]);
+  // CORRECTION : Commencer avec un tableau vide au lieu d'avoir "YOU" par défaut
+  const [players, setPlayers] = useState<Player[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Couleurs pour les joueurs
@@ -96,8 +95,23 @@ export default function MultiplayerView() {
     if (savedPlayers) {
       setPlayers(JSON.parse(savedPlayers));
     } else {
-      // Sauvegarder le joueur par défaut
-      const defaultPlayers = [{ id: 1, name: "YOU", color: "#2323FF", isHost: true }];
+      // NOUVEAU : Récupérer l'utilisateur connecté et l'utiliser comme joueur par défaut
+      let currentUser = null;
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          currentUser = JSON.parse(storedUser);
+        }
+      } catch (e) {
+        console.warn('Erreur lors de la récupération des données utilisateur:', e);
+      }
+
+      // Utiliser le surnom de l'utilisateur connecté s'il existe
+      const hostName = currentUser?.display_name || currentUser?.username || "YOU";
+      
+      // Sauvegarder le joueur par défaut avec le vrai nom
+      const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
+      setPlayers(defaultPlayers);
       localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
     }
   }, []);
