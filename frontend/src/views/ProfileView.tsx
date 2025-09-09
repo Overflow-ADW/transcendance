@@ -1,150 +1,253 @@
 "use client";
 
+// TEST HOT RELOAD - Ce commentaire test le hot reload
+
 import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import { useRouter } from 'next/navigation';
-
-interface WinRate {
-  label: string;
-  value: number;
-  color: string;
-}
-
-interface Match {
-  id: string;
-  opponent: string;
-  result: 'win' | 'loss';
-  mode: string;
-  date: string;
-}
-
-interface UserProfile {
-  id: string;
-  username: string;
-  avatarURL: string;
-  winrates: WinRate[];
-  matches: Match[];
-}
+import { useAuth } from "@/lib_front/AuthContext";
+import { apiClient } from "@/lib_front/api";
 
 export default function ProfileView() {
   const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { user, isAuthenticated, loading } = useAuth();
+  interface Profile {
+    id: number;
+    username: string;
+    display_name?: string;
+    avatar_url?: string;
+    winrate?: number;
+    stats?: {
+      friends: number;
+      gamesPlayed: number;
+      gamesWon: number;
+      gamesLost: number;
+      gamesDrawn: number;
+      ongoingGames: number;
+      winrate: number;
+      avgDuration: number;
+      highestScore: number;
+      winRates?: {
+        vsAI: number;        // Win rate VS IA (%)
+        vsPlayers: number;   // Win rate VS Autres joueurs (%)
+        tournaments: number; // Nombre de tournois gagnés
+      };
+      gamesByType?: {
+        vsAI: number;        // Nombre de jeux VS IA
+        vsPlayers: number;   // Nombre de jeux VS joueurs
+        tournaments: number; // Nombre de tournois participés
+      };
+      // Legacy compatibility
+      gamesModes?: {
+        classic: number;
+        custom: number;
+      };
+    };
+    recentGames?: Array<{
+      id: number;
+      opponent_username: string;
+      opponent_display_name: string;
+      result: string;
+      user_score: number;
+      opponent_score: number;
+      game_mode: string;
+      created_at: string;
+    }>;
+    // Legacy support pour le moment
+    winrates?: Array<{ value: number; label: string; color?: string }>;
+    matches?: Array<{ id: number; opponent: string; result: string; mode: string }>;
+  }
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [avatarURL, setAvatarURL] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [tempPreviewURL, setTempPreviewURL] = useState<string | null>(null);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
-  // Fonctions pour les appels API
+  // 🔥 DEBUG: Log de tous les états au début
+  console.log("🔥 ProfileView Render - États:", {
+    user,
+    isAuthenticated,
+    loading,
+    profile,
+    isLoading,
+    profileError,
+    token: apiClient.getToken(),
+    localStorage_user: typeof window !== 'undefined' ? localStorage.getItem('user') : null,
+    localStorage_token: typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
+  });
+
+  // 🔥 DEBUG: Vérification de l'authentification avec logs détaillés
+  useEffect(() => {
+    console.log("🔥 Auth Check useEffect triggered:", {
+      loading,
+      isAuthenticated,
+      user,
+      willRedirect: !loading && !isAuthenticated
+    });
+
+    // Attendre que le loading soit terminé avant de rediriger
+    if (!loading && !isAuthenticated) {
+      console.log("🚨 REDIRECTION vers /login - Raison: !loading && !isAuthenticated");
+      console.log("🚨 État détaillé:", {
+        loading,
+        isAuthenticated,
+        user,
+        hasToken: !!apiClient.getToken()
+      });
+      router.push('/login');
+      return;
+    }
+
+    if (!loading && isAuthenticated && user) {
+      console.log("✅ Utilisateur authentifié, profil peut être chargé");
+    }
+  }, [isAuthenticated, loading, router, user]);
+
+  // Récupérer le profil utilisateur depuis le backend
   const fetchUserProfile = async () => {
+    console.log("🔄 fetchUserProfile - Début");
+    console.log("🔄 Token disponible:", !!apiClient.getToken());
+    console.log("🔄 User authentifié:", isAuthenticated);
+    
     try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch('/api/user/profile');
-      // const data = await response.json();
-      // setProfile(data);
-      // setAvatarURL(data.avatarURL || "");
+      console.log("🔄 Appel apiClient.getProfile()...");
+      const data = await apiClient.getProfile();
+      console.log("✅ Profil récupéré avec succès:", data);
+      
+      // Vérifions si nous avons bien reçu les données
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid profile data received');
+      }
 
-      // Simulation temporaire - remplacer par les vraies données du backend
-      const mockProfile: UserProfile = {
-        id: "12345",
-        username: "PLAYER_NAME",
-        avatarURL: "",
-        winrates: [],
-        matches: []
-      };
-      setProfile(mockProfile);
-      setAvatarURL(mockProfile.avatarURL);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
+      // Log pour debug
+      console.log("📝 Display name:", data.display_name);
+      console.log("📝 Username:", data.username);
+      console.log("📝 Recent Games:", data.recentGames);
+      console.log("📝 Recent Games détaillées:");
+      data.recentGames?.forEach((game: any, i: number) => {
+        console.log(`  ${i+1}. ID: ${game.id}, mode: ${game.game_mode}, opponent: ${game.opponent_username || 'IA'}`);
+      });
+      console.log("📝 Stats:", data.stats);
+      
+      setProfile({
+        ...data,
+        display_name: data.display_name || undefined,
+        avatar_url: data.avatar_url || data.avatar || "",
+        // Transformer les données pour compatibilité legacy avec nouveaux win rates
+        winrates: data.stats?.winRates ? [
+          { value: data.stats.winRates.vsAI, label: 'VS IA', color: 'bg-blue-600' },
+          { value: data.stats.winRates.vsPlayers, label: 'VS Autres joueurs', color: 'bg-green-600' },
+          { value: data.stats.winRates.tournaments, label: 'Tournois gagnés', color: 'bg-purple-600' }
+        ] : [],
+        matches: data.recentGames ? data.recentGames.map((game: any) => ({
+          id: game.id,
+          opponent: game.opponent_display_name || game.opponent_username || 'IA',
+          result: game.result,
+          mode: game.game_mode,
+          score: `${game.user_score}-${game.opponent_score}`,
+          date: game.created_at
+        })) : []
+      });
+      
+      // L'avatar URL vient du backend et sera servi par le proxy Nginx
+      setAvatarURL(data.avatar_url || data.avatar || "");
+      setProfileError(null);
+    } catch (error: any) {
+      console.error('🚨 Erreur fetchUserProfile:', error);
+      console.error('🚨 Détails erreur:', {
+        message: error?.message,
+        status: error?.status,
+        response: error?.response,
+        stack: error?.stack
+      });
+      setProfileError(error?.message || String(error));
     }
   };
 
   const updateAvatar = async (newAvatarURL: string) => {
+    console.log("🔄 updateAvatar - Début:", newAvatarURL);
     setIsSavingAvatar(true);
+    
     try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch('/api/user/avatar', {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ avatarURL: newAvatarURL })
-      // });
-      // 
-      // if (response.ok) {
-      //   setProfile(prev => prev ? { ...prev, avatarURL: newAvatarURL } : null);
-      //   alert('Avatar updated successfully!');
-      // } else {
-      //   throw new Error('Failed to update avatar');
-      // }
-
-      // Simulation temporaire
-      console.log('Updating avatar:', newAvatarURL);
-      if (profile) {
-        setProfile({ ...profile, avatarURL: newAvatarURL });
-      }
+      console.log("🔄 Appel apiClient.updateProfile()...");
+      await apiClient.updateProfile({ avatar: newAvatarURL });
+      console.log("✅ Avatar mis à jour avec succès");
+      
+      setProfile((prev: any) => prev ? { ...prev, avatar: newAvatarURL } : null);
+      setAvatarURL(newAvatarURL);
       alert('Avatar updated successfully!');
     } catch (error) {
-      console.error('Error updating avatar:', error);
+      console.error('🚨 Erreur updateAvatar:', error);
       alert('Failed to update avatar');
     } finally {
       setIsSavingAvatar(false);
     }
   };
 
-  const fetchUserStats = async () => {
-    try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch('/api/user/stats');
-      // const data = await response.json();
-      // 
-      // setProfile(prev => prev ? {
-      //   ...prev,
-      //   winrates: data.winrates
-      // } : null);
-
-      // Simulation temporaire
-      console.log('Fetching user stats...');
-    } catch (error) {
-      console.error('Error fetching user stats:', error);
-    }
-  };
-
-  const fetchMatchHistory = async () => {
-    try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch('/api/user/matches');
-      // const data = await response.json();
-      // 
-      // setProfile(prev => prev ? {
-      //   ...prev,
-      //   matches: data.matches
-      // } : null);
-
-      // Simulation temporaire
-      console.log('Fetching match history...');
-    } catch (error) {
-      console.error('Error fetching match history:', error);
-    }
-  };
-
+  // 🔥 DEBUG: Effect pour charger le profil avec logs détaillés
   useEffect(() => {
-    const loadProfileData = async () => {
-      setIsLoading(true);
-      await Promise.all([
-        fetchUserProfile(),
-        fetchUserStats(),
-        fetchMatchHistory()
-      ]);
-      setIsLoading(false);
-    };
+    console.log("🔄 Profile Loading useEffect triggered");
+    console.log("🔄 Conditions:", {
+      loading,
+      isAuthenticated,
+      user,
+      shouldLoadProfile: !loading && isAuthenticated && user
+    });
 
-    loadProfileData();
-  }, []);
+    // Ne charger le profil que si l'auth est confirmée
+    if (!loading && isAuthenticated && user) {
+      console.log("🔄 Conditions remplies, chargement du profil...");
+      setIsLoading(true);
+      fetchUserProfile().finally(() => {
+        console.log("🔄 fetchUserProfile terminé, setIsLoading(false)");
+        setIsLoading(false);
+      });
+    } else {
+      console.log("🔄 Conditions non remplies, pas de chargement du profil");
+    }
+  }, [loading, isAuthenticated, user]);
+
+  // 🔥 DEBUG: État de chargement avec plus d'infos
+  if (loading) {
+    console.log("🔄 Affichage: Loading auth...");
+    return (
+      <GradientBackground>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl text-white mb-4">Loading authentication...</h2>
+            <div className="text-sm text-white/60 mb-4">
+              Auth loading: {loading ? 'true' : 'false'}<br/>
+              Is authenticated: {isAuthenticated ? 'true' : 'false'}<br/>
+              Has user: {user ? 'true' : 'false'}<br/>
+              Has token: {apiClient.getToken() ? 'true' : 'false'}
+            </div>
+            <div className="flex justify-center space-x-1">
+              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+            </div>
+          </div>
+        </div>
+      </GradientBackground>
+    );
+  }
 
   if (isLoading) {
+    console.log("🔄 Affichage: Loading profile...");
     return (
       <GradientBackground>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-xl text-white mb-4">Loading profile...</h2>
+            <div className="text-sm text-white/60 mb-4">
+              Profile loading: {isLoading ? 'true' : 'false'}<br/>
+              Auth loading: {loading ? 'true' : 'false'}<br/>
+              Is authenticated: {isAuthenticated ? 'true' : 'false'}<br/>
+              Has user: {user ? 'true' : 'false'}
+            </div>
             <div className="flex justify-center space-x-1">
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
@@ -157,61 +260,210 @@ export default function ProfileView() {
   }
 
   if (!profile) {
+    console.log("🚨 Affichage: Échec du chargement du profil");
     return (
       <GradientBackground>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-xl text-white mb-4">Failed to load profile</h2>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              Retry
-            </button>
+            <div className="text-sm text-white/60 mb-4">
+              Auth states:<br/>
+              - loading: {loading ? 'true' : 'false'}<br/>
+              - isAuthenticated: {isAuthenticated ? 'true' : 'false'}<br/>
+              - user: {user ? user.username : 'null'}<br/>
+              - token: {apiClient.getToken() ? 'exists' : 'missing'}
+            </div>
+            {profileError && (
+              <div className="mb-4 p-3 bg-red-900/60 text-red-300 rounded-lg border border-red-500/40">
+                <strong>Error:</strong> {profileError}
+              </div>
+            )}
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => {
+                  console.log("🔄 Retry button clicked");
+                  window.location.reload();
+                }}
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => {
+                  console.log("🔄 Manual profile fetch");
+                  setIsLoading(true);
+                  fetchUserProfile().finally(() => setIsLoading(false));
+                }}
+                className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                Retry Profile
+              </button>
+            </div>
           </div>
         </div>
       </GradientBackground>
     );
   }
 
+  console.log("✅ Affichage: Profil chargé avec succès");
+
   return (
     <GradientBackground>
       <div className="min-h-screen h-screen p-4 flex flex-col">
+        {/* Debug info en haut */}
+        <div className="bg-black/50 text-white text-xs p-2 mb-4 rounded">
+          <strong>Debug Info:</strong> Auth: {isAuthenticated ? '✅' : '❌'} | 
+          User: {user?.username || 'None'} | 
+          Profile: {profile?.username || 'None'} | 
+          Token: {apiClient.getToken() ? '✅' : '❌'}
+        </div>
+
         {/* Container principal */}
         <div className="flex-1 max-w-6xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-            
-            {/* Section gauche - Avatar avec ID */}
+            {/* Section gauche - Avatar avec username */}
             <div className="flex flex-col">
               <div className="bg-black border-4 border-white rounded-lg p-6 flex-1">
                 <div className="bg-white/10 border-2 border-white rounded-lg p-4 text-center mb-4">
                   <span className="text-2xl md:text-3xl font-bold text-white tracking-wider uppercase">
-                    #{profile.id}
+                    {profile.display_name || profile.username}
                   </span>
+                  {profile.display_name && (
+                    <div className="text-sm text-white/60 mt-1">
+                      @{profile.username}
+                    </div>
+                  )}
                 </div>
                 <AvatarUploader
-                  value={avatarURL}
-                  onPickTemp={(url) => setAvatarURL(url)}
-                  onSave={() => updateAvatar(avatarURL)}
+                  value={tempPreviewURL || avatarURL}
+                  onPickTemp={(file, url) => {
+                    setSelectedFile(file);
+                    setTempPreviewURL(url);
+                  }}
+                  onSave={async () => {
+                    if (!selectedFile) return;
+                    
+                    try {
+                      setIsSavingAvatar(true);
+                      const response = await apiClient.uploadAvatar(selectedFile);
+                      if (response.avatarUrl && profile) {
+                        // L'avatar URL vient du backend, on l'utilise tel quel
+                        // car Nginx proxy /uploads/ vers le backend
+                        setProfile({
+                          ...profile,
+                          avatar_url: response.avatarUrl
+                        });
+                        setAvatarURL(response.avatarUrl);
+                        
+                        // Nettoyer les états temporaires
+                        if (tempPreviewURL) {
+                          URL.revokeObjectURL(tempPreviewURL);
+                        }
+                        setTempPreviewURL(null);
+                        setSelectedFile(null);
+                      }
+                    } catch (error: any) {
+                      console.error('Error updating avatar:', error);
+                      alert(error.message || 'Failed to update avatar');
+                    } finally {
+                      setIsSavingAvatar(false);
+                    }
+                  }}
+                  onDelete={async () => {
+                    if (!avatarURL && !tempPreviewURL) return;
+                    
+                    try {
+                      setIsSavingAvatar(true);
+                      await apiClient.deleteAvatar();
+                      
+                      if (profile) {
+                        setProfile({
+                          ...profile,
+                          avatar_url: undefined
+                        });
+                      }
+                      
+                      setAvatarURL("");
+                      
+                      // Nettoyer les états temporaires
+                      if (tempPreviewURL) {
+                        URL.revokeObjectURL(tempPreviewURL);
+                      }
+                      setTempPreviewURL(null);
+                      setSelectedFile(null);
+                      
+                    } catch (error: any) {
+                      console.error('Error deleting avatar:', error);
+                      alert(error.message || 'Failed to delete avatar');
+                    } finally {
+                      setIsSavingAvatar(false);
+                    }
+                  }}
                   pickLabel="Pick Photo"
                   saveLabel={isSavingAvatar ? "Saving..." : "Save"}
+                  deleteLabel="Remove"
                 />
               </div>
             </div>
 
             {/* Section droite */}
             <div className="flex flex-col space-y-4">
+              {/* Statistics Summary */}
+              {profile.stats && (
+                <div className="bg-black border-4 border-green-400 rounded-lg p-6">
+                  <h2 className="text-xl font-bold text-green-400 text-center mb-4">
+                    GAME STATISTICS
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-white">{profile.stats.gamesPlayed}</div>
+                      <div className="text-xs text-green-400 uppercase">Games Played</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-green-400">{profile.stats.gamesWon}</div>
+                      <div className="text-xs text-green-400 uppercase">Wins</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-red-400">{profile.stats.gamesLost}</div>
+                      <div className="text-xs text-green-400 uppercase">Losses</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-purple-400">{profile.stats.winrate}%</div>
+                      <div className="text-xs text-green-400 uppercase">Win Rate</div>
+                    </div>
+                  </div>
+                  {(profile.stats.avgDuration > 0 || profile.stats.highestScore > 0) && (
+                    <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-green-400/20 text-center">
+                      {profile.stats.avgDuration > 0 && (
+                        <div>
+                          <div className="text-xl font-bold text-white">{Math.floor(profile.stats.avgDuration / 60)}m {profile.stats.avgDuration % 60}s</div>
+                          <div className="text-xs text-green-400 uppercase">Avg Duration</div>
+                        </div>
+                      )}
+                      {profile.stats.highestScore > 0 && (
+                        <div>
+                          <div className="text-xl font-bold text-yellow-400">{profile.stats.highestScore}</div>
+                          <div className="text-xs text-green-400 uppercase">Best Score</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Win Rates */}
               <div className="bg-black border-4 border-purple-400 rounded-lg p-6 flex-shrink-0">
                 <h2 className="text-xl font-bold text-purple-400 text-center mb-4">
                   WIN RATES
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {profile.winrates.length > 0 ? (
-                    profile.winrates.map((w, index) => (
+                  {profile.winrates && profile.winrates.length > 0 ? (
+                    profile.winrates.map((w: any, index: number) => (
                       <div key={index} className="text-center">
-                        <div className={`w-16 h-16 mx-auto rounded-lg ${w.color} flex items-center justify-center mb-2`}>
-                          <span className="text-xl font-bold text-white">{w.value}%</span>
+                        <div className={`w-16 h-16 mx-auto rounded-lg ${w.color || 'bg-purple-600'} flex items-center justify-center mb-2`}>
+                          <span className="text-xl font-bold text-white">
+                            {w.label === 'Tournois gagnés' ? w.value : `${w.value}%`}
+                          </span>
                         </div>
                         <div className="text-xs text-white/80 font-medium">{w.label}</div>
                       </div>
@@ -226,38 +478,50 @@ export default function ProfileView() {
               </div>
 
               {/* Match History */}
-              <div className="bg-black border-4 border-blue-400 rounded-lg p-6 flex flex-col" style={{height: '30vh'}}>
-                <h2 className="text-xl font-bold text-blue-400 text-center mb-4">
-                  MATCH HISTORY
-                </h2>
-                
+              <div className="bg-black border-4 border-blue-400 rounded-lg p-6 flex flex-col" style={{height: '35vh'}}>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-blue-400 text-center">
+                    MATCH HISTORY
+                  </h2>
+                  <button
+                    onClick={() => router.push("/history")}
+                    className="px-4 py-2 bg-blue-500/20 border border-blue-400 text-blue-400 text-sm font-bold rounded-lg transition-all duration-300 hover:bg-blue-400 hover:text-white hover:scale-105"
+                  >
+                    📜 VOIR TOUT
+                  </button>
+                </div>
                 {/* Header du tableau */}
-                <div className="grid grid-cols-3 gap-2 mb-3 p-3 bg-blue-400/10 border-2 border-blue-400/30 rounded-lg flex-shrink-0">
+                <div className="grid grid-cols-4 gap-2 mb-3 p-3 bg-blue-400/10 border-2 border-blue-400/30 rounded-lg flex-shrink-0">
                   <div className="text-center font-bold text-blue-400 uppercase text-xs">
-                    Opponents
+                    Opponent
                   </div>
                   <div className="text-center font-bold text-blue-400 uppercase text-xs">
-                    Results
+                    Score
+                  </div>
+                  <div className="text-center font-bold text-blue-400 uppercase text-xs">
+                    Result
                   </div>
                   <div className="text-center font-bold text-blue-400 uppercase text-xs">
                     Mode
                   </div>
                 </div>
-
                 {/* Matches */}
                 <div className="space-y-2 flex-1 overflow-y-auto">
-                  {profile.matches.length > 0 ? (
-                    profile.matches.map((match) => (
-                      <div key={match.id} className="grid grid-cols-3 gap-2 p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
-                        <div className="text-center text-white text-sm">
+                  {profile.matches && profile.matches.length > 0 ? (
+                    profile.matches.map((match: any) => (
+                      <div key={match.id} className="grid grid-cols-4 gap-2 p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
+                        <div className="text-center text-white text-sm truncate">
                           {match.opponent}
+                        </div>
+                        <div className="text-center text-white text-sm font-mono">
+                          {match.score || '-'}
                         </div>
                         <div className={`text-center font-bold uppercase text-sm ${
                           match.result === "win" ? "text-green-400" : "text-red-400"
                         }`}>
                           {match.result}
                         </div>
-                        <div className="text-center text-white/80 text-xs">
+                        <div className="text-center text-white/80 text-xs capitalize">
                           {match.mode}
                         </div>
                       </div>
@@ -281,14 +545,12 @@ export default function ProfileView() {
                 >
                   PLAY
                 </button>
-                
                 <button
                   onClick={() => router.push("/trueSettings")}
                   className="px-8 py-3 bg-transparent border-4 border-purple-400 text-purple-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-purple-400 hover:text-white hover:scale-105"
                 >
                   SETTINGS
                 </button>
-                
                 <button
                   onClick={() => router.push("/friends")}
                   className="px-8 py-3 bg-transparent border-4 border-white text-white text-lg font-bold rounded-lg transition-all duration-300 hover:bg-white hover:text-black hover:scale-105"

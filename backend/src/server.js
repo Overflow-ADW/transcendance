@@ -1,6 +1,7 @@
 // Configuration avec variables d'environnement (AVANT tout autre import)
 require('dotenv').config();
 
+const path = require('path');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const gameRoutes = require('./routes/gameRoutes');
@@ -84,6 +85,12 @@ fastify.register(userRoutes, { prefix: '/api/users' });
 fastify.register(gameRoutes, { prefix: '/api/games' });
 fastify.register(twoFactorRoutes, { prefix: '/api/2fa' });
 fastify.register(adminRoutes, { prefix: '/api/admin' });
+
+// Servir les fichiers statiques (avatars)
+fastify.register(require('@fastify/static'), {
+  root: path.join(__dirname, '..', 'uploads'),
+  prefix: '/uploads/',
+});
 
 // Route racine
 fastify.get('/', async (request, reply) => {

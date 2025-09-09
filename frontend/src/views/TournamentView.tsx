@@ -5,6 +5,8 @@ import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useApp } from "@/lib_front/store";
 import { useRouter } from 'next/navigation';
+import { useAuth } from "@/lib_front/AuthContext";
+import { apiClient } from "@/lib_front/api";
 
 // Types pour les slots de tournoi
 type TournamentPlayer = {
@@ -28,66 +30,143 @@ interface LoginModalProps {
   onLogin: (username: string, password: string) => void;
 }
 
-const LoginModal = ({ isOpen, onClose, onLogin }: LoginModalProps) => {
-  const [username, setUsername] = useState("");
+const SearchPlayerModal = ({ isOpen, onClose, onSelect }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (player: any) => void;
+}) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const { login } = useAuth();
+
+  useEffect(() => {
+    if (searchQuery.length >= 2) {
+      const searchUsers = async () => {
+        try {
+          setIsSearching(true);
+          const response = await apiClient.searchUsers(searchQuery);
+          setSearchResults(response.results);
+        } catch (error) {
+          console.error('Error searching users:', error);
+        } finally {
+          setIsSearching(false);
+        }
+      };
+      
+      const timeoutId = setTimeout(searchUsers, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
 
   if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (username && password) {
-      onLogin(username, password);
-      setUsername("");
-      setPassword("");
-    }
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-8 w-96 max-w-md mx-4">
-        <h2 className="text-2xl font-bold text-black mb-6 text-center">Se connecter</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-black text-sm font-bold mb-2">
-              Identifiant
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
-              required
-            />
+        <h2 className="text-2xl font-bold text-black mb-6 text-center">Add Player</h2>
+        <div className="mb-4">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search players..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
+          />
+        </div>
+        
+        <div className="max-h-60 overflow-y-auto">
+          {isSearching ? (
+            <div className="text-center py-4 text-gray-500">Searching...</div>
+          ) : searchResults.length > 0 ? (
+            <div className="space-y-2">
+              {searchResults.map((user) => (
+                <button
+                  key={user.id}
+                  onClick={() => setSelectedUser(user)}
+                  className="w-full p-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-left transition-colors"
+                >
+                  <div className="font-semibold text-black">{user.display_name || user.username}</div>
+                  <div className="text-sm text-gray-500">@{user.username}</div>
+                </button>
+              ))}
+            </div>
+          ) : searchQuery.length >= 2 ? (
+            <div className="text-center py-4 text-gray-500">No users found</div>
+          ) : (
+            <div className="text-center py-4 text-gray-500">Type at least 2 characters to search</div>
+          )}
+        </div>
+        
+        {selectedUser && (
+          <div className="mt-4 border-t pt-4">
+            <h3 className="text-lg font-semibold text-black mb-2">Verify {selectedUser.username}</h3>
+            <div className="space-y-4">
+              <div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password to verify"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              {error && (
+                <div className="text-red-500 text-sm">{error}</div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedUser(null);
+                    setPassword("");
+                    setError(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const result = await login({
+                        username: selectedUser.username,
+                        password: password
+                      });
+                      if (result.success) {
+                        onSelect(selectedUser);
+                        onClose();
+                      } else {
+                        setError('Invalid password');
+                      }
+                    } catch (err) {
+                      setError('Failed to verify password');
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  disabled={!password}
+                >
+                  Verify
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="mb-6">
-            <label className="block text-black text-sm font-bold mb-2">
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-          <div className="flex gap-4">
+        )}
+
+        {!selectedUser && (
+          <div className="mt-6 flex justify-end">
             <button
-              type="button"
               onClick={onClose}
-              className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
             >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              Se connecter
+              Close
             </button>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );
@@ -96,58 +175,44 @@ const LoginModal = ({ isOpen, onClose, onLogin }: LoginModalProps) => {
 export default function TournamentView() {
   const router = useRouter();
   const { lang } = useApp();
-  const [players, setPlayers] = useState([
-    { id: 1, name: "YOU", color: "#8A00C4" }
-  ]);
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  const { user } = useAuth();
+  const [players, setPlayers] = useState<TournamentPlayer[]>([]);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const colors = ["#8A00C4", "#2323FF", "#FF6B35", "#28A745"];
 
-  // Charger les joueurs sauvegardés au démarrage
+  // Charger les joueurs du tournoi au démarrage
   useEffect(() => {
-    const savedPlayers = localStorage.getItem('tournament-players');
-    if (savedPlayers) {
-      setPlayers(JSON.parse(savedPlayers));
-    } else {
-      // Sauvegarder le joueur par défaut
-      const defaultPlayers = [{ id: 1, name: "YOU", color: "#8A00C4" }];
-      localStorage.setItem('tournament-players', JSON.stringify(defaultPlayers));
+    if (user && players.length === 0) {
+      // Ajouter l'utilisateur actuel comme premier joueur seulement si la liste est vide
+      setPlayers([{
+        id: user.id,
+        name: user.username,
+        color: colors[0]
+      }]);
     }
-  }, []);
+  }, [user, players.length]);
 
-  const addPlayer = () => {
-    setShowLoginModal(true);
-  };
-
-  const handleLogin = (username: string, password: string) => {
-    // Ici vous pourriez ajouter la logique de vérification des identifiants
-    // Pour l'exemple, on ajoute simplement le joueur
-    if (players.length < 4) {
-      const colors = ["#8A00C4", "#2323FF", "#FF6B35", "#28A745"];
-      const newPlayers = [...players, {
-        id: players.length + 1,
-        name: username.toUpperCase(),
-        color: colors[players.length % colors.length]
-      }];
-      setPlayers(newPlayers);
-      // Sauvegarder les joueurs dans le localStorage
-      localStorage.setItem('tournament-players', JSON.stringify(newPlayers));
+  const handleAddPlayer = (newPlayer: any) => {
+    if (players.length < 4 && !players.find(p => p.id === newPlayer.id)) {
+      const playerToAdd = {
+        id: newPlayer.id,
+        name: newPlayer.username,
+        color: colors[players.length]
+      };
+      setPlayers(prev => [...prev, playerToAdd]);
     }
-    setShowLoginModal(false);
   };
 
   const removePlayer = (id: number) => {
-    if (players.length > 1 && id > 1) { // Ne pas supprimer YOU (id: 1)
-      const newPlayers = players.filter(p => p.id !== id);
-      setPlayers(newPlayers);
-      // Mettre à jour le localStorage
-      localStorage.setItem('tournament-players', JSON.stringify(newPlayers));
+    if (id !== user?.id) { // Ne pas permettre la suppression du joueur actuel
+      setPlayers(prev => prev.filter(p => p.id !== id));
     }
   };
 
+
+
   // Créer un tableau de 4 slots
-  const slots: TournamentSlot[] = Array.from({ length: 4 }, (_, i) => {
-    const player = players[i];
-    return player || { id: `empty-${i}`, name: "ADD PLAYER +", color: "", isEmpty: true };
-  });
+
 
   return (
     <GradientBackground>
@@ -161,45 +226,54 @@ export default function TournamentView() {
 
         {/* Grille 2x2 des joueurs */}
         <div className="grid grid-cols-2 gap-8 mb-16">
-          {slots.map((slot, index) => (
-            <div key={slot.id} className="relative">
-              {'isEmpty' in slot ? (
-                <button
-                  onClick={addPlayer}
-                  className="bg-white text-black border-4 border-white rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[300px] h-[120px] flex items-center justify-center"
-                >
-                  ADD PLAYER +
-                </button>
-              ) : (
-                <div className="relative">
-                  <button
-                    className="bg-blue-600/20 border-blue-400 text-blue-400 border-4 rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 min-w-[300px] h-[120px] flex items-center justify-center"
-                  >
-                    {slot.name}
-                  </button>
-                  {slot.id > 1 && ( // Ne pas afficher le X pour YOU
+          {Array.from({ length: 4 }).map((_, index) => {
+            const player = players[index];
+            return (
+              <div key={index} className="relative">
+                {player ? (
+                  <div className="relative">
                     <button
-                      onClick={() => removePlayer(slot.id)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 transition-colors"
+                      className="bg-blue-600/20 border-blue-400 text-blue-400 border-4 rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 min-w-[300px] h-[120px] flex items-center justify-center"
+                      style={{ borderColor: player.color, color: player.color }}
                     >
-                      ×
+                      {player.name}
                     </button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                    {player.id !== user?.id && (
+                      <button
+                        onClick={() => removePlayer(player.id)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 transition-colors"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowSearchModal(true)}
+                    className="bg-white text-black border-4 border-white rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[300px] h-[120px] flex items-center justify-center"
+                    disabled={!user}
+                  >
+                    ADD PLAYER +
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Boutons d'action */}
         <div className="flex gap-8">
           <button
             onClick={() => {
-              // Sauvegarder les joueurs avant de démarrer le tournoi
-              localStorage.setItem('tournament-players', JSON.stringify(players));
-              router.push("/tournament-bracket");
+              if (players.length >= 2) {
+                router.push("/tournament-bracket");
+              }
             }}
-            className="bg-transparent border-4 border-yellow-400 text-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:bg-yellow-400 hover:text-black hover:scale-105"
+            className={`bg-transparent border-4 border-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:scale-105 ${
+              players.length >= 2
+                ? "text-yellow-400 hover:bg-yellow-400 hover:text-black"
+                : "text-yellow-400/50 border-yellow-400/50 cursor-not-allowed"
+            }`}
             disabled={players.length < 2}
           >
             START
@@ -209,15 +283,15 @@ export default function TournamentView() {
             onClick={() => router.push("/play")}
             className="bg-transparent border-4 border-yellow-400 text-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:bg-yellow-400 hover:text-black hover:scale-105"
           >
-            return
+            RETURN
           </button>
         </div>
 
-        {/* Modal de connexion */}
-        <LoginModal
-          isOpen={showLoginModal}
-          onClose={() => setShowLoginModal(false)}
-          onLogin={handleLogin}
+        {/* Modal de recherche de joueurs */}
+        <SearchPlayerModal
+          isOpen={showSearchModal}
+          onClose={() => setShowSearchModal(false)}
+          onSelect={handleAddPlayer}
         />
       </div>
     </GradientBackground>

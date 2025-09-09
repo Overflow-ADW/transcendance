@@ -115,3 +115,5 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+database/database.sqlite
+database/database.sqlite-*

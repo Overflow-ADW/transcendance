@@ -29,14 +29,25 @@ async function userRoutes(fastify, options) {
   // ========================================
   fastify.get('/profile', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
+      console.log('Fetching profile for user ID:', request.user.userId);
       const user = db.prepare(`
-        SELECT id, username, email, display_name, avatar_url, status, 
-               is_admin, two_factor_enabled, created_at, last_login,
-               (SELECT COUNT(*) FROM friends WHERE (user_id = ? OR friend_id = ?) AND status = 'accepted') as friends_count,
-               (SELECT COUNT(*) FROM games WHERE (player1_id = ? OR player2_id = ?) AND status = 'completed') as games_played,
-               (SELECT COUNT(*) FROM games WHERE status = 'completed' AND 
-                ((player1_id = ? AND winner_id = ?) OR (player2_id = ? AND winner_id = ?))) as games_won
-        FROM users WHERE id = ?
+        SELECT 
+          users.id, 
+          users.username, 
+          users.email, 
+          users.display_name, 
+          users.avatar_url, 
+          users.status,
+          users.is_admin, 
+          users.two_factor_enabled, 
+          users.created_at, 
+          users.last_login,
+          (SELECT COUNT(*) FROM friends WHERE (user_id = ? OR friend_id = ?) AND status = 'accepted') as friends_count,
+          (SELECT COUNT(*) FROM games WHERE (player1_id = ? OR player2_id = ?) AND status = 'completed') as games_played,
+          (SELECT COUNT(*) FROM games WHERE status = 'completed' AND 
+           ((player1_id = ? AND winner_id = ?) OR (player2_id = ? AND winner_id = ?))) as games_won
+        FROM users 
+        WHERE users.id = ?
       `).get(
         request.user.userId, request.user.userId,
         request.user.userId, request.user.userId,
@@ -51,24 +62,276 @@ async function userRoutes(fastify, options) {
         });
       }
 
+      console.log('User data from DB:', user);
+      
       // Calculer le winrate
       const winrate = user.games_played > 0 ? Math.round((user.games_won / user.games_played) * 100) : 0;
 
-      return reply.send({
-        user: {
-          ...user,
-          winrate: winrate,
-          stats: {
-            friends: user.friends_count,
-            gamesPlayed: user.games_played,
-            gamesWon: user.games_won,
-            winrate: winrate
+      // Récupérer l'historique récent (dernières 5 parties pour résumé)
+      const recentGames = db.prepare(`
+        SELECT 
+          g.id,
+          g.player1_id,
+          g.player2_id,
+          g.score_player1,
+          g.score_player2,
+          g.status,
+          g.game_mode,
+          g.duration,
+          g.created_at,
+          g.winner_id,
+          g.ai_opponent,
+          p1.username as player1_username,
+          p1.display_name as player1_display_name,
+          p1.avatar_url as player1_avatar,
+          p2.username as player2_username,
+          p2.display_name as player2_display_name,
+          p2.avatar_url as player2_avatar,
+          CASE 
+            WHEN g.winner_id = ? THEN 'win'
+            WHEN g.winner_id IS NULL AND g.status = 'completed' THEN 'loss'
+            WHEN g.status != 'completed' THEN 'pending'
+            ELSE 'loss'
+          END as result,
+          CASE 
+            WHEN g.player1_id = ? THEN g.score_player1
+            ELSE g.score_player2
+          END as user_score,
+          CASE 
+            WHEN g.player1_id = ? THEN g.score_player2
+            ELSE g.score_player1
+          END as opponent_score,
+          CASE 
+            WHEN g.player1_id = ? THEN p2.username
+            ELSE p1.username
+          END as opponent_username,
+          CASE 
+            WHEN g.player1_id = ? THEN p2.display_name
+            ELSE p1.display_name
+          END as opponent_display_name
+        FROM games g
+        JOIN users p1 ON p1.id = g.player1_id
+        LEFT JOIN users p2 ON p2.id = g.player2_id
+        WHERE (g.player1_id = ? OR g.player2_id = ?)
+        ORDER BY g.created_at DESC
+        LIMIT 10
+      `).all(
+        request.user.userId, request.user.userId, request.user.userId, 
+        request.user.userId, request.user.userId, request.user.userId, request.user.userId
+      );
+
+      // Statistiques détaillées pour le résumé (exclusion des jeux de tournoi)
+      const detailedStats = db.prepare(`
+        SELECT 
+          COUNT(CASE WHEN g.status = 'completed' THEN 1 END) as completed_games,
+          COUNT(CASE WHEN g.status = 'in_progress' THEN 1 END) as ongoing_games,
+          COUNT(CASE WHEN g.winner_id = ? THEN 1 END) as games_won,
+          COUNT(CASE WHEN g.status = 'completed' AND g.winner_id != ? AND g.winner_id IS NOT NULL THEN 1 END) as games_lost,
+          COUNT(CASE WHEN g.status = 'completed' AND g.winner_id IS NULL THEN 1 END) as games_drawn,
+          AVG(CASE WHEN g.status = 'completed' AND g.duration IS NOT NULL THEN g.duration END) as avg_duration,
+          MAX(CASE WHEN g.player1_id = ? THEN g.score_player1 ELSE g.score_player2 END) as highest_score,
+          
+          -- Statistiques VS IA (jeux non-tournoi avec AI)
+          COUNT(CASE WHEN g.ai_opponent = TRUE AND g.status = 'completed' THEN 1 END) as vs_ai_total,
+          COUNT(CASE WHEN g.ai_opponent = TRUE AND g.winner_id = ? THEN 1 END) as vs_ai_won,
+          
+          -- Statistiques VS Joueurs (jeux non-tournoi sans AI)  
+          COUNT(CASE WHEN g.ai_opponent = FALSE AND g.status = 'completed' THEN 1 END) as vs_players_total,
+          COUNT(CASE WHEN g.ai_opponent = FALSE AND g.winner_id = ? THEN 1 END) as vs_players_won
+          
+        FROM games g 
+        WHERE (g.player1_id = ? OR g.player2_id = ?) AND g.tournament_id IS NULL
+      `).get(request.user.userId, request.user.userId, request.user.userId, request.user.userId, request.user.userId, request.user.userId, request.user.userId);
+
+      // Statistiques de tournois
+      const tournamentStats = db.prepare(`
+        SELECT 
+          COUNT(DISTINCT t.id) as tournaments_joined,
+          COUNT(DISTINCT CASE WHEN t.winner_id = ? THEN t.id END) as tournaments_won
+        FROM tournaments t
+        JOIN tournament_participants tp ON t.id = tp.tournament_id
+        WHERE tp.user_id = ?
+      `).get(request.user.userId, request.user.userId);
+
+      const responseData = {
+        id: user.id,
+        username: user.username,
+        display_name: user.display_name,
+        email: user.email,
+        avatar_url: user.avatar_url,
+        status: user.status,
+        created_at: user.created_at,
+        last_login: user.last_login,
+        winrate: winrate,
+        stats: {
+          friends: user.friends_count,
+          gamesPlayed: detailedStats.completed_games || 0, // Jeux non-tournoi uniquement
+          gamesWon: detailedStats.games_won || 0,
+          gamesLost: detailedStats.games_lost || 0,
+          gamesDrawn: detailedStats.games_drawn || 0,
+          ongoingGames: detailedStats.ongoing_games || 0,
+          winrate: detailedStats.completed_games > 0 ? Math.round((detailedStats.games_won / detailedStats.completed_games) * 100) : 0,
+          avgDuration: detailedStats.avg_duration ? Math.round(detailedStats.avg_duration) : 0,
+          highestScore: detailedStats.highest_score || 0,
+          
+          // Win rates par type d'adversaire
+          winRates: {
+            vsAI: detailedStats.vs_ai_total > 0 ? Math.round((detailedStats.vs_ai_won / detailedStats.vs_ai_total) * 100) : 0,
+            vsPlayers: detailedStats.vs_players_total > 0 ? Math.round((detailedStats.vs_players_won / detailedStats.vs_players_total) * 100) : 0,
+            tournaments: tournamentStats.tournaments_won || 0 // Nombre de tournois gagnés
+          },
+          
+          // Détails par type
+          gamesByType: {
+            vsAI: detailedStats.vs_ai_total || 0,
+            vsPlayers: detailedStats.vs_players_total || 0,
+            tournaments: tournamentStats.tournaments_joined || 0
           }
+        },
+        recentGames: recentGames
+      };
+
+      console.log('Sending response:', responseData);
+      return reply.send(responseData);
+
+    } catch (error) {
+      fastify.log.error('❌ Erreur lors de la récupération du profil:', error);
+      return reply.status(500).send({
+        error: 'Erreur interne du serveur',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+  });
+
+  // ========================================
+  // ROUTE D'HISTORIQUE DES JEUX AVEC PAGINATION
+  // ========================================
+  fastify.get('/games/history', { preHandler: [authenticateToken] }, async (request, reply) => {
+    try {
+      const userId = request.user.userId;
+      const { page = 1, limit = 10, status, gameMode } = request.query;
+      
+      const currentPage = Math.max(1, parseInt(page));
+      const pageSize = Math.min(50, Math.max(1, parseInt(limit))); // Entre 1 et 50
+      const offset = (currentPage - 1) * pageSize;
+
+      // Construire les clauses WHERE pour le filtrage
+      let filters = [];
+      let filterParams = [];
+      
+      if (status && ['pending', 'in_progress', 'completed', 'cancelled'].includes(status)) {
+        filters.push('g.status = ?');
+        filterParams.push(status);
+      }
+      
+      if (gameMode && ['classic', 'custom', 'tournament'].includes(gameMode)) {
+        filters.push('g.game_mode = ?');
+        filterParams.push(gameMode);
+      }
+
+      const whereClause = filters.length > 0 ? `AND ${filters.join(' AND ')}` : '';
+
+      // Compter le total des jeux
+      const totalCount = db.prepare(`
+        SELECT COUNT(*) as count
+        FROM games g
+        WHERE (g.player1_id = ? OR g.player2_id = ?) ${whereClause}
+      `).get(userId, userId, ...filterParams);
+
+      // Récupérer les jeux avec pagination
+      const games = db.prepare(`
+        SELECT 
+          g.id,
+          g.player1_id,
+          g.player2_id,
+          g.score_player1,
+          g.score_player2,
+          g.status,
+          g.game_mode,
+          g.duration,
+          g.created_at,
+          g.start_time,
+          g.end_time,
+          g.winner_id,
+          g.ai_opponent,
+          p1.username as player1_username,
+          p1.display_name as player1_display_name,
+          p1.avatar_url as player1_avatar,
+          p2.username as player2_username,
+          p2.display_name as player2_display_name,
+          p2.avatar_url as player2_avatar,
+          CASE 
+            WHEN g.winner_id = ? THEN 'win'
+            WHEN g.winner_id IS NULL AND g.status = 'completed' AND g.ai_opponent = 1 THEN 'loss'
+            WHEN g.winner_id IS NULL AND g.status = 'completed' AND g.score_player1 = g.score_player2 THEN 'draw'
+            WHEN g.status != 'completed' THEN 'pending'
+            ELSE 'loss'
+          END as result,
+          CASE 
+            WHEN g.player1_id = ? THEN g.score_player1
+            ELSE g.score_player2
+          END as user_score,
+          CASE 
+            WHEN g.player1_id = ? THEN g.score_player2
+            ELSE g.score_player1
+          END as opponent_score,
+          CASE 
+            WHEN g.player1_id = ? THEN p2.username
+            ELSE p1.username
+          END as opponent_username,
+          CASE 
+            WHEN g.player1_id = ? THEN p2.display_name
+            ELSE p1.display_name
+          END as opponent_display_name,
+          CASE 
+            WHEN g.player1_id = ? THEN p2.avatar_url
+            ELSE p1.avatar_url
+          END as opponent_avatar
+        FROM games g
+        JOIN users p1 ON p1.id = g.player1_id
+        LEFT JOIN users p2 ON p2.id = g.player2_id
+        WHERE (g.player1_id = ? OR g.player2_id = ?) ${whereClause}
+        ORDER BY g.created_at DESC, g.id DESC
+        LIMIT ? OFFSET ?
+      `).all(
+        userId, userId, userId, userId, userId, userId, 
+        userId, userId, ...filterParams, pageSize, offset
+      );
+
+      // Calculer les métadonnées de pagination
+      const totalPages = Math.ceil(totalCount.count / pageSize);
+      const hasNextPage = currentPage < totalPages;
+      const hasPreviousPage = currentPage > 1;
+
+      // Statistiques rapides pour cette page
+      const pageStats = {
+        wins: games.filter(g => g.result === 'win').length,
+        losses: games.filter(g => g.result === 'loss').length,
+        draws: games.filter(g => g.result === 'draw').length,
+        pending: games.filter(g => g.result === 'pending').length
+      };
+
+      return reply.send({
+        games: games,
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalItems: totalCount.count,
+          hasNextPage,
+          hasPreviousPage,
+          nextPage: hasNextPage ? currentPage + 1 : null,
+          previousPage: hasPreviousPage ? currentPage - 1 : null
+        },
+        stats: pageStats,
+        filters: {
+          status: status || 'all',
+          gameMode: gameMode || 'all'
         }
       });
 
     } catch (error) {
-      fastify.log.error('❌ Erreur lors de la récupération du profil:', error);
+      fastify.log.error('❌ Erreur lors de la récupération de l\'historique des jeux:', error);
       return reply.status(500).send({
         error: 'Erreur interne du serveur',
         code: 'INTERNAL_ERROR'
@@ -235,25 +498,155 @@ async function userRoutes(fastify, options) {
   });
 
   // ========================================
-  // ROUTE D'UPLOAD D'AVATAR (BASIQUE)
+  // ROUTE D'UPLOAD D'AVATAR EN BASE64
   // ========================================
   fastify.post('/avatar', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
-      // Pour l'instant, on simule juste l'upload
-      // TODO: Implémenter multipart/form-data avec @fastify/multipart
+      fastify.log.info(`📸 Upload avatar demandé par utilisateur: ${request.user.username} (ID: ${request.user.userId})`);
       
-      const { avatarUrl } = request.body;
+      const { imageData, fileName, mimeType } = request.body;
       
-      if (!avatarUrl) {
+      fastify.log.info(`📝 Données reçues: fileName=${fileName}, mimeType=${mimeType}, dataLength=${imageData?.length || 0}`);
+      
+      if (!imageData || !fileName || !mimeType) {
+        fastify.log.warn('❌ Données manquantes pour l\'upload d\'avatar');
         return reply.status(400).send({
-          error: 'URL d\'avatar requise',
-          code: 'AVATAR_URL_REQUIRED'
+          error: 'Données d\'image, nom de fichier et type MIME requis',
+          code: 'MISSING_IMAGE_DATA'
         });
       }
 
-      // Mettre à jour l'avatar en base
+      // Vérification du type de fichier (PNG et JPG prioritaires)
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(mimeType.toLowerCase())) {
+        return reply.status(400).send({
+          error: 'Type de fichier non supporté. Utilisez PNG, JPG, JPEG, GIF ou WebP',
+          code: 'INVALID_FILE_TYPE',
+          acceptedTypes: allowedTypes
+        });
+      }
+
+      // Décoder les données base64
+      let buffer;
+      try {
+        const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+        buffer = Buffer.from(base64Data, 'base64');
+      } catch (error) {
+        return reply.status(400).send({
+          error: 'Données d\'image invalides',
+          code: 'INVALID_IMAGE_DATA'
+        });
+      }
+
+      // Vérification de la taille (5MB max)
+      const maxSize = 5 * 1024 * 1024;
+      if (buffer.length > maxSize) {
+        return reply.status(400).send({
+          error: 'Le fichier est trop volumineux (max 5MB)',
+          code: 'FILE_TOO_LARGE'
+        });
+      }
+
+      // Génération d'un nom de fichier unique
+      const fileExtension = mimeType.split('/')[1];
+      const uniqueFileName = `${request.user.userId}_${Date.now()}.${fileExtension}`;
+      const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'avatars');
+      const filePath = path.join(uploadsDir, uniqueFileName);
+
+      // S'assurer que le dossier existe
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Supprimer l'ancien avatar s'il existe
+      const currentUser = db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(request.user.userId);
+      if (currentUser?.avatar_url) {
+        const oldFileName = currentUser.avatar_url.split('/').pop();
+        if (oldFileName && oldFileName !== uniqueFileName) {
+          const oldFilePath = path.join(uploadsDir, oldFileName);
+          if (fs.existsSync(oldFilePath)) {
+            try {
+              fs.unlinkSync(oldFilePath);
+              fastify.log.info(`🗑️ Ancien avatar supprimé: ${oldFileName}`);
+            } catch (err) {
+              fastify.log.warn('⚠️ Impossible de supprimer l\'ancien avatar:', err.message);
+            }
+          }
+        }
+      }
+
+      // Écrire le nouveau fichier
+      await fs.promises.writeFile(filePath, buffer);
+
+      // URL relative pour l'accès web
+      const avatarUrl = `/uploads/avatars/${uniqueFileName}`;
+
+      // Mettre à jour la base de données
       const result = db.prepare('UPDATE users SET avatar_url = ?, updated_at = datetime(\'now\') WHERE id = ?')
         .run(avatarUrl, request.user.userId);
+
+      if (result.changes === 0) {
+        // Nettoyer le fichier uploadé si l'update échoue
+        fs.unlinkSync(filePath);
+        return reply.status(404).send({
+          error: 'Utilisateur non trouvé',
+          code: 'USER_NOT_FOUND'
+        });
+      }
+
+      fastify.log.info(`📸 Avatar uploadé avec succès pour: ${request.user.username} -> ${uniqueFileName}`);
+
+      return reply.send({
+        message: 'Avatar uploadé avec succès',
+        avatarUrl: avatarUrl,
+        fileName: uniqueFileName,
+        fileSize: buffer.length,
+        code: 'AVATAR_UPLOADED'
+      });
+
+    } catch (error) {
+      fastify.log.error('❌ Erreur lors de l\'upload de l\'avatar:', error);
+      return reply.status(500).send({
+        error: 'Erreur lors de l\'upload de l\'avatar',
+        code: 'UPLOAD_ERROR'
+      });
+    }
+  });
+
+  // ========================================
+  // ROUTE DE SUPPRESSION D'AVATAR
+  // ========================================
+  fastify.delete('/avatar', { preHandler: [authenticateToken] }, async (request, reply) => {
+    try {
+      fastify.log.info(`🗑️ Suppression avatar demandée par utilisateur: ${request.user.username} (ID: ${request.user.userId})`);
+      
+      const currentUser = db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(request.user.userId);
+      
+      if (currentUser?.avatar_url) {
+        const fileName = currentUser.avatar_url.split('/').pop();
+        if (fileName) {
+          const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'avatars');
+          const filePath = path.join(uploadsDir, fileName);
+          
+          // Supprimer le fichier s'il existe
+          if (fs.existsSync(filePath)) {
+            try {
+              fs.unlinkSync(filePath);
+              fastify.log.info(`🗑️ Fichier avatar supprimé: ${fileName}`);
+            } catch (err) {
+              fastify.log.warn('⚠️ Impossible de supprimer le fichier avatar:', err.message);
+            }
+          } else {
+            fastify.log.warn(`⚠️ Fichier avatar introuvable: ${filePath}`);
+          }
+        }
+      } else {
+        fastify.log.info('ℹ️ Aucun avatar à supprimer pour cet utilisateur');
+      }
+
+      // Mettre à jour la base de données
+      const result = db.prepare('UPDATE users SET avatar_url = NULL, updated_at = datetime(\'now\') WHERE id = ?')
+        .run(request.user.userId);
 
       if (result.changes === 0) {
         return reply.status(404).send({
@@ -262,19 +655,85 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      fastify.log.info(`📸 Avatar mis à jour pour: ${request.user.username}`);
+      fastify.log.info(`�️ Avatar supprimé pour: ${request.user.username}`);
 
       return reply.send({
-        message: 'Avatar mis à jour avec succès',
-        avatarUrl: avatarUrl,
-        code: 'AVATAR_UPDATED'
+        message: 'Avatar supprimé avec succès',
+        code: 'AVATAR_DELETED'
       });
 
     } catch (error) {
-      fastify.log.error('❌ Erreur lors de la mise à jour de l\'avatar:', error);
+      fastify.log.error('❌ Erreur lors de la suppression de l\'avatar:', error);
       return reply.status(500).send({
-        error: 'Erreur interne du serveur',
-        code: 'INTERNAL_ERROR'
+        error: 'Erreur lors de la suppression de l\'avatar',
+        code: 'DELETE_ERROR'
+      });
+    }
+  });
+
+  // ========================================
+  // ROUTE UTILITAIRE : NETTOYER LES AVATARS ORPHELINS (ADMIN ONLY)
+  // ========================================
+  fastify.post('/avatar/cleanup', { preHandler: [authenticateToken] }, async (request, reply) => {
+    try {
+      // Vérifier si l'utilisateur est admin
+      const user = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(request.user.userId);
+      if (!user?.is_admin) {
+        return reply.status(403).send({
+          error: 'Accès refusé - Administrateur requis',
+          code: 'ACCESS_DENIED'
+        });
+      }
+
+      const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'avatars');
+      
+      if (!fs.existsSync(uploadsDir)) {
+        return reply.send({
+          message: 'Dossier avatars introuvable',
+          cleaned: 0
+        });
+      }
+
+      // Lister tous les fichiers dans le dossier avatars
+      const files = fs.readdirSync(uploadsDir);
+      
+      // Récupérer tous les avatar_url de la base de données
+      const avatarsInDB = db.prepare('SELECT avatar_url FROM users WHERE avatar_url IS NOT NULL').all();
+      const activeAvatars = avatarsInDB.map(row => {
+        const url = row.avatar_url;
+        return url ? url.split('/').pop() : null;
+      }).filter(Boolean);
+
+      let cleanedCount = 0;
+      
+      // Supprimer les fichiers orphelins
+      for (const file of files) {
+        if (!activeAvatars.includes(file)) {
+          try {
+            const filePath = path.join(uploadsDir, file);
+            fs.unlinkSync(filePath);
+            fastify.log.info(`🗑️ Avatar orphelin supprimé: ${file}`);
+            cleanedCount++;
+          } catch (err) {
+            fastify.log.warn(`⚠️ Impossible de supprimer l'avatar orphelin ${file}:`, err.message);
+          }
+        }
+      }
+
+      fastify.log.info(`🧹 Nettoyage terminé: ${cleanedCount} avatars orphelins supprimés`);
+
+      return reply.send({
+        message: `Nettoyage terminé avec succès`,
+        cleaned: cleanedCount,
+        totalFiles: files.length,
+        activeAvatars: activeAvatars.length
+      });
+
+    } catch (error) {
+      fastify.log.error('❌ Erreur lors du nettoyage des avatars:', error);
+      return reply.status(500).send({
+        error: 'Erreur lors du nettoyage',
+        code: 'CLEANUP_ERROR'
       });
     }
   });
@@ -655,6 +1114,14 @@ async function userRoutes(fastify, options) {
       // Statistiques complètes de l'utilisateur
       const stats = db.prepare(`
         SELECT 
+          u.username,
+          u.display_name,
+          u.avatar_url,
+          u.email,
+          u.status,
+          u.is_admin,
+          u.two_factor_enabled,
+          u.created_at,
           COUNT(DISTINCT f.id) as total_friends,
           COUNT(DISTINCT CASE WHEN g.player1_id = ? OR g.player2_id = ? THEN g.id END) as total_games,
           COUNT(DISTINCT CASE 

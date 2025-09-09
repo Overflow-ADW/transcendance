@@ -32,6 +32,7 @@ import { IPongGameMode } from "@/game/modes/DefaultPongMode";
 import { GameModeFactory } from "@/game/factories/GameModeFactory";
 import { AIDifficulty } from "@/game/utils/AI/pongAI";
 import { getDifficultyName } from "@/game/utils/AI/aiConfig";
+import { apiClient } from "@/lib_front/api";
 
 export class Pong {
     scene: Scene;
@@ -68,15 +69,51 @@ export class Pong {
     private player1GlowLayer!: GlowLayer;
     private _player2GlowLayer!: GlowLayer; // Changé de player2GlowLayer à _player2GlowLayer
     private isGameStopped = false; // Flag pour indiquer si le jeu a été arrêté manuellement
+    
+    // Propriétés pour le tracking de jeu
+    private gameStartTime: number = 0;
+    private isAIGame: boolean = false;
+    private aiLevel: number | null = null;
+    private aiDifficultyName: string = '';
+    private gameMode: string = 'classic';
 
     constructor(private canvas: HTMLCanvasElement) {
         this.engine = new Engine(this.canvas, true);
         
+        // Initialiser le timestamp de début de jeu
+        this.gameStartTime = Date.now();
+        
+        // Déterminer le mode de jeu à partir du localStorage
+        const gameMode = localStorage.getItem('game-mode');
+        this.gameMode = gameMode || 'classic';
+        
+        // Vérifier si c'est un jeu contre IA
+        if (gameMode === 'ai') {
+            this.isAIGame = true;
+            const aiDifficulty = localStorage.getItem('ai-difficulty');
+            switch (aiDifficulty?.toLowerCase()) {
+                case 'easy':
+                    this.aiLevel = 1;
+                    this.aiDifficultyName = 'EASY';
+                    this.gameMode = 'ai-easy';
+                    break;
+                case 'hard':
+                    this.aiLevel = 3;
+                    this.aiDifficultyName = 'HARD';
+                    this.gameMode = 'ai-hard';
+                    break;
+                default:
+                    this.aiLevel = 2; // medium
+                    this.aiDifficultyName = 'MEDIUM';
+                    this.gameMode = 'ai-medium';
+            }
+        }
+        
         this.gameData = new PongData({
             maxScore: GAME_CONFIG.DEFAULT_MAX_SCORE,
             gameType: GameType.DEFAULT_PONG,
-            player0Name: "Player 1",
-            player1Name: "Player 2"
+            player0Name: "YOU",
+            player1Name: this.isAIGame ? `${this.aiDifficultyName} AI` : "Player 2"
         });
         
         this.scene = this.createScene();
@@ -323,9 +360,10 @@ export class Pong {
         
         // Mettre à jour le nom du joueur pour refléter l'IA
         const currentDifficulty = this.controls.getAIDifficulty();
+        const difficultyName = currentDifficulty ? this.getDifficultyName(currentDifficulty) : 'MEDIUM';
         this.gameData.setPlayerNames(
             this.gameData.player0Name, 
-            `IA ${currentDifficulty ? this.getDifficultyName(currentDifficulty) : 'Moyen'}`
+            `${difficultyName.toUpperCase()} AI`
         );
         
         console.log(`IA activée avec difficulté: ${this.getDifficultyName(difficulty)}`);
@@ -906,11 +944,43 @@ export class Pong {
         });
 
         // Player win listener
-        this.gameData.on(GameEvents.PLAYER_WON, () => {
+        this.gameData.on(GameEvents.PLAYER_WON, (winner: number, winnerName: string) => {
             // Vérifier si le jeu a été arrêté manuellement
             if (this.isGameStopped) {
                 return; // Ne rien faire si le jeu a été arrêté manuellement
             }
+            
+            console.log(`🏆 Partie terminée - Gagnant: ${winnerName} (${winner})`);
+            
+            // Calculer la durée de la partie
+            const gameEndTime = Date.now();
+            const duration = Math.round((gameEndTime - this.gameStartTime) / 1000); // en secondes
+            
+            // Préparer les données de la partie
+            const gameResult = {
+                score_player1: this.gameData.player0Score,
+                score_player2: this.gameData.player1Score,
+                winner_id: this.isAIGame ? 
+                    (winner === 0 ? 1 : null) : // Pour AI: si player0 (user) gagne = 1, sinon null (IA gagne)
+                    (winner === 0 ? 1 : 2),    // Pour PvP: si player0 gagne = user(1), sinon player2(2)
+                duration: duration,
+                game_mode: this.gameMode,
+                ai_opponent: this.isAIGame,
+                ai_level: this.aiLevel,
+                player2_id: this.isAIGame ? null : 2, // TODO: récupérer le vrai ID du joueur 2 si multijoueur
+                tournament_id: null
+            };
+            
+            console.log('🎮 Sauvegarde des données de partie:', gameResult);
+            
+            // Appeler l'API pour sauvegarder la partie
+            apiClient.completeGame(gameResult)
+                .then((response) => {
+                    console.log('✅ Partie sauvegardée avec succès:', response);
+                })
+                .catch((error) => {
+                    console.error('❌ Erreur lors de la sauvegarde:', error);
+                });
             
             // Cacher les scores pendant le game over UNIQUEMENT si le message est affiché
             setTimeout(() => {

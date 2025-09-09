@@ -36,9 +36,9 @@ export const AI_CONFIGS: Record<AIDifficulty, AIConfig> = {
  */
 export function getDifficultyName(difficulty: AIDifficulty): string {
     const names = {
-        [AIDifficulty.EASY]: "Facile",
-        [AIDifficulty.MEDIUM]: "Moyen", 
-        [AIDifficulty.HARD]: "Difficile"
+        [AIDifficulty.EASY]: "EASY",
+        [AIDifficulty.MEDIUM]: "MEDIUM", 
+        [AIDifficulty.HARD]: "HARD"
     };
-    return names[difficulty] || "Inconnu";
+    return names[difficulty] || "MEDIUM";
 }

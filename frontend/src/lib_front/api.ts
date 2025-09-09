@@ -1,14 +1,19 @@
-import type { MatchItem, Winrate } from "./types";
+import type { MatchItem, Winrate, GameHistoryResponse } from "./types";
 
 // Configuration API centralisée avec détection automatique
 function getApiBaseUrl(): string {
-  // En mode SPA avec proxy Nginx, utiliser l'origine actuelle
+  // En mode développement, pointer vers le backend Fastify
   if (typeof window !== 'undefined') {
+    // En développement, utiliser le backend sur port 3000
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:3000';
+    }
+    // En production, utiliser l'origine actuelle (avec proxy Nginx)
     return window.location.origin;
   }
   
   // Fallback pour le build-time
-  return 'http://localhost:8080';
+  return 'http://localhost:3000';
 }
 
 const BASE_URL = getApiBaseUrl().replace(/\/+$/, ""); // Supprimer les slashes finaux
@@ -25,11 +30,30 @@ class ApiClient {
   }
 
   /**
-   * Récupérer le token depuis localStorage
+   * Récupérer le token depuis localStorage ou sessionStorage
    */
   getToken(): string | null {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('accessToken') || localStorage.getItem('auth_token');
+      // Vérifier d'abord this.token
+      if (this.token) {
+        return this.token;
+      }
+      
+      // Ensuite vérifier sessionStorage (navigation actuelle)
+      const sessionToken = sessionStorage.getItem('accessToken');
+      if (sessionToken) {
+        this.token = sessionToken;
+        return sessionToken;
+      }
+      
+      // Enfin vérifier localStorage (persistance longue durée)
+      const localToken = localStorage.getItem('accessToken') || localStorage.getItem('auth_token');
+      if (localToken) {
+        this.token = localToken;
+        // Synchroniser avec sessionStorage
+        sessionStorage.setItem('accessToken', localToken);
+        return localToken;
+      }
     }
     return null;
   }
@@ -40,7 +64,13 @@ class ApiClient {
   setToken(token: string): void {
     this.token = token;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', token);
+      try {
+        localStorage.setItem('accessToken', token);
+        // Stocker aussi dans sessionStorage pour la persistance pendant la navigation
+        sessionStorage.setItem('accessToken', token);
+      } catch (e) {
+        console.error('Error setting token:', e);
+      }
     }
   }
 
@@ -50,11 +80,20 @@ class ApiClient {
   clearAuth(): void {
     this.token = null;
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
+      try {
+        // Nettoyer localStorage
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        
+        // Nettoyer sessionStorage
+        sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('refreshToken');
+      } catch (e) {
+        console.error('Error clearing auth:', e);
+      }
     }
   }
 
@@ -62,7 +101,7 @@ class ApiClient {
    * Wrapper fetch avec authentification automatique
    */
   async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const token = this.token || this.getToken();
+    let token = this.token || this.getToken();
     
     const config: RequestInit = {
       headers: {
@@ -76,7 +115,7 @@ class ApiClient {
     const url = endpoint.startsWith('http') ? endpoint : `${this.baseURL}${endpoint}`;
 
     try {
-      const response = await fetch(url, config);
+      let response = await fetch(url, config);
       
       // Gestion automatique des erreurs d'authentification
       if (response.status === 401) {
@@ -84,24 +123,28 @@ class ApiClient {
         const refreshed = await this.tryRefreshToken();
         
         if (refreshed) {
-          // Retry avec le nouveau token
+          // Mettre à jour le token dans la config
+          token = this.token;
           const newConfig = {
             ...config,
             headers: {
               ...config.headers,
-              'Authorization': `Bearer ${this.token}`
+              'Authorization': `Bearer ${token}`
             }
           };
-          return fetch(url, newConfig);
-        } else {
-          // Rediriger vers login si refresh impossible
-          this.clearAuth();
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+          // Réessayer la requête avec le nouveau token
+          response = await fetch(url, newConfig);
+          
+          // Si ça échoue encore après le refresh, c'est une vraie erreur d'auth
+          if (response.status === 401) {
+            throw new Error('Authentication required');
           }
+        } else {
           throw new Error('Authentication required');
         }
       }
+      
+      return response;
 
       return response;
     } catch (error) {
@@ -162,12 +205,32 @@ class ApiClient {
   }
 
   async verifyToken(token: string) {
-    const response = await fetch(`${this.baseURL}/api/auth/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token })
-    });
-    return response.json();
+    try {
+      const response = await fetch(`${this.baseURL}/api/auth/verify`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ token })
+      });
+
+      const data = await response.json();
+      
+      // Considérer la réponse comme valide si le code est TOKEN_VALID ou si valid est true
+      if (data.code === 'TOKEN_VALID' || data.valid) {
+        return {
+          valid: true,
+          user: data.user,
+          ...data
+        };
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Token verification error:', error);
+      throw error;
+    }
   }
 
   async logout() {
@@ -175,7 +238,7 @@ class ApiClient {
     return response.json();
   }
 
-  // ============ MÉTHODES UTILISATEUR ============
+  // ============ MÉTHODES UTILISATEUR ET PROFIL ============
 
   async getProfile() {
     const response = await this.request('/api/users/profile');
@@ -186,6 +249,78 @@ class ApiClient {
     const response = await this.request('/api/users/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData)
+    });
+    return response.json();
+  }
+
+  // ============ MÉTHODES AVATAR ============
+
+  async uploadAvatar(file: File): Promise<{avatarUrl: string, fileName: string, fileSize: number, message: string}> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const imageData = reader.result as string;
+          
+          const response = await this.request('/api/users/avatar', {
+            method: 'POST',
+            body: JSON.stringify({
+              imageData,
+              fileName: file.name,
+              mimeType: file.type
+            })
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Erreur lors de l\'upload');
+          }
+
+          const result = await response.json();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Erreur lors de la lecture du fichier'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async deleteAvatar(): Promise<{message: string}> {
+    const response = await this.request('/api/users/avatar', {
+      method: 'DELETE'
+    });
+    return response.json();
+  }
+
+  // ============ MÉTHODES TOURNOI ============
+
+  async searchUsers(query: string) {
+    const response = await this.request(`/api/users/search?q=${encodeURIComponent(query)}`);
+    return response.json();
+  }
+
+  async getTournamentParticipants(tournamentId: number) {
+    const response = await this.request(`/api/tournaments/${tournamentId}/participants`);
+    return response.json();
+  }
+
+  async joinTournament(tournamentId: number) {
+    const response = await this.request(`/api/tournaments/${tournamentId}/join`, {
+      method: 'POST'
+    });
+    return response.json();
+  }
+
+  async createTournament(data: {
+    name: string;
+    maxParticipants: number;
+    startTime?: string;
+  }) {
+    const response = await this.request('/api/tournaments', {
+      method: 'POST',
+      body: JSON.stringify(data)
     });
     return response.json();
   }
@@ -207,6 +342,46 @@ class ApiClient {
     const response = await this.request('/api/users/friends', {
       method: 'POST',
       body: JSON.stringify(friendData)
+    });
+    return response.json();
+  }
+
+  async getGameHistory(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    gameMode?: string;
+  } = {}): Promise<GameHistoryResponse> {
+    const queryParams = new URLSearchParams();
+    
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.status) queryParams.append('status', params.status);
+    if (params.gameMode) queryParams.append('gameMode', params.gameMode);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/api/users/games/history${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await this.request(endpoint);
+    return response.json();
+  }
+
+  // ============ MÉTHODES DE JEU ============
+
+  async completeGame(gameData: {
+    player2_id?: number | null;
+    ai_opponent?: boolean;
+    ai_level?: number | null;
+    score_player1: number;
+    score_player2: number;
+    winner_id?: number | null;
+    duration: number; // en secondes
+    game_mode?: string;
+    tournament_id?: number | null;
+  }) {
+    const response = await this.request('/api/games/complete', {
+      method: 'POST',
+      body: JSON.stringify(gameData)
     });
     return response.json();
   }
