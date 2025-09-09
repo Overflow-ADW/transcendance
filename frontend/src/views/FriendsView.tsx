@@ -3,20 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useRouter } from 'next/navigation';
-
-interface Friend {
-  id: string;
-  username: string;
-  isOnline: boolean;
-  avatar?: string;
-}
-
-interface PendingInvitation {
-  id: string;
-  username: string;
-  type: 'sent' | 'received';
-  avatar?: string;
-}
+import { useAuth } from "@/lib_front/AuthContext";
+import { apiClient } from '../lib_front/api';
+import type { 
+  Friend, 
+  PendingInvitation, 
+  FriendsResponse, 
+  UserSearchResult 
+} from '../lib_front/types';
 
 interface AddFriendModalProps {
   isOpen: boolean;
@@ -28,11 +22,9 @@ const AddFriendModal = ({ isOpen, onClose, onAdd }: AddFriendModalProps) => {
   const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  if (!isOpen) return null;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim() && !isLoading) {
+    if (username.trim()) {
       setIsLoading(true);
       try {
         await onAdd(username.trim());
@@ -45,30 +37,33 @@ const AddFriendModal = ({ isOpen, onClose, onAdd }: AddFriendModalProps) => {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 w-96 max-w-md mx-4">
-        <h2 className="text-2xl font-bold text-black mb-6 text-center">Add Friend</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-6">
-            <label className="block text-black text-sm font-bold mb-2">
-              Username or ID
-            </label>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-black border-4 border-purple-400 rounded-lg p-6 max-w-md w-full mx-4">
+        <h2 className="text-2xl font-bold text-white text-center mb-4">
+          Add Friend
+        </h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter username or #ID"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
-              required
+              placeholder="Enter username"
+              className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-600 rounded-lg focus:border-purple-400 focus:outline-none"
               disabled={isLoading}
+              autoFocus
             />
           </div>
-          <div className="flex gap-4">
+          
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+              className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
               disabled={isLoading}
             >
               Cancel
@@ -89,155 +84,180 @@ const AddFriendModal = ({ isOpen, onClose, onAdd }: AddFriendModalProps) => {
 
 export default function FriendsView() {
   const router = useRouter();
+  const { user } = useAuth();
   const [showAddModal, setShowAddModal] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Fonctions pour les appels API (à implémenter avec votre backend)
-  const fetchFriends = async () => {
-    try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch('/api/friends');
-      // const data = await response.json();
-      // setFriends(data.friends);
-      
-      // Simulation temporaire
-      setFriends([]);
-    } catch (error) {
-      console.error('Error fetching friends:', error);
-    }
+  // Fonction pour afficher les notifications
+  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000); // Disparaît après 5 secondes
   };
 
-  const fetchPendingInvitations = async () => {
-    try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch('/api/friends/invitations');
-      // const data = await response.json();
-      // setPendingInvitations(data.invitations);
-      
-      // Simulation temporaire
-      setPendingInvitations([]);
-    } catch (error) {
-      console.error('Error fetching invitations:', error);
+  // Fonction utilitaire pour obtenir l'avatar ou la première lettre
+  const getAvatarDisplay = (user: Friend | PendingInvitation) => {
+    if (user.avatar_url) {
+      return (
+        <img 
+          src={user.avatar_url} 
+          alt={`${user.username}'s avatar`}
+          className="w-8 h-8 rounded-full object-cover"
+        />
+      );
     }
+    return (
+      <div className="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center text-white font-bold">
+        {user.username.charAt(0).toUpperCase()}
+      </div>
+    );
   };
 
-  const handleAddFriend = async (username: string) => {
-    try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch('/api/friends/invite', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ username })
-      // });
-      // 
-      // if (response.ok) {
-      //   await fetchPendingInvitations(); // Refresh la liste
-      //   setShowAddModal(false);
-      // } else {
-      //   throw new Error('Failed to send friend request');
-      // }
+    // Fonctions pour les appels API
+const fetchFriends = async () => {
+  try {
+    console.log('🔍 DEBUG: Fetching friends...');
+    const response = await apiClient.request('/api/users/friends');
+    
+    if (response.ok) {
+      const data: FriendsResponse = await response.json();
+      console.log("🔍 DEBUG: Réponse de l'API des amis:", data);
+      
+      if (data.friends && data.friends.length > 0) {
+        console.log("🔍 DEBUG: Structure du premier ami:", data.friends[0]);
+      }
+      
+      setFriends(data.friends || []);
+      setPendingInvitations(data.pendingRequests || []);
+    } else {
+      console.error('Error fetching friends, status:', response.status);
+      throw new Error(`API error: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Error fetching friends:', error);
+    setFriends([]);
+    setPendingInvitations([]);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-      // Simulation temporaire
-      console.log('Sending friend request to:', username);
+const handleAddFriend = async (username: string) => {
+  // Vérifier si l'utilisateur essaie de s'inviter lui-même
+  if (user && username.toLowerCase() === user.username.toLowerCase()) {
+    showNotification("Vous ne pouvez pas vous inviter vous-même !", 'error');
+    return;
+  }
+
+  try {
+    setIsLoading(true);
+    console.log('🔍 DEBUG: Sending friend request to:', username);
+    // Utiliser la méthode addFriend de l'apiClient
+    const response = await apiClient.request('/api/users/friends', {
+      method: 'POST',
+      body: JSON.stringify({ username: username })
+    });
+    if (response.ok) {
+      await fetchFriends(); // Rafraîchir la liste
       setShowAddModal(false);
-    } catch (error) {
-      console.error('Error sending friend request:', error);
-      alert('Failed to send friend request');
+      showNotification(`Demande d'ami envoyée à ${username} !`, 'success');
+    } else {
+      // Gérer les différents codes d'erreur
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 400) {
+        showNotification("Vous ne pouvez pas vous inviter vous-même !", 'error');
+      } else if (response.status === 409) {
+        showNotification("Vous êtes déjà ami avec cette personne ou une demande est en cours !", 'error');
+      } else if (response.status === 404) {
+        showNotification("Utilisateur non trouvé !", 'error');
+      } else {
+        showNotification(errorData.message || "Erreur lors de l'envoi de la demande d'ami", 'error');
+      }
     }
-  };
+  } catch (error: any) {
+    console.error('Error sending friend request:', error);
+    showNotification("Erreur lors de l'envoi de la demande d'ami", 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-  const handleAcceptInvitation = async (id: string) => {
-    try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch(`/api/friends/invitations/${id}/accept`, {
-      //   method: 'POST'
-      // });
-      // 
-      // if (response.ok) {
-      //   await fetchFriends();
-      //   await fetchPendingInvitations();
-      // }
-
-      // Simulation temporaire
-      console.log('Accepting invitation:', id);
-    } catch (error) {
-      console.error('Error accepting invitation:', error);
+const handleAcceptInvitation = async (id: number) => {
+  try {
+    setIsLoading(true);
+    console.log('🔍 DEBUG: Accepting invitation with friendship_id:', id);
+    const response = await apiClient.request(`/api/users/friends/${id}/accept`, {
+      method: 'PUT',
+      body: JSON.stringify({}) // Corps vide au format JSON pour éviter l'erreur FST_ERR_CTP_EMPTY_JSON_BODY
+    });
+    if (response.ok) {
+      await fetchFriends();
+      showNotification("Demande d'ami acceptée !", 'success');
+    } else {
+      throw new Error(`HTTP ${response.status}`);
     }
-  };
+  } catch (error) {
+    console.error('Error accepting invitation:', error);
+    showNotification("Erreur lors de l'acceptation de l'invitation", 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-  const handleDeclineInvitation = async (id: string) => {
-    try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch(`/api/friends/invitations/${id}/decline`, {
-      //   method: 'POST'
-      // });
-      // 
-      // if (response.ok) {
-      //   await fetchPendingInvitations();
-      // }
-
-      // Simulation temporaire
-      console.log('Declining invitation:', id);
-    } catch (error) {
-      console.error('Error declining invitation:', error);
+const handleDeclineInvitation = async (id: number) => {
+  try {
+    setIsLoading(true);
+    console.log('🔍 DEBUG: Declining invitation with friendship_id:', id);
+    const response = await apiClient.request(`/api/users/friends/${id}`, {
+      method: 'DELETE'
+    });
+    if (response.ok) {
+      await fetchFriends();
+      showNotification("Demande d'ami refusée", 'info');
+    } else {
+      throw new Error(`HTTP ${response.status}`);
     }
-  };
+  } catch (error) {
+    console.error('Error declining invitation:', error);
+    showNotification("Erreur lors du refus de l'invitation", 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-  const handleRemoveFriend = async (id: string) => {
-    try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch(`/api/friends/${id}`, {
-      //   method: 'DELETE'
-      // });
-      // 
-      // if (response.ok) {
-      //   await fetchFriends();
-      // }
-
-      // Simulation temporaire
-      console.log('Removing friend:', id);
-    } catch (error) {
-      console.error('Error removing friend:', error);
+const handleRemoveFriend = async (id: number) => {
+  console.log('🔍 DEBUG: handleRemoveFriend appelé avec ID:', id);
+  try {
+    setIsLoading(true);
+    const response = await apiClient.request(`/api/users/friends/${id}`, {
+      method: 'DELETE'
+    });
+    if (response.ok) {
+      await fetchFriends();
+      showNotification("Ami supprimé", 'info');
+    } else {
+      throw new Error(`HTTP ${response.status}`);
     }
-  };
-
-  const handleInviteToGame = async (friendId: string) => {
-    try {
-      // TODO: Remplacer par votre appel API
-      // const response = await fetch('/api/game/invite', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ friendId })
-      // });
-
-      // Simulation temporaire
-      console.log('Inviting friend to game:', friendId);
-    } catch (error) {
-      console.error('Error inviting to game:', error);
-    }
-  };
+  } catch (error) {
+    console.error('Error removing friend:', error);
+    showNotification("Erreur lors de la suppression de l'ami", 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      await Promise.all([
-        fetchFriends(),
-        fetchPendingInvitations()
-      ]);
-      setIsLoading(false);
-    };
-
-    loadData();
+    fetchFriends();
   }, []);
 
   if (isLoading) {
     return (
       <GradientBackground>
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="min-h-screen h-screen flex items-center justify-center">
           <div className="text-center">
-            <h2 className="text-xl text-white mb-4">Loading friends...</h2>
+            <h1 className="text-4xl font-bold text-white mb-6">LOADING FRIENDS...</h1>
             <div className="flex justify-center space-x-1">
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
@@ -249,10 +269,10 @@ export default function FriendsView() {
     );
   }
 
-  const onlineFriends = friends.filter(f => f.isOnline);
-  const offlineFriends = friends.filter(f => !f.isOnline);
-  const receivedInvitations = pendingInvitations.filter(inv => inv.type === 'received');
-  const sentInvitations = pendingInvitations.filter(inv => inv.type === 'sent');
+  const onlineFriends = friends.filter(f => f.online_status === 'online');
+  const offlineFriends = friends.filter(f => f.online_status === 'offline');
+  const receivedInvitations = pendingInvitations.filter(inv => inv.request_type === 'incoming');
+  const sentInvitations = pendingInvitations.filter(inv => inv.request_type === 'outgoing');
 
   return (
     <GradientBackground>
@@ -262,88 +282,70 @@ export default function FriendsView() {
           <h1 className="text-4xl md:text-6xl font-bold text-white tracking-wider">
             FRIENDS
           </h1>
+          <p className="text-white/70 text-lg mt-2">
+            Manage your friendships
+          </p>
         </div>
 
-        {/* Container principal */}
-        <div className="flex-1 max-w-6xl mx-auto w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-            
-            {/* Section gauche - Amis Online/Offline */}
-            <div className="flex flex-col space-y-4">
-              {/* Add Friend Button */}
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="bg-green-600 border-4 border-green-400 text-white px-6 py-4 rounded-lg text-xl font-bold transition-all duration-300 hover:bg-green-500 hover:scale-105"
+        {/* Notification */}
+        {notification && (
+          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg border-2 max-w-md ${
+            notification.type === 'success' 
+              ? 'bg-green-500/90 border-green-400 text-white' 
+              : notification.type === 'error'
+              ? 'bg-red-500/90 border-red-400 text-white'
+              : 'bg-blue-500/90 border-blue-400 text-white'
+          }`}>
+            <div className="flex items-center justify-between">
+              <span className="font-medium">{notification.message}</span>
+              <button 
+                onClick={() => setNotification(null)}
+                className="ml-4 text-white/80 hover:text-white"
               >
-                + ADD FRIEND
+                ×
               </button>
+            </div>
+          </div>
+        )}
 
-              {/* Online Friends */}
-              <div className="bg-black border-4 border-green-400 rounded-lg p-6 flex-1">
-                <h2 className="text-xl font-bold text-green-400 text-center mb-4">
+        <div className="flex-1 flex flex-col lg:flex-row gap-4">
+          {/* Left Side - Friends Lists */}
+          <div className="flex-1 flex flex-col gap-4">
+            {/* Online Friends */}
+            <div className="bg-black border-4 border-green-400 rounded-lg p-6 flex-1">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-green-400 text-center">
                   ONLINE ({onlineFriends.length})
                 </h2>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {onlineFriends.length > 0 ? (
-                    onlineFriends.map((friend) => (
-                      <div key={friend.id} className="flex items-center justify-between p-3 bg-green-400/10 border border-green-400/30 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-green-400 rounded-full flex items-center justify-center text-white font-bold">
-                            {friend.username.charAt(0)}
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors text-sm"
+                >
+                  + ADD FRIEND
+                </button>
+              </div>
+              
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {onlineFriends.length > 0 ? (
+                  onlineFriends.map((friend) => (
+                    <div key={friend.user_id} className="flex items-center justify-between p-3 bg-green-400/10 border border-green-400/30 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        {getAvatarDisplay(friend)}
+                        <div>
+                          <span className="text-white font-medium">{friend.display_name || friend.username}</span>
+                          <div className="flex items-center space-x-1">
+                            <div className={`w-2 h-2 rounded-full ${
+                              friend.online_status === 'online' ? 'bg-green-400' : 'bg-gray-400'
+                            }`}></div>
+                            <span className={`text-xs ${
+                              friend.online_status === 'online' ? 'text-green-400' : 'text-gray-400'
+                            }`}>
+                              {friend.online_status === 'online' ? 'Online' : 'Offline'}
+                            </span>
                           </div>
-                          <div>
-                            <span className="text-white font-medium">{friend.username}</span>
-                            <div className="flex items-center space-x-1">
-                              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                              <span className="text-green-400 text-xs">Online</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleInviteToGame(friend.id)}
-                            className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors"
-                          >
-                            Invite
-                          </button>
-                          <button
-                            onClick={() => handleRemoveFriend(friend.id)}
-                            className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
-                          >
-                            ×
-                          </button>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-green-400/60 py-4">
-                      <p>No friends online</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Offline Friends */}
-              <div className="bg-black border-4 border-gray-400 rounded-lg p-6 flex-1">
-                <h2 className="text-xl font-bold text-gray-400 text-center mb-4">
-                  OFFLINE ({offlineFriends.length})
-                </h2>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {offlineFriends.length > 0 ? (
-                    offlineFriends.map((friend) => (
-                      <div key={friend.id} className="flex items-center justify-between p-3 bg-gray-400/10 border border-gray-400/30 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold opacity-50">
-                            {friend.username.charAt(0)}
-                          </div>
-                          <div>
-                            <span className="text-white/70 font-medium">{friend.username}</span>
-                            <div className="flex items-center space-x-1">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                              <span className="text-gray-400 text-xs">Offline</span>
-                            </div>
-                          </div>
-                        </div>
+                      <div className="flex space-x-2">
                         <button
                           onClick={() => handleRemoveFriend(friend.id)}
                           className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
@@ -351,122 +353,148 @@ export default function FriendsView() {
                           ×
                         </button>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-gray-400/60 py-4">
-                      <p>No offline friends</p>
                     </div>
-                  )}
-                </div>
+                  ))
+                ) : (
+                  <div className="text-center text-green-400/60 py-4">
+                    <p>No friends online</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Section droite - Invitations */}
-            <div className="flex flex-col space-y-4">
-              {/* Received Invitations */}
-              <div className="bg-black border-4 border-yellow-400 rounded-lg p-6 flex-1">
-                <h2 className="text-xl font-bold text-yellow-400 text-center mb-4">
-                  FRIEND REQUESTS ({receivedInvitations.length})
-                </h2>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {receivedInvitations.length > 0 ? (
-                    receivedInvitations.map((invitation) => (
-                      <div key={invitation.id} className="flex items-center justify-between p-3 bg-yellow-400/10 border border-yellow-400/30 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-black font-bold">
-                            {invitation.username.charAt(0)}
-                          </div>
-                          <div>
-                            <span className="text-white font-medium">{invitation.username}</span>
-                            <p className="text-yellow-400 text-xs">wants to be friends</p>
-                          </div>
+            {/* Offline Friends */}
+            <div className="bg-black border-4 border-gray-400 rounded-lg p-6 flex-1">
+              <h2 className="text-xl font-bold text-gray-400 text-center mb-4">
+                OFFLINE ({offlineFriends.length})
+              </h2>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {offlineFriends.length > 0 ? (
+                  offlineFriends.map((friend) => (
+                    <div key={friend.user_id} className="flex items-center justify-between p-3 bg-gray-400/10 border border-gray-400/30 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="opacity-50">
+                          {getAvatarDisplay(friend)}
                         </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleAcceptInvitation(invitation.id)}
-                            className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors"
-                          >
-                            ✓
-                          </button>
-                          <button
-                            onClick={() => handleDeclineInvitation(invitation.id)}
-                            className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
-                          >
-                            ×
-                          </button>
+                        <div>
+                          <span className="text-gray-300 font-medium">{friend.display_name || friend.username}</span>
+                          <div className="flex items-center space-x-1">
+                            <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                            <span className="text-gray-500 text-xs">Offline</span>
+                          </div>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-yellow-400/60 py-4">
-                      <p>No friend requests</p>
+                      <button
+                        onClick={() => handleRemoveFriend(friend.id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors opacity-60 hover:opacity-100"
+                      >
+                        ×
+                      </button>
                     </div>
-                  )}
-                </div>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-400/60 py-4">
+                    <p>No offline friends</p>
+                  </div>
+                )}
               </div>
+            </div>
+          </div>
 
-              {/* Sent Invitations */}
-              <div className="bg-black border-4 border-blue-400 rounded-lg p-6 flex-1">
-                <h2 className="text-xl font-bold text-blue-400 text-center mb-4">
-                  PENDING REQUESTS ({sentInvitations.length})
-                </h2>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {sentInvitations.length > 0 ? (
-                    sentInvitations.map((invitation) => (
-                      <div key={invitation.id} className="flex items-center justify-between p-3 bg-blue-400/10 border border-blue-400/30 rounded-lg">
+          {/* Right Side - Pending Invitations */}
+          <div className="lg:w-80 flex flex-col gap-4">
+            {/* Received Invitations */}
+            <div className="bg-black border-4 border-yellow-400 rounded-lg p-6 flex-1">
+              <h2 className="text-xl font-bold text-yellow-400 text-center mb-4">
+                RECEIVED ({receivedInvitations.length})
+              </h2>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {receivedInvitations.length > 0 ? (
+                  receivedInvitations.map((invitation) => (
+                    <div key={invitation.id} className="p-3 bg-yellow-400/10 border border-yellow-400/30 rounded-lg">
+                      <div className="flex items-center space-x-3 mb-2">
+                        {getAvatarDisplay(invitation)}
+                        <div>
+                          <span className="text-white font-medium text-sm">{invitation.display_name || invitation.username}</span>
+                          <p className="text-yellow-400/80 text-xs">wants to be friends</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleAcceptInvitation(invitation.friendship_id)}
+                          className="flex-1 bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 transition-colors"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleDeclineInvitation(invitation.friendship_id)}
+                          className="flex-1 bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-yellow-400/60 py-4">
+                    <p className="text-sm">No pending requests</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sent Invitations */}
+            <div className="bg-black border-4 border-blue-400 rounded-lg p-6 flex-1">
+              <h2 className="text-xl font-bold text-blue-400 text-center mb-4">
+                SENT ({sentInvitations.length})
+              </h2>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {sentInvitations.length > 0 ? (
+                  sentInvitations.map((invitation) => (
+                    <div key={invitation.id} className="p-3 bg-blue-400/10 border border-blue-400/30 rounded-lg">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-400 rounded-full flex items-center justify-center text-white font-bold">
-                            {invitation.username.charAt(0)}
-                          </div>
+                          {getAvatarDisplay(invitation)}
                           <div>
-                            <span className="text-white font-medium">{invitation.username}</span>
-                            <p className="text-blue-400 text-xs">request sent</p>
+                            <span className="text-white font-medium text-sm">{invitation.display_name || invitation.username}</span>
+                            <p className="text-blue-400/80 text-xs">Request sent</p>
                           </div>
                         </div>
                         <button
-                          onClick={() => handleDeclineInvitation(invitation.id)}
-                          className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
-                          title="Cancel request"
+                          onClick={() => handleDeclineInvitation(invitation.friendship_id)}
+                          className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors"
                         >
-                          ×
+                          Cancel
                         </button>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-blue-400/60 py-4">
-                      <p>No pending requests</p>
                     </div>
-                  )}
-                </div>
+                  ))
+                ) : (
+                  <div className="text-center text-blue-400/60 py-4">
+                    <p className="text-sm">No sent requests</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-
-          {/* Navigation Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
-            <button
-              onClick={() => router.push("/profile")}
-              className="px-8 py-3 bg-transparent border-4 border-purple-400 text-purple-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-purple-400 hover:text-white hover:scale-105"
-            >
-              PROFILE
-            </button>
-            
-            <button
-              onClick={() => router.push("/play")}
-              className="px-8 py-3 bg-transparent border-4 border-yellow-400 text-yellow-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-yellow-400 hover:text-black hover:scale-105"
-            >
-              PLAY
-            </button>
-          </div>
         </div>
 
-        {/* Add Friend Modal */}
-        <AddFriendModal
-          isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onAdd={handleAddFriend}
-        />
+        {/* Bottom Navigation */}
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => router.push('/')}
+            className="bg-purple-600 text-white px-8 py-3 rounded-lg hover:bg-purple-700 transition-colors font-medium"
+          >
+            ← BACK TO MENU
+          </button>
+        </div>
       </div>
+
+      <AddFriendModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={handleAddFriend}
+      />
     </GradientBackground>
   );
 }

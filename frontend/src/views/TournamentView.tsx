@@ -52,7 +52,7 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
           setIsSearching(true);
           const response = await apiClient.searchUsers(searchQuery);
           // Filtrer les joueurs qui sont déjà dans la liste
-          const filteredResults = response.results.filter((result: { id: number }) => 
+          const filteredResults = response.users.filter((result: { id: number }) => 
             !currentPlayers.some(player => player.id === result.id)
           );
           setSearchResults(filteredResults);

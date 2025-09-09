@@ -1,4 +1,11 @@
-import type { MatchItem, Winrate, GameHistoryResponse } from "./types";
+import type { 
+  MatchItem, 
+  Winrate, 
+  GameHistoryResponse,
+  FriendsResponse,
+  UserSearchResult,
+  SearchUsersResponse
+} from "./types";
 
 // Configuration API centralisée avec détection automatique
 function getApiBaseUrl(): string {
@@ -253,7 +260,6 @@ class ApiClient {
     return response.json();
   }
 
-<<<<<<< Updated upstream
   // ============ MÉTHODES AVATAR ============
 
   async uploadAvatar(file: File): Promise<{avatarUrl: string, fileName: string, fileSize: number, message: string}> {
@@ -289,7 +295,12 @@ class ApiClient {
   }
 
   async deleteAvatar(): Promise<{message: string}> {
-=======
+    const response = await this.request('/api/users/avatar', {
+      method: 'DELETE'
+    });
+    return response.json();
+  }
+
   async changeUsername(username: string) {
     const response = await this.request('/api/users/username', {
       method: 'PUT',
@@ -298,20 +309,61 @@ class ApiClient {
     return response.json();
   }
 
-  async uploadAvatar(avatarUrl: string) {
->>>>>>> Stashed changes
-    const response = await this.request('/api/users/avatar', {
+  // ============ MÉTHODES D'AMIS ============
+
+  async getFriends(): Promise<FriendsResponse> {
+    const response = await this.request('/api/users/friends');
+    return response.json();
+  }
+
+  async addFriend(username: string): Promise<{message: string}> {
+    const response = await this.request('/api/users/friends', {
+      method: 'POST',
+      body: JSON.stringify({ username })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      const error = new Error(errorData.error || 'Failed to add friend');
+      // Ajouter les propriétés de l'erreur HTTP
+      (error as any).status = response.status;
+      (error as any).response = { status: response.status, data: errorData };
+      throw error;
+    }
+    
+    return response.json();
+  }
+
+  async acceptFriendRequest(friendId: number): Promise<{message: string}> {
+    const token = this.getToken();
+    const response = await fetch(`${this.baseURL}/api/users/friends/${friendId}/accept`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`
+        // Pas de Content-Type pour éviter l'erreur Fastify avec body vide
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to accept friend request: ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+
+  async removeFriend(friendId: number): Promise<{message: string}> {
+    const response = await this.request(`/api/users/friends/${friendId}`, {
       method: 'DELETE'
     });
     return response.json();
   }
 
-  // ============ MÉTHODES TOURNOI ============
-
-  async searchUsers(query: string) {
-    const response = await this.request(`/api/users/search?q=${encodeURIComponent(query)}`);
+  async searchUsers(query: string, limit = 20): Promise<SearchUsersResponse> {
+    const response = await this.request(`/api/users/search?q=${encodeURIComponent(query)}&limit=${limit}`);
     return response.json();
   }
+
+  // ============ MÉTHODES TOURNOI ============
 
   async getTournamentParticipants(tournamentId: number) {
     const response = await this.request(`/api/tournaments/${tournamentId}/participants`);
@@ -341,19 +393,6 @@ class ApiClient {
     const response = await this.request('/api/users/password', {
       method: 'PUT',
       body: JSON.stringify(passwordData)
-    });
-    return response.json();
-  }
-
-  async getFriends() {
-    const response = await this.request('/api/users/friends');
-    return response.json();
-  }
-
-  async addFriend(friendData: any) {
-    const response = await this.request('/api/users/friends', {
-      method: 'POST',
-      body: JSON.stringify(friendData)
     });
     return response.json();
   }
