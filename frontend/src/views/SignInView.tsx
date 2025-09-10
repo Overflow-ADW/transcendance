@@ -91,7 +91,7 @@ function SignInViewContent() {
     }
     
     const oauthUrl = `${API_BASE}/api/oauth/${provider}`;
-    console.log(`🔄 Redirection OAuth ${provider}:`, oauthUrl);
+  // console.log removed
     
     // Stocker l'intention de connexion pour gérer le retour
     sessionStorage.setItem('oauth_provider', provider);

@@ -298,7 +298,7 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   fastify.log.fatal('Unhandled rejection at:', promise, 'reason:', reason);
-  console.error('UNHANDLED PROMISE REJECTION:', reason);
+  // console.error('UNHANDLED PROMISE REJECTION:', reason); // Suppressed as requested
   // Optionnel : ne pas arrêter le serveur en dev
   if (process.env.NODE_ENV === 'production') {
     process.exit(1);
@@ -321,9 +321,9 @@ const start = async () => {
     fastify.log.info(`🗄️  Database: ${process.env.DATABASE_PATH || 'default path'}`);
     
   } catch (err) {
-    console.error('❌ Error starting server:');
-    console.error(err);
-    console.error('Stack trace:', err.stack);
+  // console.error('❌ Error starting server:'); // Suppressed as requested
+  // console.error(err); // Suppressed as requested
+  // console.error('Stack trace:', err.stack); // Suppressed as requested
     fastify.log.error('❌ Error starting server:', err);
     if (dbInstance) {
       dbInstance.close();

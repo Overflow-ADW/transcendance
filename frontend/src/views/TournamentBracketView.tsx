@@ -91,7 +91,7 @@ export default function TournamentBracketView() {
         setLoading(false);
 
       } catch (error) {
-        console.error('Erreur lors du chargement du tournoi:', error);
+  // console.error removed
         router.push('/tournament');
       }
     };
@@ -104,14 +104,10 @@ export default function TournamentBracketView() {
     if (!tournamentId) return;
     
     try {
-      console.log('🔄 Rechargement des données du tournoi:', tournamentId);
       setLoading(true);
-      
       // Recharger les matchs depuis la base de données
       const matchesResponse = await apiClient.getTournamentMatches(tournamentId);
-      console.log('📦 Réponse API getTournamentMatches:', matchesResponse);
       const matchesData = matchesResponse.matches || [];
-      
       // Enrichir les matchs avec les infos des joueurs
       const enrichedMatches = matchesData.map((match: any) => ({
         ...match,
@@ -130,23 +126,9 @@ export default function TournamentBracketView() {
           color: getPlayerColorById(match.player2_id)
         } : null
       }));
-
-      console.log('✅ Matchs enrichis:', enrichedMatches.map((m: Match) => ({
-        id: m.id,
-        type: m.match_type,
-        status: m.status,
-        player1: m.player1?.name,
-        player2: m.player2?.name,
-        score1: m.score_player1,
-        score2: m.score_player2,
-        winner: m.winner_id
-      })));
-
       setMatches(enrichedMatches);
       setLoading(false);
-      
     } catch (error) {
-      console.error('❌ Erreur lors du rechargement du tournoi:', error);
       setLoading(false);
     }
   };
@@ -154,14 +136,14 @@ export default function TournamentBracketView() {
   // Écouter les changements de localStorage pour détecter les matchs terminés
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      console.log('📦 Storage change détecté:', { key: e.key, newValue: e.newValue });
+  // console.log removed
       if (e.key === 'match-completed' && e.newValue === 'true') {
-        console.log('🏆 Match terminé détecté via storage - rechargement des données');
+  // console.log removed
         // Un match vient d'être terminé, recharger les données
         setTimeout(() => {
           reloadTournamentData();
           localStorage.removeItem('match-completed');
-          console.log('🧹 Flag match-completed nettoyé');
+          // console.log removed
         }, 1000); // Petit délai pour laisser le backend traiter
       }
     };
@@ -171,13 +153,13 @@ export default function TournamentBracketView() {
     // Vérifier aussi au focus de la fenêtre (quand on revient du jeu)
     const handleFocus = () => {
       const matchCompleted = localStorage.getItem('match-completed');
-      console.log('👁️ Focus window - vérification match-completed:', matchCompleted);
+  // console.log removed
       if (matchCompleted === 'true') {
-        console.log('🏆 Match terminé détecté via focus - rechargement des données');
+  // console.log removed
         setTimeout(() => {
           reloadTournamentData();
           localStorage.removeItem('match-completed');
-          console.log('🧹 Flag match-completed nettoyé (focus)');
+          // console.log removed
         }, 1000);
       }
     };
@@ -200,19 +182,9 @@ export default function TournamentBracketView() {
   };
 
   const handlePlayMatch = (match: Match) => {
-    console.log('🎮 Tentative de jouer le match:', {
-      matchId: match.id,
-      status: match.status,
-      player1: match.player1?.name,
-      player2: match.player2?.name,
-      type: match.match_type
-    });
-    
     if (match.status === 'completed') {
-      console.log('❌ Match déjà terminé, impossible de jouer');
       return; // Match déjà terminé
     }
-    
     // Sauvegarder les infos du match et rediriger vers le jeu
     const matchData = {
       id: match.id,
@@ -222,12 +194,8 @@ export default function TournamentBracketView() {
       player1_id: match.player1?.id,
       player2_id: match.player2?.id
     };
-    
-    console.log('💾 Sauvegarde des données du match dans localStorage:', matchData);
     localStorage.setItem('current-match', JSON.stringify(matchData));
     localStorage.setItem('game-mode', 'tournament');
-    
-    console.log('🚀 Redirection vers le jeu...');
     router.push("/game");
   };
 

@@ -73,7 +73,7 @@ export class PongControls {
             this.ballMesh.checkCollisions = false;
             this.ballMesh.isPickable = false;
             this.ballMesh.doNotSyncBoundingInfo = true;
-            console.log("Référence balle définie pour l'IA et collisions désactivées:", ball.name);
+            // console.log removed
         }
     }
 
@@ -138,12 +138,7 @@ export class PongControls {
             console.error("ERREUR IA: Impossible de trouver la balle pour configurer l'IA");
             return;
         }
-
-        console.log("Configuration IA avec:", {
-            player1: this.player1.name,
-            ball: ballMesh.name,
-            difficulty: difficulty
-        });
+        // console.log removed
 
         // Créer le simulateur de touches
         this.keySimulator = new KeyboardSimulator(window);
@@ -156,8 +151,7 @@ export class PongControls {
             this.keySimulator,
             difficulty
         );
-        
-        console.log(`IA configurée - Difficulté: ${this.ai.getDifficultyName()}`);
+        // console.log removed
     }
 
     /**
@@ -166,7 +160,7 @@ export class PongControls {
     public activateAI(): void {
         if (this.ai) {
             this.ai.activate();
-            console.log("IA ACTIVÉE avec succès");
+            // console.log removed
         } else {
             console.error("ERREUR: IA non configurée. Appelez setupAI() d'abord.");
         }
@@ -227,12 +221,7 @@ export class PongControls {
         // CORRECTION : Mettre à jour l'IA en premier avec debug
         if (this.ai && this.ai.isAIActive()) {
             this.ai.update();
-            
-            // DEBUG : Vérifier l'état de l'IA toutes les 60 frames (~1 seconde)
-            if (Math.random() < 0.016) { // ~1/60 chance
-                const debugInfo = this.ai.getDebugInfo();
-                console.log(`🤖 État IA: ${debugInfo}`);
-            }
+            // console.log removed
         }
 
         // Player 0 movement (toujours manuel)
@@ -264,26 +253,19 @@ export class PongControls {
             const aiDownPressed = this.isAnyKeyPressed(this.player1DownKeys);
             
             if (aiUpPressed || aiDownPressed) {
-                console.log(`🎮 IA TOUCHES DÉTECTÉES - UP: ${aiUpPressed}, DOWN: ${aiDownPressed}`);
-                
+                // console.log removed
                 if (aiUpPressed) {
-                    console.log(`⬆️ IA: Mouvement UP détecté - Position avant: ${this.player1.position.z.toFixed(1)}`);
+                    // console.log removed
                     this.movePlayer(this.player1, PlayerKeys.UP);
-                    console.log(`⬆️ IA: Position après: ${this.player1.position.z.toFixed(1)}`);
+                    // console.log removed
                 }
                 if (aiDownPressed) {
-                    console.log(`⬇️ IA: Mouvement DOWN détecté - Position avant: ${this.player1.position.z.toFixed(1)}`);
+                    // console.log removed
                     this.movePlayer(this.player1, PlayerKeys.DOWN);
-                    console.log(`⬇️ IA: Position après: ${this.player1.position.z.toFixed(1)}`);
+                    // console.log removed
                 }
             } else {
-                // Debug périodique de l'état des touches
-                if (Math.random() < 0.01) { // ~1% chance pour éviter le spam
-                    console.log(`🔍 DEBUG IA: Aucune touche détectée`);
-                    console.log(`   Touches UP attendues: ${this.player1UpKeys.join(', ')}`);
-                    console.log(`   Touches DOWN attendues: ${this.player1DownKeys.join(', ')}`);
-                    console.log(`   État touches: ${Object.keys(this.keysPressed).filter(k => this.keysPressed[k]).join(', ') || 'Aucune'}`);
-                }
+                // console.log removed
             }
         }
 
@@ -299,11 +281,7 @@ export class PongControls {
     private isAnyKeyPressed(keys: string[]): boolean {
         const pressed = keys.some(key => this.keysPressed[key]);
         
-        // Debug seulement si une touche est pressée
-        if (pressed && Math.random() < 0.1) { // 10% chance de log quand pressée
-            const pressedKeys = keys.filter(key => this.keysPressed[key]);
-            console.log(`🔑 Touche(s) pressée(s): ${pressedKeys.join(', ')}`);
-        }
+    // console.log removed
         
         return pressed;
     }
@@ -322,11 +300,7 @@ export class PongControls {
                 player.position.y,
                 newZ
             );
-            
-            // Log pour l'IA seulement
-            if (playerName === 'player1' && this.ai && this.ai.isAIActive()) {
-                console.log(`⬆️ IA: ${currentZ.toFixed(1)} -> ${newZ.toFixed(1)} (+${this.movement.speed})`);
-            }
+            // console.log removed
         } else if (direction === PlayerKeys.DOWN && currentZ > this.movement.minZ) {
             const newZ = currentZ - this.movement.speed;
             player.position = new Vector3(
@@ -334,27 +308,16 @@ export class PongControls {
                 player.position.y,
                 newZ
             );
-            
-            // Log pour l'IA seulement
-            if (playerName === 'player1' && this.ai && this.ai.isAIActive()) {
-                console.log(`⬇️ IA: ${currentZ.toFixed(1)} -> ${newZ.toFixed(1)} (-${this.movement.speed})`);
-            }
+            // console.log removed
         } else {
-            // Log des limites pour l'IA
-            if (playerName === 'player1' && this.ai && this.ai.isAIActive()) {
-                if (direction === PlayerKeys.UP) {
-                    console.log(`🚧 IA: Limite UP atteinte - ${currentZ.toFixed(1)} >= ${this.movement.maxZ}`);
-                } else {
-                    console.log(`🚧 IA: Limite DOWN atteinte - ${currentZ.toFixed(1)} <= ${this.movement.minZ}`);
-                }
-            }
+            // console.log removed
         }
     }
 
     //Définir le player2
     public setPlayer2(player2Mesh: Mesh): void {
-        this.player2 = player2Mesh;
-        console.log("Player2 ajouté aux contrôles:", player2Mesh.name);
+    this.player2 = player2Mesh;
+    // console.log removed
     }
 
     //Vérifier si player2 est disponible
@@ -398,13 +361,13 @@ export class PongControls {
             newZ = this.movement.maxZ;
             this.player2Velocity = -Math.abs(this.player2Velocity) * this.player2BounceForce; // Force complète
             bounced = true;
-            console.log(`🏓 Player2 rebondit sur limite HAUTE ! Nouvelle vitesse: ${this.player2Velocity.toFixed(2)}`);
+            // console.log removed
         } else if (newZ < this.movement.minZ) {
             // Collision avec le bas : rebondir COMPLÈTEMENT
             newZ = this.movement.minZ;
             this.player2Velocity = Math.abs(this.player2Velocity) * this.player2BounceForce; // Force complète
             bounced = true;
-            console.log(`🏓 Player2 rebondit sur limite BASSE ! Nouvelle vitesse: ${this.player2Velocity.toFixed(2)}`);
+            // console.log removed
         }
         
         // Appliquer la nouvelle position
@@ -415,9 +378,7 @@ export class PongControls {
         );
         
         // Debug occasionnel pour voir l'état du glissement
-        if (Math.random() < 0.005 && Math.abs(this.player2Velocity) > 0.05) { // Seuil ajusté
-            console.log(`🎮 Player2 - Pos: ${currentZ.toFixed(1)} -> ${newZ.toFixed(1)}, Vitesse: ${this.player2Velocity.toFixed(2)}${bounced ? ' [REBOND]' : ''}`);
-        }
+    // console.log removed
         
         // NOUVEAU : Créer un effet visuel lors des rebonds
         if (bounced) {
@@ -443,14 +404,13 @@ export class PongControls {
                 material.emissiveColor = originalEmissive;
             }, 200); // Augmenté de 150ms à 200ms
         }
-        
-        console.log(`✨ Effet de rebond Player2 VERT - ${isTopBounce ? 'HAUT' : 'BAS'}`);
+        // console.log removed
     }
     
     // NOUVELLE MÉTHODE : Réinitialiser la vélocité de Player2
     public resetPlayer2Velocity(): void {
-        this.player2Velocity = 0;
-        console.log("🔄 Vélocité Player2 réinitialisée");
+    this.player2Velocity = 0;
+    // console.log removed
     }
     
     // NOUVELLE MÉTHODE : Obtenir la vélocité actuelle de Player2 (pour debug)
