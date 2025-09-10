@@ -330,7 +330,7 @@ export default function MultiplayerView() {
           <h4 className="text-white font-bold mb-2">HOW TO PLAY</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-white/70">
             <div>
-              <span className="font-bold text-blue-400">Player 1:</span> w/S keys
+              <span className="font-bold text-blue-400">Player 1:</span> W/S keys
             </div>
             <div>
               <span className="font-bold text-purple-400">Player 2:</span> O/L keys
