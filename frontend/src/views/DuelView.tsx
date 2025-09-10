@@ -6,7 +6,6 @@ import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useApp } from "@/lib_front/store";
 import { useRouter } from 'next/navigation';
 
-// Types pour les slots de duel
 type DuelPlayer = {
   id: number;
   name: string;
@@ -102,10 +101,7 @@ export default function DuelView() {
     { id: 1, name: "YOU", color: "#8A00C4", isMainPlayer: true }
   ]);
   const [showLoginModal, setShowLoginModal] = useState(false);
-
-  // Charger les joueurs sauvegardés au démarrage
   useEffect(() => {
-    // TOUJOURS récupérer l'utilisateur connecté actuel
     let currentUser = null;
     try {
       const storedUser = localStorage.getItem('user');
@@ -120,31 +116,25 @@ export default function DuelView() {
     if (savedPlayers && currentUser) {
       try {
         const parsedPlayers = JSON.parse(savedPlayers);
-        
-        // Vérifier que le premier joueur correspond à l'utilisateur connecté
         const hostName = currentUser.display_name || currentUser.username || "YOU";
-        
+
         if (parsedPlayers.length > 0 && parsedPlayers[0].isMainPlayer) {
-          // Mettre à jour le nom du joueur principal avec l'utilisateur connecté actuel
           parsedPlayers[0].name = hostName;
           setPlayers(parsedPlayers);
           localStorage.setItem('duel-players', JSON.stringify(parsedPlayers));
         } else {
-          // Réinitialiser si les données sont corrompues
           const defaultPlayers = [{ id: 1, name: hostName, color: "#8A00C4", isMainPlayer: true }];
           setPlayers(defaultPlayers);
           localStorage.setItem('duel-players', JSON.stringify(defaultPlayers));
         }
       } catch (e) {
         console.warn('Erreur lors du parsing des joueurs sauvegardés:', e);
-        // Fallback vers l'utilisateur par défaut
         const hostName = currentUser.display_name || currentUser.username || "YOU";
         const defaultPlayers = [{ id: 1, name: hostName, color: "#8A00C4", isMainPlayer: true }];
         setPlayers(defaultPlayers);
         localStorage.setItem('duel-players', JSON.stringify(defaultPlayers));
       }
     } else {
-      // Pas de données sauvegardées ou pas d'utilisateur connecté
       const hostName = currentUser?.display_name || currentUser?.username || "YOU";
       const defaultPlayers = [{ id: 1, name: hostName, color: "#8A00C4", isMainPlayer: true }];
       setPlayers(defaultPlayers);
@@ -159,32 +149,26 @@ export default function DuelView() {
   };
 
   const handleLogin = (username: string, password: string) => {
-    // Ici vous pourriez ajouter la logique de vérification des identifiants
-    // Pour l'exemple, on ajoute simplement le joueur
     if (players.length < 2) {
       const newPlayers = [...players, {
         id: 2,
         name: username.toUpperCase(),
-        color: "#2323FF", // Bleu pour le joueur connecté
+        color: "#2323FF",
         isMainPlayer: false
       }];
       setPlayers(newPlayers);
-      // Sauvegarder les joueurs dans le localStorage
       localStorage.setItem('duel-players', JSON.stringify(newPlayers));
     }
     setShowLoginModal(false);
   };
 
   const removePlayer = (id: number) => {
-    if (players.length > 1 && id > 1) { // Ne pas supprimer YOU (id: 1)
+    if (players.length > 1 && id > 1) {
       const newPlayers = players.filter(p => p.id !== id);
       setPlayers(newPlayers);
-      // Mettre à jour le localStorage
       localStorage.setItem('duel-players', JSON.stringify(newPlayers));
     }
   };
-
-  // Créer un tableau de 2 slots pour le duel
   const slots: DuelSlot[] = Array.from({ length: 2 }, (_, i) => {
     const player = players[i];
     return player || { id: `empty-${i}`, name: "ADD PLAYER +", color: "", isMainPlayer: false, isEmpty: true };
@@ -193,14 +177,12 @@ export default function DuelView() {
   return (
     <GradientBackground>
       <div className="min-h-screen flex flex-col items-center justify-center p-8 relative">
-        {/* Titre */}
         <div className="mb-16">
           <h1 className="text-6xl font-bold text-white text-center tracking-wider">
             DUEL
           </h1>
         </div>
 
-        {/* Section joueurs - affichage horizontal pour 2 joueurs */}
         <div className="flex gap-8 mb-16">
           {slots.map((slot, index) => (
             <div key={slot.id} className="relative">
@@ -214,15 +196,14 @@ export default function DuelView() {
               ) : (
                 <div className="relative">
                   <button
-                    className={`border-4 rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 min-w-[300px] h-[120px] flex items-center justify-center ${
-                      slot.isMainPlayer 
+                    className={`border-4 rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 min-w-[300px] h-[120px] flex items-center justify-center ${slot.isMainPlayer
                         ? 'bg-purple-600/20 border-purple-400 text-purple-400' // Mauve pour le joueur principal
                         : 'bg-blue-600/20 border-blue-400 text-blue-400' // Bleu pour l'autre joueur connecté
-                    }`}
+                      }`}
                   >
                     {slot.name}
                   </button>
-                  {slot.id > 1 && ( // Ne pas afficher le X pour YOU
+                  {slot.id > 1 && (
                     <button
                       onClick={() => removePlayer(slot.id)}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 transition-colors"
@@ -236,7 +217,6 @@ export default function DuelView() {
           ))}
         </div>
 
-        {/* VS entre les joueurs */}
         {players.length === 2 && (
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
             <div className="bg-yellow-400 text-black px-6 py-3 rounded-full">
@@ -245,15 +225,14 @@ export default function DuelView() {
           </div>
         )}
 
-        {/* Indicateur de statut */}
         <div className="mb-8">
           {players.length === 1 && (
             <div className="text-center">
               <p className="text-white/70 text-lg mb-2">Waiting for opponent...</p>
               <div className="flex justify-center space-x-1">
                 <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-                <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
               </div>
             </div>
           )}
@@ -264,27 +243,24 @@ export default function DuelView() {
           )}
         </div>
 
-        {/* Boutons d'action */}
         <div className="flex gap-8">
           <button
             onClick={() => {
               if (players.length === 2) {
-                // Sauvegarder les joueurs et le mode de jeu avant de démarrer
                 localStorage.setItem('duel-players', JSON.stringify(players));
                 localStorage.setItem('game-mode', 'duel');
                 router.push("/game");
               }
             }}
-            className={`px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 ${
-              players.length === 2
+            className={`px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 ${players.length === 2
                 ? 'bg-transparent border-4 border-green-400 text-green-400 hover:bg-green-400 hover:text-black hover:scale-105'
                 : 'bg-gray-600 border-4 border-gray-500 text-gray-400 cursor-not-allowed'
-            }`}
+              }`}
             disabled={players.length !== 2}
           >
             {players.length === 2 ? 'START DUEL' : 'WAITING...'}
           </button>
-          
+
           <button
             onClick={() => router.push("/play")}
             className="bg-transparent border-4 border-yellow-400 text-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:bg-yellow-400 hover:text-black hover:scale-105"
@@ -292,8 +268,6 @@ export default function DuelView() {
             return
           </button>
         </div>
-
-        {/* Modal de connexion */}
         <LoginModal
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}

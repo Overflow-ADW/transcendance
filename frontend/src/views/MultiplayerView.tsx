@@ -82,72 +82,53 @@ const AddPlayerModal = ({ isOpen, onClose, onAdd }: AddPlayerModalProps) => {
 
 export default function MultiplayerView() {
   const router = useRouter();
-  // CORRECTION : Commencer avec un tableau vide au lieu d'avoir "YOU" par défaut
   const [players, setPlayers] = useState<Player[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Couleurs pour les joueurs (3 joueurs max)
-  const playerColors = ["#2323FF", "#8A00C4", "#FFD700"]; // Bleu, Violet, Jaune
+  const playerColors = ["#2323FF", "#8A00C4", "#FFD700"];
 
-  // Charger les joueurs sauvegardés au démarrage
   useEffect(() => {
-    // TOUJOURS récupérer l'utilisateur connecté actuel
     let currentUser = null;
     try {
-        const storedUser = localStorage.getItem('user');
-        console.log("🎮 DEBUG - Utilisateur stocké:", storedUser);
-        if (storedUser) {
-            currentUser = JSON.parse(storedUser);
-            console.log("🎮 DEBUG - Utilisateur parsé:", currentUser);
-        }
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        currentUser = JSON.parse(storedUser);
+      }
     } catch (e) {
-        console.warn('Erreur lors de la récupération des données utilisateur:', e);
+      console.warn('Erreur lors de la récupération des données utilisateur:', e);
     }
 
     const savedPlayers = localStorage.getItem('multiplayer-players');
-    console.log("🎮 DEBUG - Joueurs sauvegardés:", savedPlayers);
-    
+
     if (savedPlayers && currentUser) {
-        try {
-            const parsedPlayers = JSON.parse(savedPlayers);
-            console.log("🎮 DEBUG - Joueurs parsés:", parsedPlayers);
-            
-            // Vérifier que le premier joueur correspond à l'utilisateur connecté
-            const hostName = currentUser.display_name || currentUser.username || "YOU";
-            
-            if (parsedPlayers.length > 0 && parsedPlayers[0].isHost) {
-                // Mettre à jour le nom du joueur hôte avec l'utilisateur connecté actuel
-                parsedPlayers[0].name = hostName;
-                setPlayers(parsedPlayers);
-                localStorage.setItem('multiplayer-players', JSON.stringify(parsedPlayers));
-                console.log("🎮 DEBUG - Joueurs mis à jour:", parsedPlayers);
-            } else {
-                // Réinitialiser si les données sont corrompues
-                const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
-                setPlayers(defaultPlayers);
-                localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
-                console.log("🎮 DEBUG - Joueurs réinitialisés:", defaultPlayers);
-            }
-        } catch (e) {
-            console.warn('Erreur lors du parsing des joueurs sauvegardés:', e);
-            // Fallback vers l'utilisateur par défaut
-            const hostName = currentUser.display_name || currentUser.username || "YOU";
-            const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
-            setPlayers(defaultPlayers);
-            localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
-            console.log("🎮 DEBUG - Fallback joueurs par défaut:", defaultPlayers);
+      try {
+        const parsedPlayers = JSON.parse(savedPlayers);
+
+        const hostName = currentUser.display_name || currentUser.username || "YOU";
+
+        if (parsedPlayers.length > 0 && parsedPlayers[0].isHost) {
+          parsedPlayers[0].name = hostName;
+          setPlayers(parsedPlayers);
+          localStorage.setItem('multiplayer-players', JSON.stringify(parsedPlayers));
+        } else {
+          const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
+          setPlayers(defaultPlayers);
+          localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
         }
-    } else {
-        // Pas de données sauvegardées ou pas d'utilisateur connecté
-        const hostName = currentUser?.display_name || currentUser?.username || "YOU";
-        console.log("🎮 DEBUG - Nom d'hôte utilisé:", hostName);
-        
+      } catch (e) {
+        console.warn('Erreur lors du parsing des joueurs sauvegardés:', e);
+        const hostName = currentUser.display_name || currentUser.username || "YOU";
         const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
         setPlayers(defaultPlayers);
         localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
-        console.log("🎮 DEBUG - Joueurs par défaut sauvegardés:", defaultPlayers);
+      }
+    } else {
+      const hostName = currentUser?.display_name || currentUser?.username || "YOU";
+      const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
+      setPlayers(defaultPlayers);
+      localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
     }
-}, []);
+  }, []);
 
   const addPlayer = () => {
     if (players.length < 3) {
@@ -163,7 +144,7 @@ export default function MultiplayerView() {
         color: playerColors[players.length],
         isHost: false
       };
-      
+
       const newPlayers = [...players, newPlayer];
       setPlayers(newPlayers);
       localStorage.setItem('multiplayer-players', JSON.stringify(newPlayers));
@@ -172,14 +153,13 @@ export default function MultiplayerView() {
   };
 
   const removePlayer = (id: number) => {
-    if (players.length > 1 && id > 1) { // Ne pas supprimer l'hôte (YOU)
+    if (players.length > 1 && id > 1) {
       const newPlayers = players.filter(p => p.id !== id);
       setPlayers(newPlayers);
       localStorage.setItem('multiplayer-players', JSON.stringify(newPlayers));
     }
   };
 
-  // Créer un tableau de 3 slots
   const slots: GameSlot[] = Array.from({ length: 3 }, (_, i) => {
     const player = players[i];
     return player || { id: `empty-${i}`, name: "INVITE PLAYER", color: "", isHost: false, isEmpty: true };
@@ -188,7 +168,6 @@ export default function MultiplayerView() {
   return (
     <GradientBackground>
       <div className="min-h-screen flex flex-col items-center justify-center p-8 relative">
-        {/* Titre */}
         <div className="mb-12">
           <h1 className="text-5xl md:text-6xl font-bold text-white text-center tracking-wider">
             MULTIPLAYER
@@ -196,9 +175,7 @@ export default function MultiplayerView() {
           <p className="text-xl text-white/70 text-center mt-2">3 Players Local</p>
         </div>
 
-        {/* Layout pour 3 joueurs : 2 en haut, 1 en bas centré */}
         <div className="mb-12">
-          {/* Ligne du haut : 2 joueurs */}
           <div className="flex justify-center gap-6 mb-6">
             {slots.slice(0, 2).map((slot, index) => (
               <div key={slot.id} className="relative">
@@ -229,8 +206,8 @@ export default function MultiplayerView() {
                         </span>
                       </div>
                     </button>
-                    
-                    {slot.id > 1 && ( // Ne pas afficher le X pour l'hôte (YOU)
+
+                    {slot.id > 1 && (
                       <button
                         onClick={() => removePlayer(slot.id)}
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 transition-colors"
@@ -243,8 +220,7 @@ export default function MultiplayerView() {
               </div>
             ))}
           </div>
-          
-          {/* Ligne du bas : 1 joueur centré */}
+
           <div className="flex justify-center">
             {slots.slice(2, 3).map((slot, index) => (
               <div key={slot.id} className="relative">
@@ -275,8 +251,8 @@ export default function MultiplayerView() {
                         </span>
                       </div>
                     </button>
-                    
-                    {slot.id > 1 && ( // Ne pas afficher le X pour l'hôte (YOU)
+
+                    {slot.id > 1 && (
                       <button
                         onClick={() => removePlayer(slot.id)}
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 transition-colors"
@@ -291,7 +267,6 @@ export default function MultiplayerView() {
           </div>
         </div>
 
-        {/* Indicateur de statut */}
         <div className="mb-8">
           {players.length < 3 && (
             <div className="text-center">
@@ -300,8 +275,8 @@ export default function MultiplayerView() {
               </p>
               <div className="flex justify-center space-x-1">
                 <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-                <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
               </div>
             </div>
           )}
@@ -325,27 +300,24 @@ export default function MultiplayerView() {
           </div>
         )}
 
-        {/* Boutons d'action */}
         <div className="flex gap-6">
           <button
             onClick={() => {
               if (players.length === 3) {
-                // Sauvegarder les joueurs et le mode de jeu avant de démarrer
                 localStorage.setItem('multiplayer-players', JSON.stringify(players));
                 localStorage.setItem('game-mode', 'multiplayer');
                 router.push("/game");
               }
             }}
-            className={`px-12 py-4 rounded-full text-2xl font-bold transition-all duration-300 ${
-              players.length === 3
+            className={`px-12 py-4 rounded-full text-2xl font-bold transition-all duration-300 ${players.length === 3
                 ? 'bg-transparent border-4 border-green-400 text-green-400 hover:bg-green-400 hover:text-black hover:scale-105'
                 : 'bg-gray-600 border-4 border-gray-500 text-gray-400 cursor-not-allowed'
-            }`}
+              }`}
             disabled={players.length !== 3}
           >
             {players.length === 3 ? 'START GAME' : `WAITING (${players.length}/3)`}
           </button>
-          
+
           <button
             onClick={() => router.push("/play")}
             className="bg-transparent border-4 border-yellow-400 text-yellow-400 px-12 py-4 rounded-full text-2xl font-bold transition-all duration-300 hover:bg-yellow-400 hover:text-black hover:scale-105"
@@ -354,7 +326,6 @@ export default function MultiplayerView() {
           </button>
         </div>
 
-        {/* Instructions */}
         <div className="mt-8 max-w-2xl text-center">
           <h4 className="text-white font-bold mb-2">HOW TO PLAY</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-white/70">
@@ -371,7 +342,6 @@ export default function MultiplayerView() {
           <p className="text-white/50 text-xs mt-4">Last player standing wins!</p>
         </div>
 
-        {/* Modal d'ajout de joueur */}
         <AddPlayerModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}

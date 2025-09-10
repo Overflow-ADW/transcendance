@@ -1,6 +1,5 @@
 "use client";
 
-// TEST HOT RELOAD - Ce commentaire test le hot reload
 
 import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
@@ -14,11 +13,10 @@ function ProfileView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, loading } = useAuth();
-  
-  // Récupérer l'ID utilisateur depuis les paramètres de recherche
+
   const visitedUserId = searchParams?.get('userId');
   const isVisitorProfile = visitedUserId && parseInt(visitedUserId) !== user?.id;
-  
+
   interface Profile {
     id: number;
     username: string;
@@ -38,16 +36,15 @@ function ProfileView() {
       avgDuration: number;
       highestScore: number;
       winRates?: {
-        vsAI: number;        // Win rate VS IA (%)
-        vsPlayers: number;   // Win rate VS Autres joueurs (%)
-        tournaments: number; // Nombre de tournois gagnés
+        vsAI: number;
+        vsPlayers: number;
+        tournaments: number;
       };
       gamesByType?: {
-        vsAI: number;        // Nombre de jeux VS IA
-        vsPlayers: number;   // Nombre de jeux VS joueurs
-        tournaments: number; // Nombre de tournois participés
+        vsAI: number;
+        vsPlayers: number;
+        tournaments: number;
       };
-      // Legacy compatibility
       gamesModes?: {
         classic: number;
         custom: number;
@@ -63,7 +60,6 @@ function ProfileView() {
       game_mode: string;
       created_at: string;
     }>;
-    // Legacy support pour le moment
     winrates?: Array<{ value: number; label: string; color?: string }>;
     matches?: Array<{ id: number; opponent: string; result: string; mode: string }>;
   }
@@ -75,7 +71,6 @@ function ProfileView() {
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
-  // 🔥 DEBUG: Log de tous les états au début
   console.log("🔥 ProfileView Render - États:", {
     user,
     isAuthenticated,
@@ -88,16 +83,7 @@ function ProfileView() {
     localStorage_token: typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
   });
 
-  // 🔥 DEBUG: Vérification de l'authentification avec logs détaillés
   useEffect(() => {
-    console.log("🔥 Auth Check useEffect triggered:", {
-      loading,
-      isAuthenticated,
-      user,
-      willRedirect: !loading && !isAuthenticated
-    });
-
-    // Attendre que le loading soit terminé avant de rediriger
     if (!loading && !isAuthenticated) {
       console.log("🚨 REDIRECTION vers /login - Raison: !loading && !isAuthenticated");
       console.log("🚨 État détaillé:", {
@@ -115,17 +101,16 @@ function ProfileView() {
     }
   }, [isAuthenticated, loading, router, user]);
 
-  // Récupérer le profil utilisateur depuis le backend
   const fetchUserProfile = async () => {
     console.log("🔄 fetchUserProfile - Début");
     console.log("🔄 Token disponible:", !!apiClient.getToken());
     console.log("🔄 User authentifié:", isAuthenticated);
     console.log("🔄 Profil visiteur ?", isVisitorProfile);
     console.log("🔄 Visited User ID:", visitedUserId);
-    
+
     try {
       let data;
-      
+
       if (isVisitorProfile) {
         console.log("🔄 Appel apiClient.getPublicProfile()...");
         data = await apiClient.getPublicProfile(parseInt(visitedUserId!));
@@ -135,25 +120,22 @@ function ProfileView() {
         data = await apiClient.getProfile();
         console.log("✅ Profil personnel récupéré avec succès:", data);
       }
-      
-      // Vérifions si nous avons bien reçu les données
+
       if (!data || typeof data !== 'object') {
         throw new Error('Invalid profile data received');
       }
 
-      // Log pour debug - plus concis maintenant
       console.log("✅ Profil récupéré:", {
         username: data.username,
         recentGamesCount: data.recentGames?.length || 0,
         isOwn: !isVisitorProfile
       });
-      
+
       const finalProfile = {
         ...data,
         display_name: data.display_name || undefined,
         avatar_url: data.avatar_url || data.avatar || "",
-        isOwn: !isVisitorProfile, // Profil personnel si pas un profil visiteur
-        // Transformer les données pour compatibilité legacy avec nouveaux win rates
+        isOwn: !isVisitorProfile,
         winrates: data.stats?.winRates ? [
           { value: data.stats.winRates.vsAI, label: 'VS IA', color: 'bg-blue-600' },
           { value: data.stats.winRates.vsPlayers, label: 'VS Autres joueurs', color: 'bg-green-600' },
@@ -168,12 +150,11 @@ function ProfileView() {
           date: game.created_at
         })) : []
       };
-      
+
       console.log("✅ Profile final créé avec", finalProfile.matches?.length || 0, "matches");
-      
+
       setProfile(finalProfile);
-      
-      // L'avatar URL vient du backend et sera servi par le proxy Nginx
+
       setAvatarURL(data.avatar_url || data.avatar || "");
       setProfileError(null);
     } catch (error: any) {
@@ -191,12 +172,12 @@ function ProfileView() {
   const updateAvatar = async (newAvatarURL: string) => {
     console.log("🔄 updateAvatar - Début:", newAvatarURL);
     setIsSavingAvatar(true);
-    
+
     try {
       console.log("🔄 Appel apiClient.updateProfile()...");
       await apiClient.updateProfile({ avatar: newAvatarURL });
       console.log("✅ Avatar mis à jour avec succès");
-      
+
       setProfile((prev: any) => prev ? { ...prev, avatar: newAvatarURL } : null);
       setAvatarURL(newAvatarURL);
       alert('Avatar updated successfully!');
@@ -208,7 +189,6 @@ function ProfileView() {
     }
   };
 
-  // 🔥 DEBUG: Effect pour charger le profil avec logs détaillés
   useEffect(() => {
     console.log("🔄 Profile Loading useEffect triggered");
     console.log("🔄 Conditions:", {
@@ -220,7 +200,6 @@ function ProfileView() {
       shouldLoadProfile: !loading && isAuthenticated && user
     });
 
-    // Ne charger le profil que si l'auth est confirmée
     if (!loading && isAuthenticated && user) {
       console.log("🔄 Conditions remplies, chargement du profil...");
       setIsLoading(true);
@@ -231,9 +210,8 @@ function ProfileView() {
     } else {
       console.log("🔄 Conditions non remplies, pas de chargement du profil");
     }
-  }, [loading, isAuthenticated, user, visitedUserId]); // Ajouter visitedUserId aux dépendances
+  }, [loading, isAuthenticated, user, visitedUserId]);
 
-  // 🔥 DEBUG: État de chargement avec plus d'infos
   if (loading) {
     console.log("🔄 Affichage: Loading auth...");
     return (
@@ -242,15 +220,15 @@ function ProfileView() {
           <div className="text-center">
             <h2 className="text-xl text-white mb-4">Loading authentication...</h2>
             <div className="text-sm text-white/60 mb-4">
-              Auth loading: {loading ? 'true' : 'false'}<br/>
-              Is authenticated: {isAuthenticated ? 'true' : 'false'}<br/>
-              Has user: {user ? 'true' : 'false'}<br/>
+              Auth loading: {loading ? 'true' : 'false'}<br />
+              Is authenticated: {isAuthenticated ? 'true' : 'false'}<br />
+              Has user: {user ? 'true' : 'false'}<br />
               Has token: {apiClient.getToken() ? 'true' : 'false'}
             </div>
             <div className="flex justify-center space-x-1">
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
-              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
             </div>
           </div>
         </div>
@@ -266,15 +244,15 @@ function ProfileView() {
           <div className="text-center">
             <h2 className="text-xl text-white mb-4">Loading profile...</h2>
             <div className="text-sm text-white/60 mb-4">
-              Profile loading: {isLoading ? 'true' : 'false'}<br/>
-              Auth loading: {loading ? 'true' : 'false'}<br/>
-              Is authenticated: {isAuthenticated ? 'true' : 'false'}<br/>
+              Profile loading: {isLoading ? 'true' : 'false'}<br />
+              Auth loading: {loading ? 'true' : 'false'}<br />
+              Is authenticated: {isAuthenticated ? 'true' : 'false'}<br />
               Has user: {user ? 'true' : 'false'}
             </div>
             <div className="flex justify-center space-x-1">
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
-              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
             </div>
           </div>
         </div>
@@ -290,10 +268,10 @@ function ProfileView() {
           <div className="text-center">
             <h2 className="text-xl text-white mb-4">Failed to load profile</h2>
             <div className="text-sm text-white/60 mb-4">
-              Auth states:<br/>
-              - loading: {loading ? 'true' : 'false'}<br/>
-              - isAuthenticated: {isAuthenticated ? 'true' : 'false'}<br/>
-              - user: {user ? user.username : 'null'}<br/>
+              Auth states:<br />
+              - loading: {loading ? 'true' : 'false'}<br />
+              - isAuthenticated: {isAuthenticated ? 'true' : 'false'}<br />
+              - user: {user ? user.username : 'null'}<br />
               - token: {apiClient.getToken() ? 'exists' : 'missing'}
             </div>
             {profileError && (
@@ -333,18 +311,15 @@ function ProfileView() {
   return (
     <GradientBackground>
       <div className="min-h-screen h-screen p-4 flex flex-col">
-        {/* Debug info en haut */}
         <div className="bg-black/50 text-white text-xs p-2 mb-4 rounded">
-          <strong>Debug Info:</strong> Auth: {isAuthenticated ? '✅' : '❌'} | 
-          User: {user?.username || 'None'} | 
-          Profile: {profile?.username || 'None'} | 
+          <strong>Debug Info:</strong> Auth: {isAuthenticated ? '✅' : '❌'} |
+          User: {user?.username || 'None'} |
+          Profile: {profile?.username || 'None'} |
           Token: {apiClient.getToken() ? '✅' : '❌'}
         </div>
 
-        {/* Container principal */}
         <div className="flex-1 max-w-6xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-            {/* Section gauche - Avatar avec username */}
             <div className="flex flex-col">
               <div className="bg-black border-4 border-white rounded-lg p-6 flex-1">
                 <div className="bg-white/10 border-2 border-white rounded-lg p-4 text-center mb-4">
@@ -362,8 +337,7 @@ function ProfileView() {
                     </div>
                   )}
                 </div>
-                
-                {/* Afficher l'AvatarUploader seulement pour son propre profil */}
+
                 {!isVisitorProfile ? (
                   <AvatarUploader
                     value={tempPreviewURL || avatarURL}
@@ -373,74 +347,70 @@ function ProfileView() {
                     }}
                     onSave={async () => {
                       if (!selectedFile) return;
-                      
+
                       try {
                         setIsSavingAvatar(true);
                         const response = await apiClient.uploadAvatar(selectedFile);
                         if (response.avatarUrl && profile) {
-                          // L'avatar URL vient du backend, on l'utilise tel quel
-                          // car Nginx proxy /uploads/ vers le backend
+
                           setProfile({
                             ...profile,
                             avatar_url: response.avatarUrl
                           });
                           setAvatarURL(response.avatarUrl);
-                        
-                        // Nettoyer les états temporaires
+
+                          if (tempPreviewURL) {
+                            URL.revokeObjectURL(tempPreviewURL);
+                          }
+                          setTempPreviewURL(null);
+                          setSelectedFile(null);
+                        }
+                      } catch (error: any) {
+                        console.error('Error updating avatar:', error);
+                        alert(error.message || 'Failed to update avatar');
+                      } finally {
+                        setIsSavingAvatar(false);
+                      }
+                    }}
+                    onDelete={async () => {
+                      if (!avatarURL && !tempPreviewURL) return;
+
+                      try {
+                        setIsSavingAvatar(true);
+                        await apiClient.deleteAvatar();
+
+                        if (profile) {
+                          setProfile({
+                            ...profile,
+                            avatar_url: undefined
+                          });
+                        }
+
+                        setAvatarURL("");
+
                         if (tempPreviewURL) {
                           URL.revokeObjectURL(tempPreviewURL);
                         }
                         setTempPreviewURL(null);
                         setSelectedFile(null);
+
+                      } catch (error: any) {
+                        console.error('Error deleting avatar:', error);
+                        alert(error.message || 'Failed to delete avatar');
+                      } finally {
+                        setIsSavingAvatar(false);
                       }
-                    } catch (error: any) {
-                      console.error('Error updating avatar:', error);
-                      alert(error.message || 'Failed to update avatar');
-                    } finally {
-                      setIsSavingAvatar(false);
-                    }
-                  }}
-                  onDelete={async () => {
-                    if (!avatarURL && !tempPreviewURL) return;
-                    
-                    try {
-                      setIsSavingAvatar(true);
-                      await apiClient.deleteAvatar();
-                      
-                      if (profile) {
-                        setProfile({
-                          ...profile,
-                          avatar_url: undefined
-                        });
-                      }
-                      
-                      setAvatarURL("");
-                      
-                      // Nettoyer les états temporaires
-                      if (tempPreviewURL) {
-                        URL.revokeObjectURL(tempPreviewURL);
-                      }
-                      setTempPreviewURL(null);
-                      setSelectedFile(null);
-                      
-                    } catch (error: any) {
-                      console.error('Error deleting avatar:', error);
-                      alert(error.message || 'Failed to delete avatar');
-                    } finally {
-                      setIsSavingAvatar(false);
-                    }
-                  }}
-                  pickLabel="Pick Photo"
-                  saveLabel={isSavingAvatar ? "Saving..." : "Save"}
-                  deleteLabel="Remove"
-                />
+                    }}
+                    pickLabel="Pick Photo"
+                    saveLabel={isSavingAvatar ? "Saving..." : "Save"}
+                    deleteLabel="Remove"
+                  />
                 ) : (
-                  /* Pour les profils visiteurs, afficher seulement l'avatar en lecture seule */
                   <div className="text-center">
                     <div className="mx-auto w-32 h-32 bg-white/10 border-2 border-white/20 rounded-lg overflow-hidden mb-4">
                       {avatarURL ? (
-                        <img 
-                          src={avatarURL} 
+                        <img
+                          src={avatarURL}
                           alt={`Avatar de ${profile.display_name || profile.username}`}
                           className="w-full h-full object-cover"
                         />
@@ -460,9 +430,7 @@ function ProfileView() {
               </div>
             </div>
 
-            {/* Section droite */}
             <div className="flex flex-col space-y-4">
-              {/* Statistics Summary */}
               {profile.stats && (
                 <div className="bg-black border-4 border-green-400 rounded-lg p-6">
                   <h2 className="text-xl font-bold text-green-400 text-center mb-4">
@@ -505,7 +473,6 @@ function ProfileView() {
                 </div>
               )}
 
-              {/* Win Rates */}
               <div className="bg-black border-4 border-purple-400 rounded-lg p-6 flex-shrink-0">
                 <h2 className="text-xl font-bold text-purple-400 text-center mb-4">
                   WIN RATES
@@ -531,8 +498,7 @@ function ProfileView() {
                 </div>
               </div>
 
-              {/* Match History */}
-              <div className="bg-black border-4 border-blue-400 rounded-lg p-6 flex flex-col" style={{height: '35vh'}}>
+              <div className="bg-black border-4 border-blue-400 rounded-lg p-6 flex flex-col" style={{ height: '35vh' }}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-blue-400 text-center">
                     MATCH HISTORY
@@ -546,7 +512,6 @@ function ProfileView() {
                     </button>
                   )}
                 </div>
-                {/* Header du tableau */}
                 <div className="grid grid-cols-4 gap-2 mb-3 p-3 bg-blue-400/10 border-2 border-blue-400/30 rounded-lg flex-shrink-0">
                   <div className="text-center font-bold text-blue-400 uppercase text-xs">
                     Opponent
@@ -561,12 +526,11 @@ function ProfileView() {
                     Mode
                   </div>
                 </div>
-                {/* Matches */}
                 <div className="space-y-2 flex-1 overflow-y-auto">
                   {profile && Array.isArray(profile.matches) && profile.matches.length > 0 ? (
                     profile.matches.map((match: any, index: number) => (
-                      <div 
-                        key={match.id} 
+                      <div
+                        key={match.id}
                         className="grid grid-cols-4 gap-2 p-3 bg-gray-800/80 border border-gray-600/50 rounded-lg hover:bg-gray-700/80 transition-colors shadow-lg"
                       >
                         <div className="text-center text-white font-medium text-sm truncate">
@@ -575,9 +539,8 @@ function ProfileView() {
                         <div className="text-center text-gray-200 text-sm font-mono font-bold">
                           {match.score || '-'}
                         </div>
-                        <div className={`text-center font-bold uppercase text-sm ${
-                          match.result === "win" ? "text-green-400" : "text-red-400"
-                        }`}>
+                        <div className={`text-center font-bold uppercase text-sm ${match.result === "win" ? "text-green-400" : "text-red-400"
+                          }`}>
                           {match.result}
                         </div>
                         <div className="text-center text-blue-300 text-xs capitalize font-medium">
@@ -596,7 +559,6 @@ function ProfileView() {
                 </div>
               </div>
 
-              {/* Boutons d'action */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {!isVisitorProfile && (
                   <button
@@ -629,5 +591,4 @@ function ProfileView() {
   );
 }
 
-// Exporter le composant avec la protection de route
 export default withProtectedRoute(ProfileView);

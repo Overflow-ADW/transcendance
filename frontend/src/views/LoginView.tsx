@@ -19,7 +19,6 @@ function LoginView() {
     setMounted(true);
   }, []);
 
-  // Version simple pour le premier rendu (évite les warnings d'hydratation)
   if (!mounted) {
     return (
       <div className="w-screen h-screen overflow-hidden relative">
@@ -31,7 +30,6 @@ function LoginView() {
     );
   }
 
-  // Version complète après hydratation
   return <LoginViewContent />;
 }
 
@@ -40,26 +38,23 @@ function LoginViewContent() {
   const { lang, addNotification } = useApp();
   const { login, user } = useAuth();
 
-  // États du formulaire
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // États 2FA
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [tempUserId, setTempUserId] = useState<number | null>(null);
   const [pendingLoginData, setPendingLoginData] = useState<any>(null);
 
-  // Gestion des erreurs OAuth depuis les query parameters
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
     const provider = params.get('provider');
-    
+
     if (error) {
       let errorMessage = "Erreur d'authentification";
-      
+
       switch (error) {
         case 'oauth_denied':
           errorMessage = `Connexion ${provider} annulée`;
@@ -79,35 +74,31 @@ function LoginViewContent() {
         default:
           errorMessage = params.get('message') || errorMessage;
       }
-      
+
       setFormError(errorMessage);
       addNotification && addNotification({
         type: "error",
         message: errorMessage,
       });
-      
-      // Nettoyer l'URL
+
       window.history.replaceState({}, document.title, '/login');
     }
   }, [addNotification]);
 
-  // Rediriger si déjà connecté
   useEffect(() => {
     if (user) {
       router.push("/settings");
     }
   }, [user, router]);
 
-  // Petite validation locale
   const validate = () => {
     return username.trim().length >= 3 && password.length >= 6;
   };
 
-  // Soumission
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    
+
     if (!validate()) {
       setFormError("Username must be at least 3 characters and password at least 6 characters");
       return;
@@ -123,7 +114,6 @@ function LoginViewContent() {
         });
         router.push("/settings");
       } else if (result.requires2FA) {
-        // L'utilisateur a la 2FA activée, afficher le modal de vérification
         setTempUserId((result as any).tempUserId);
         setPendingLoginData(result);
         setShow2FAModal(true);
@@ -137,10 +127,8 @@ function LoginViewContent() {
     }
   };
 
-  // Gérer la réussite de la vérification 2FA
   const handle2FASuccess = (response: any) => {
     if (response.success && response.accessToken) {
-      // Stocker les tokens et les infos utilisateur
       localStorage.setItem('accessToken', response.accessToken);
       if (response.refreshToken) {
         localStorage.setItem('refreshToken', response.refreshToken);
@@ -161,39 +149,32 @@ function LoginViewContent() {
     }
   };
 
-  // URL backend pour OAuth (adapté à l'env)
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
   const handleOAuth = (provider: 'google' | 'github') => {
-    // Vérifier que l'API base est configurée
     if (!API_BASE) {
       setFormError(`Configuration OAuth manquante (NEXT_PUBLIC_API_BASE_URL)`);
       return;
     }
-    
+
     const oauthUrl = `${API_BASE}/api/oauth/${provider}`;
     console.log(`🔄 Redirection OAuth ${provider}:`, oauthUrl);
-    
-    // Stocker l'intention de connexion pour gérer le retour
+
     sessionStorage.setItem('oauth_provider', provider);
-    
+
     window.location.href = oauthUrl;
   };
 
   return (
     <div className="w-screen h-screen overflow-hidden relative">
-      {/* Animation Pong en arrière-plan (toujours en plein écran) */}
       <div className="absolute inset-0 w-full h-full">
         <PongCanvas />
       </div>
 
-      {/* Overlay avec opacité pour lisibilité sur mobile/tablet */}
       <div className="absolute inset-0 bg-black/40 xl:bg-transparent"></div>
 
       <main className="relative z-10 w-full h-full flex">
-        
-        {/* Version Desktop (xl et plus) - Layout 2 colonnes */}
+
         <div className="hidden xl:flex w-screen h-screen">
-          {/* ============ COLONNE GAUCHE ============ */}
           <aside className="w-1/2 h-screen bg-black flex flex-shrink-0">
             <div className="m-auto w-full max-w-[520px] px-8">
               <div className="mb-16">
@@ -233,7 +214,6 @@ function LoginViewContent() {
             </div>
           </aside>
 
-          {/* ============ COLONNE DROITE ============ */}
           <section className="w-1/2 h-screen bg-blue-600 flex items-center justify-center p-8 flex-shrink-0">
             <form
               className="w-full max-w-md space-y-6 bg-black/80 backdrop-blur-sm p-8 rounded-lg border border-white/20"
@@ -283,7 +263,6 @@ function LoginViewContent() {
                 {isSubmitting ? "Logging in..." : "Login"}
               </button>
 
-              {/* Boutons OAuth Desktop */}
               <div className="flex flex-col gap-3 mt-4">
                 <button
                   type="button"
@@ -316,11 +295,9 @@ function LoginViewContent() {
           </section>
         </div>
 
-        {/* Version Mobile/Tablet (jusqu'à 1024px) - Formulaire centré avec animation en arrière-plan */}
         <div className="flex xl:hidden w-full h-full min-h-screen items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12">
           <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl space-y-6 sm:space-y-8 md:space-y-10 lg:space-y-12">
-            
-            {/* Titre Welcome */}
+
             <div className="text-center mb-8 sm:mb-12 md:mb-16 lg:mb-20">
               <button
                 type="button"
@@ -331,7 +308,6 @@ function LoginViewContent() {
               </button>
             </div>
 
-            {/* Formulaire de connexion */}
             <form
               className="space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-10"
               onSubmit={onSubmit}
@@ -356,7 +332,7 @@ function LoginViewContent() {
                   onChange={(e) => setUsername(e.target.value)}
                 />
               </div>
-              
+
               <div className="w-full">
                 <input
                   type="password"
@@ -366,7 +342,7 @@ function LoginViewContent() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              
+
               <div className="w-full">
                 <button
                   type="submit"
@@ -377,7 +353,6 @@ function LoginViewContent() {
                 </button>
               </div>
 
-              {/* Boutons OAuth Mobile/Tablet */}
               <div className="flex flex-col gap-3 mt-2">
                 <button
                   type="button"
@@ -398,7 +373,6 @@ function LoginViewContent() {
               </div>
             </form>
 
-            {/* Navigation */}
             <div className="text-center space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-10">
               <button
                 type="button"
@@ -407,8 +381,7 @@ function LoginViewContent() {
               >
                 Don't have an account? Sign up
               </button>
-              
-              {/* Logo ou branding en bas */}
+
               <p className="text-white/60 text-xs sm:text-sm md:text-base lg:text-lg font-medium backdrop-blur-sm bg-black/40 rounded-full px-3 sm:px-4 md:px-6 lg:px-8 py-1 sm:py-2 md:py-3 lg:py-4 inline-block">
                 PONG ULTIMATE
               </p>
@@ -416,8 +389,7 @@ function LoginViewContent() {
           </div>
         </div>
       </main>
-      
-      {/* Modal 2FA */}
+
       {show2FAModal && tempUserId && (
         <TwoFactorVerifyModal
           isOpen={show2FAModal}
@@ -435,5 +407,4 @@ function LoginViewContent() {
   );
 }
 
-// Exporter le composant avec la protection de route
 export default withPublicRoute(LoginView);

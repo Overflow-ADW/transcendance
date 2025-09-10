@@ -26,7 +26,7 @@ interface Match {
   score_player1?: number;
   score_player2?: number;
   status: string;
-  match_type?: string; // 'semifinal', 'third_place', 'final'
+  match_type?: string;
   created_at?: string;
   player1_username?: string;
   player2_username?: string;
@@ -43,13 +43,12 @@ export default function TournamentBracketView() {
   const [loading, setLoading] = useState(true);
   const colors = ["#8A00C4", "#2323FF", "#FF6B35", "#28A745"];
 
-  // Charger les données du tournoi depuis la base de données
   useEffect(() => {
     const loadTournamentData = async () => {
       try {
         const storedTournamentId = localStorage.getItem('current-tournament-id');
         const storedPlayers = localStorage.getItem('tournament-players');
-        
+
         if (!storedTournamentId) {
           router.push('/tournament');
           return;
@@ -58,17 +57,14 @@ export default function TournamentBracketView() {
         const id = parseInt(storedTournamentId);
         setTournamentId(id);
 
-        // Charger les joueurs depuis le localStorage (pour les couleurs)
         if (storedPlayers) {
           const parsedPlayers = JSON.parse(storedPlayers);
           setPlayers(parsedPlayers);
         }
 
-        // Charger les matchs depuis la base de données
         const matchesResponse = await apiClient.getTournamentMatches(id);
         const matchesData = matchesResponse.matches || [];
-        
-        // Enrichir les matchs avec les infos des joueurs
+
         const enrichedMatches = matchesData.map((match: any) => ({
           ...match,
           player1: match.player1_id ? {
@@ -99,20 +95,17 @@ export default function TournamentBracketView() {
     loadTournamentData();
   }, [router]);
 
-  // Fonction pour recharger les données du tournoi
   const reloadTournamentData = async () => {
     if (!tournamentId) return;
-    
+
     try {
       console.log('🔄 Rechargement des données du tournoi:', tournamentId);
       setLoading(true);
-      
-      // Recharger les matchs depuis la base de données
+
       const matchesResponse = await apiClient.getTournamentMatches(tournamentId);
       console.log('📦 Réponse API getTournamentMatches:', matchesResponse);
       const matchesData = matchesResponse.matches || [];
-      
-      // Enrichir les matchs avec les infos des joueurs
+
       const enrichedMatches = matchesData.map((match: any) => ({
         ...match,
         player1: match.player1_id ? {
@@ -144,31 +137,28 @@ export default function TournamentBracketView() {
 
       setMatches(enrichedMatches);
       setLoading(false);
-      
+
     } catch (error) {
       console.error('❌ Erreur lors du rechargement du tournoi:', error);
       setLoading(false);
     }
   };
 
-  // Écouter les changements de localStorage pour détecter les matchs terminés
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       console.log('📦 Storage change détecté:', { key: e.key, newValue: e.newValue });
       if (e.key === 'match-completed' && e.newValue === 'true') {
         console.log('🏆 Match terminé détecté via storage - rechargement des données');
-        // Un match vient d'être terminé, recharger les données
         setTimeout(() => {
           reloadTournamentData();
           localStorage.removeItem('match-completed');
           console.log('🧹 Flag match-completed nettoyé');
-        }, 1000); // Petit délai pour laisser le backend traiter
+        }, 1000);
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
-    // Vérifier aussi au focus de la fenêtre (quand on revient du jeu)
+
     const handleFocus = () => {
       const matchCompleted = localStorage.getItem('match-completed');
       console.log('👁️ Focus window - vérification match-completed:', matchCompleted);
@@ -207,13 +197,13 @@ export default function TournamentBracketView() {
       player2: match.player2?.name,
       type: match.match_type
     });
-    
+
     if (match.status === 'completed') {
       console.log('❌ Match déjà terminé, impossible de jouer');
-      return; // Match déjà terminé
+      return;
     }
-    
-    // Sauvegarder les infos du match et rediriger vers le jeu
+
+
     const matchData = {
       id: match.id,
       tournamentId: tournamentId,
@@ -222,17 +212,16 @@ export default function TournamentBracketView() {
       player1_id: match.player1?.id,
       player2_id: match.player2?.id
     };
-    
+
     console.log('💾 Sauvegarde des données du match dans localStorage:', matchData);
     localStorage.setItem('current-match', JSON.stringify(matchData));
     localStorage.setItem('game-mode', 'tournament');
-    
+
     console.log('🚀 Redirection vers le jeu...');
     router.push("/game");
   };
 
   const getDisplayMatches = () => {
-    // Organiser les matchs selon leur type et ordre de jeu
     const semifinals = matches
       .filter(m => m.match_type === 'semifinal')
       .sort((a, b) => {
@@ -242,12 +231,11 @@ export default function TournamentBracketView() {
       });
     const thirdPlace = matches.find(m => m.match_type === 'third_place') || null;
     const final = matches.find(m => m.match_type === 'final') || null;
-    
-    return { 
-      semifinals, 
-      thirdPlace, 
+
+    return {
+      semifinals,
+      thirdPlace,
       final,
-      // Pour compatibilité avec l'ancien code
       nextMatch: thirdPlace?.status === 'waiting' ? thirdPlace : (final?.status === 'waiting' ? final : null)
     };
   };
@@ -275,7 +263,6 @@ export default function TournamentBracketView() {
   return (
     <GradientBackground>
       <div className="min-h-screen p-8">
-        {/* Header */}
         <div className="text-center mb-12">
           <h1 className="font-press-start text-4xl md:text-6xl text-white mb-4 tracking-wider">
             TOURNAMENT
@@ -285,39 +272,36 @@ export default function TournamentBracketView() {
           </h2>
         </div>
 
-        {/* Bracket Container */}
         <div className="max-w-6xl mx-auto">
-          {/* Si seulement 2 joueurs, afficher directement la finale */}
           {matches.length === 1 && final ? (
             <div className="flex justify-center">
               <div className="w-full max-w-md">
                 <h3 className="font-press-start text-lg text-center text-yellow-400 mb-8">
                   FINAL
                 </h3>
-                
+
                 <div className="bg-black border-4 border-yellow-400 rounded-lg p-6">
                   <div className="text-center mb-4">
                     <span className="font-press-start text-sm text-gray-400">
                       CHAMPIONSHIP
                     </span>
                   </div>
-                  
+
                   <div className="space-y-4">
-                    {/* Player 1 */}
-                    <div 
+                    <div
                       className="flex items-center justify-between border-2 rounded p-3"
                       style={{
                         backgroundColor: `${getPlayerColor(final.player1)}20`,
                         borderColor: getPlayerColor(final.player1)
                       }}
                     >
-                      <span 
+                      <span
                         className="font-press-start text-sm"
                         style={{ color: getPlayerColor(final.player1) }}
                       >
                         {getPlayerDisplayName(final.player1)}
                       </span>
-                      <div 
+                      <div
                         className="w-8 h-8 border-2 rounded flex items-center justify-center"
                         style={{ borderColor: getPlayerColor(final.player1) }}
                       >
@@ -326,27 +310,25 @@ export default function TournamentBracketView() {
                         </span>
                       </div>
                     </div>
-                    
-                    {/* VS */}
+
                     <div className="text-center">
                       <span className="font-press-start text-yellow-400 text-lg">VS</span>
                     </div>
-                    
-                    {/* Player 2 */}
-                    <div 
+
+                    <div
                       className="flex items-center justify-between border-2 rounded p-3"
                       style={{
                         backgroundColor: `${getPlayerColor(final.player2)}20`,
                         borderColor: getPlayerColor(final.player2)
                       }}
                     >
-                      <span 
+                      <span
                         className="font-press-start text-sm"
                         style={{ color: getPlayerColor(final.player2) }}
                       >
                         {getPlayerDisplayName(final.player2)}
                       </span>
-                      <div 
+                      <div
                         className="w-8 h-8 border-2 rounded flex items-center justify-center"
                         style={{ borderColor: getPlayerColor(final.player2) }}
                       >
@@ -356,16 +338,14 @@ export default function TournamentBracketView() {
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Bouton de jeu */}
+
                   <div className="text-center mt-6">
                     <button
                       onClick={() => handlePlayMatch(final)}
-                      className={`font-press-start px-6 py-2 rounded border-2 text-sm ${
-                        final.status === 'completed'
+                      className={`font-press-start px-6 py-2 rounded border-2 text-sm ${final.status === 'completed'
                           ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
                           : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
-                      }`}
+                        }`}
                       disabled={final.status === 'completed'}
                     >
                       {final.status === 'completed' ? 'TERMINÉ' : 'JOUER'}
@@ -375,16 +355,13 @@ export default function TournamentBracketView() {
               </div>
             </div>
           ) : (
-            /* Layout avec demi-finales, 3ème place et finale */
             <div className="space-y-12">
-              {/* Section des demi-finales */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-                {/* Demi-finales */}
                 <div className="space-y-8">
                   <h3 className="font-press-start text-lg text-center text-yellow-400 mb-8">
                     SEMI-FINALS
                   </h3>
-                  
+
                   {semifinals.map((match, index) => (
                     <div key={match.id} className="bg-black border-4 border-purple-500 rounded-lg p-4">
                       <div className="text-center mb-4">
@@ -392,23 +369,22 @@ export default function TournamentBracketView() {
                           SEMI {index + 1}
                         </span>
                       </div>
-                      
+
                       <div className="space-y-3">
-                        {/* Player 1 */}
-                        <div 
+                        <div
                           className="flex items-center justify-between border-2 rounded p-2"
                           style={{
                             backgroundColor: `${getPlayerColor(match.player1)}20`,
                             borderColor: getPlayerColor(match.player1)
                           }}
                         >
-                          <span 
+                          <span
                             className="font-press-start text-xs"
                             style={{ color: getPlayerColor(match.player1) }}
                           >
                             {getPlayerDisplayName(match.player1)}
                           </span>
-                          <div 
+                          <div
                             className="w-6 h-6 border-2 rounded flex items-center justify-center"
                             style={{ borderColor: getPlayerColor(match.player1) }}
                           >
@@ -417,22 +393,21 @@ export default function TournamentBracketView() {
                             </span>
                           </div>
                         </div>
-                        
-                        {/* Player 2 */}
-                        <div 
+
+                        <div
                           className="flex items-center justify-between border-2 rounded p-2"
                           style={{
                             backgroundColor: `${getPlayerColor(match.player2)}20`,
                             borderColor: getPlayerColor(match.player2)
                           }}
                         >
-                          <span 
+                          <span
                             className="font-press-start text-xs"
                             style={{ color: getPlayerColor(match.player2) }}
                           >
                             {getPlayerDisplayName(match.player2)}
                           </span>
-                          <div 
+                          <div
                             className="w-6 h-6 border-2 rounded flex items-center justify-center"
                             style={{ borderColor: getPlayerColor(match.player2) }}
                           >
@@ -442,15 +417,14 @@ export default function TournamentBracketView() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="text-center mt-4">
                         <button
                           onClick={() => handlePlayMatch(match)}
-                          className={`font-press-start px-4 py-1 rounded border-2 text-xs ${
-                            match.status === 'completed'
+                          className={`font-press-start px-4 py-1 rounded border-2 text-xs ${match.status === 'completed'
                               ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
                               : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
-                          }`}
+                            }`}
                           disabled={match.status === 'completed'}
                         >
                           {match.status === 'completed' ? 'TERMINÉ' : 'JOUER'}
@@ -460,20 +434,17 @@ export default function TournamentBracketView() {
                   ))}
                 </div>
 
-                {/* Connexions vers les matchs suivants */}
                 <div className="hidden md:flex flex-col items-center justify-center">
                   <div className="w-full h-px bg-yellow-400 mb-4"></div>
                   <span className="font-press-start text-yellow-400 text-xs">TO</span>
                   <div className="w-full h-px bg-yellow-400 mt-4"></div>
                 </div>
 
-                {/* Section des finales (3ème place et finale) */}
                 <div className="space-y-8">
                   <h3 className="font-press-start text-lg text-center text-yellow-400 mb-8">
                     FINALS
                   </h3>
 
-                  {/* Match pour la 3ème place */}
                   {thirdPlace && (
                     <div className="bg-black border-4 border-orange-500 rounded-lg p-4 mb-6">
                       <div className="text-center mb-4">
@@ -481,23 +452,22 @@ export default function TournamentBracketView() {
                           3RD PLACE
                         </span>
                       </div>
-                      
+
                       <div className="space-y-3">
-                        {/* Player 1 */}
-                        <div 
+                        <div
                           className="flex items-center justify-between border-2 rounded p-2"
                           style={{
                             backgroundColor: `${getPlayerColor(thirdPlace.player1)}20`,
                             borderColor: getPlayerColor(thirdPlace.player1)
                           }}
                         >
-                          <span 
+                          <span
                             className="font-press-start text-xs"
                             style={{ color: getPlayerColor(thirdPlace.player1) }}
                           >
                             {getPlayerDisplayName(thirdPlace.player1)}
                           </span>
-                          <div 
+                          <div
                             className="w-6 h-6 border-2 rounded flex items-center justify-center"
                             style={{ borderColor: getPlayerColor(thirdPlace.player1) }}
                           >
@@ -506,22 +476,21 @@ export default function TournamentBracketView() {
                             </span>
                           </div>
                         </div>
-                        
-                        {/* Player 2 */}
-                        <div 
+
+                        <div
                           className="flex items-center justify-between border-2 rounded p-2"
                           style={{
                             backgroundColor: `${getPlayerColor(thirdPlace.player2)}20`,
                             borderColor: getPlayerColor(thirdPlace.player2)
                           }}
                         >
-                          <span 
+                          <span
                             className="font-press-start text-xs"
                             style={{ color: getPlayerColor(thirdPlace.player2) }}
                           >
                             {getPlayerDisplayName(thirdPlace.player2)}
                           </span>
-                          <div 
+                          <div
                             className="w-6 h-6 border-2 rounded flex items-center justify-center"
                             style={{ borderColor: getPlayerColor(thirdPlace.player2) }}
                           >
@@ -531,15 +500,14 @@ export default function TournamentBracketView() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="text-center mt-4">
                         <button
                           onClick={() => handlePlayMatch(thirdPlace)}
-                          className={`font-press-start px-4 py-1 rounded border-2 text-xs ${
-                            thirdPlace.status === 'completed'
+                          className={`font-press-start px-4 py-1 rounded border-2 text-xs ${thirdPlace.status === 'completed'
                               ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
                               : 'bg-transparent border-orange-400 text-orange-400 hover:bg-orange-400 hover:text-black'
-                          }`}
+                            }`}
                           disabled={thirdPlace.status === 'completed'}
                         >
                           {thirdPlace.status === 'completed' ? 'TERMINÉ' : 'JOUER'}
@@ -548,7 +516,6 @@ export default function TournamentBracketView() {
                     </div>
                   )}
 
-                  {/* Finale */}
                   {final ? (
                     <div className="bg-black border-4 border-yellow-400 rounded-lg p-6">
                       <div className="text-center mb-4">
@@ -556,23 +523,22 @@ export default function TournamentBracketView() {
                           CHAMPIONSHIP
                         </span>
                       </div>
-                      
+
                       <div className="space-y-4">
-                        {/* Player 1 */}
-                        <div 
+                        <div
                           className="flex items-center justify-between border-2 rounded p-3"
                           style={{
                             backgroundColor: `${getPlayerColor(final.player1)}20`,
                             borderColor: getPlayerColor(final.player1)
                           }}
                         >
-                          <span 
+                          <span
                             className="font-press-start text-sm"
                             style={{ color: getPlayerColor(final.player1) }}
                           >
                             {getPlayerDisplayName(final.player1)}
                           </span>
-                          <div 
+                          <div
                             className="w-8 h-8 border-2 rounded flex items-center justify-center"
                             style={{ borderColor: getPlayerColor(final.player1) }}
                           >
@@ -581,27 +547,25 @@ export default function TournamentBracketView() {
                             </span>
                           </div>
                         </div>
-                        
-                        {/* VS */}
+
                         <div className="text-center">
                           <span className="font-press-start text-yellow-400 text-lg">VS</span>
                         </div>
-                        
-                        {/* Player 2 */}
-                        <div 
+
+                        <div
                           className="flex items-center justify-between border-2 rounded p-3"
                           style={{
                             backgroundColor: `${getPlayerColor(final.player2)}20`,
                             borderColor: getPlayerColor(final.player2)
                           }}
                         >
-                          <span 
+                          <span
                             className="font-press-start text-sm"
                             style={{ color: getPlayerColor(final.player2) }}
                           >
                             {getPlayerDisplayName(final.player2)}
                           </span>
-                          <div 
+                          <div
                             className="w-8 h-8 border-2 rounded flex items-center justify-center"
                             style={{ borderColor: getPlayerColor(final.player2) }}
                           >
@@ -611,16 +575,14 @@ export default function TournamentBracketView() {
                           </div>
                         </div>
                       </div>
-                      
-                      {/* Bouton de jeu */}
+
                       <div className="text-center mt-6">
                         <button
                           onClick={() => handlePlayMatch(final)}
-                          className={`font-press-start px-6 py-2 rounded border-2 text-sm ${
-                            final.status === 'completed'
+                          className={`font-press-start px-6 py-2 rounded border-2 text-sm ${final.status === 'completed'
                               ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
                               : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
-                          }`}
+                            }`}
                           disabled={final.status === 'completed'}
                         >
                           {final.status === 'completed' ? 'TERMINÉ' : 'JOUER'}
@@ -641,7 +603,6 @@ export default function TournamentBracketView() {
             </div>
           )}
         </div>
-        {/* Bouton retour */}
         <div className="text-center mt-12">
           <button
             onClick={() => router.push('/tournament')}

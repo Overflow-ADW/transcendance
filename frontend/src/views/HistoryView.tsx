@@ -18,7 +18,6 @@ export default function HistoryView() {
   const [gameModeFilter, setGameModeFilter] = useState('all');
   const [error, setError] = useState<string | null>(null);
 
-  // Redirection si non authentifié
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/login');
@@ -26,19 +25,18 @@ export default function HistoryView() {
     }
   }, [isAuthenticated, loading, router]);
 
-  // Chargement de l'historique
   const loadGameHistory = async (page = 1, status = 'all', gameMode = 'all') => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await apiClient.getGameHistory({
         page,
         limit: 20,
         status: status !== 'all' ? status : undefined,
         gameMode: gameMode !== 'all' ? gameMode : undefined
       });
-      
+
       setGameHistory(response);
       setCurrentPage(page);
     } catch (err) {
@@ -55,7 +53,6 @@ export default function HistoryView() {
     }
   }, [isAuthenticated, currentPage, statusFilter, gameModeFilter]);
 
-  // Fonctions de filtrage
   const handleStatusFilterChange = (status: string) => {
     setStatusFilter(status);
     setCurrentPage(1);
@@ -71,7 +68,6 @@ export default function HistoryView() {
     loadGameHistory(page, statusFilter, gameModeFilter);
   };
 
-  // Formatage de la date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR', {
@@ -83,14 +79,12 @@ export default function HistoryView() {
     });
   };
 
-  // Formatage de la durée
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  // Couleur selon le résultat
   const getResultColor = (result: string) => {
     switch (result) {
       case 'win': return 'text-green-400';
@@ -101,7 +95,6 @@ export default function HistoryView() {
     }
   };
 
-  // Icône selon le résultat
   const getResultIcon = (result: string) => {
     switch (result) {
       case 'win': return '🏆';
@@ -126,7 +119,6 @@ export default function HistoryView() {
     <GradientBackground>
       <div className="min-h-screen p-6">
         <div className="max-w-6xl mx-auto">
-          {/* Header */}
           <div className="mb-8">
             <BackButton />
             <div className="text-center mt-4">
@@ -139,11 +131,9 @@ export default function HistoryView() {
             </div>
           </div>
 
-          {/* Filtres */}
           <div className="bg-black/30 backdrop-blur-md rounded-2xl p-6 mb-6">
             <div className="flex flex-wrap gap-4 items-center justify-between">
               <div className="flex gap-4">
-                {/* Filtre par statut */}
                 <div className="flex flex-col">
                   <label className="text-gray-300 text-sm mb-2">Statut</label>
                   <select
@@ -158,7 +148,6 @@ export default function HistoryView() {
                   </select>
                 </div>
 
-                {/* Filtre par mode de jeu */}
                 <div className="flex flex-col">
                   <label className="text-gray-300 text-sm mb-2">Mode de jeu</label>
                   <select
@@ -174,7 +163,6 @@ export default function HistoryView() {
                 </div>
               </div>
 
-              {/* Statistiques de la page */}
               {gameHistory && (
                 <div className="text-right text-sm text-gray-300">
                   <div>Total: {gameHistory.pagination.totalItems} parties</div>
@@ -189,7 +177,6 @@ export default function HistoryView() {
             </div>
           </div>
 
-          {/* Liste des parties */}
           {error ? (
             <div className="bg-red-500/20 text-red-300 p-4 rounded-lg text-center">
               {error}
@@ -208,12 +195,10 @@ export default function HistoryView() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        {/* Icône résultat */}
                         <div className="text-2xl">
                           {getResultIcon(game.result)}
                         </div>
 
-                        {/* Informations partie */}
                         <div>
                           <div className="flex items-center gap-2">
                             <span className={`font-semibold ${getResultColor(game.result)}`}>
@@ -234,7 +219,6 @@ export default function HistoryView() {
                         </div>
                       </div>
 
-                      {/* Score détaillé */}
                       <div className="text-right">
                         <div className="text-white font-mono text-lg">
                           {game.score_player1} - {game.score_player2}
@@ -248,7 +232,6 @@ export default function HistoryView() {
                 ))}
               </div>
 
-              {/* Pagination */}
               {gameHistory.pagination.totalPages > 1 && (
                 <div className="flex justify-center mt-6 gap-2">
                   <button
@@ -258,21 +241,20 @@ export default function HistoryView() {
                   >
                     ← Précédent
                   </button>
-                  
+
                   <div className="flex gap-1">
                     {Array.from({ length: Math.min(5, gameHistory.pagination.totalPages) }, (_, i) => {
                       const page = i + Math.max(1, gameHistory.pagination.currentPage - 2);
                       if (page > gameHistory.pagination.totalPages) return null;
-                      
+
                       return (
                         <button
                           key={page}
                           onClick={() => handlePageChange(page)}
-                          className={`px-3 py-2 rounded-lg transition-colors ${
-                            page === gameHistory.pagination.currentPage
+                          className={`px-3 py-2 rounded-lg transition-colors ${page === gameHistory.pagination.currentPage
                               ? 'bg-purple-600 text-white'
                               : 'bg-gray-700 text-white hover:bg-gray-600'
-                          }`}
+                            }`}
                         >
                           {page}
                         </button>
@@ -305,5 +287,4 @@ export default function HistoryView() {
   );
 }
 
-// Export nommé pour compatibilité
 export { HistoryView };

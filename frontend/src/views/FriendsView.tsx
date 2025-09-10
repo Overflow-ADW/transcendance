@@ -5,11 +5,11 @@ import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/lib_front/AuthContext";
 import { apiClient } from '../lib_front/api';
-import type { 
-  Friend, 
-  PendingInvitation, 
-  FriendsResponse, 
-  UserSearchResult 
+import type {
+  Friend,
+  PendingInvitation,
+  FriendsResponse,
+  UserSearchResult
 } from '../lib_front/types';
 
 interface AddFriendModalProps {
@@ -45,7 +45,7 @@ const AddFriendModal = ({ isOpen, onClose, onAdd }: AddFriendModalProps) => {
         <h2 className="text-2xl font-bold text-white text-center mb-4">
           Add Friend
         </h2>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <input
@@ -58,7 +58,7 @@ const AddFriendModal = ({ isOpen, onClose, onAdd }: AddFriendModalProps) => {
               autoFocus
             />
           </div>
-          
+
           <div className="flex gap-3">
             <button
               type="button"
@@ -91,18 +91,16 @@ export default function FriendsView() {
   const [isLoading, setIsLoading] = useState(true);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Fonction pour afficher les notifications
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 5000); // Disparaît après 5 secondes
+    setTimeout(() => setNotification(null), 5000);
   };
 
-  // Fonction utilitaire pour obtenir l'avatar ou la première lettre
   const getAvatarDisplay = (user: Friend | PendingInvitation) => {
     if (user.avatar_url) {
       return (
-        <img 
-          src={user.avatar_url} 
+        <img
+          src={user.avatar_url}
           alt={`${user.username}'s avatar`}
           className="w-8 h-8 rounded-full object-cover"
         />
@@ -115,144 +113,139 @@ export default function FriendsView() {
     );
   };
 
-  // Fonction pour naviguer vers le profil d'un ami
   const handleVisitProfile = (friendId: number) => {
     console.log('🔥 Navigation vers le profil de l\'ami ID:', friendId);
     router.push(`/profile?userId=${friendId}`);
   };
 
-    // Fonctions pour les appels API
-const fetchFriends = async () => {
-  try {
-    console.log('🔍 DEBUG: Fetching friends...');
-    const response = await apiClient.request('/api/users/friends');
-    
-    if (response.ok) {
-      const data: FriendsResponse = await response.json();
-      console.log("🔍 DEBUG: Réponse de l'API des amis:", data);
-      
-      if (data.friends && data.friends.length > 0) {
-        console.log("🔍 DEBUG: Structure du premier ami:", data.friends[0]);
-      }
-      
-      setFriends(data.friends || []);
-      setPendingInvitations(data.pendingRequests || []);
-    } else {
-      console.error('Error fetching friends, status:', response.status);
-      throw new Error(`API error: ${response.status}`);
-    }
-  } catch (error) {
-    console.error('Error fetching friends:', error);
-    setFriends([]);
-    setPendingInvitations([]);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  const fetchFriends = async () => {
+    try {
+      console.log('🔍 DEBUG: Fetching friends...');
+      const response = await apiClient.request('/api/users/friends');
 
-const handleAddFriend = async (username: string) => {
-  // Vérifier si l'utilisateur essaie de s'inviter lui-même
-  if (user && username.toLowerCase() === user.username.toLowerCase()) {
-    showNotification("Vous ne pouvez pas vous inviter vous-même !", 'error');
-    return;
-  }
+      if (response.ok) {
+        const data: FriendsResponse = await response.json();
+        console.log("🔍 DEBUG: Réponse de l'API des amis:", data);
 
-  try {
-    setIsLoading(true);
-    console.log('🔍 DEBUG: Sending friend request to:', username);
-    // Utiliser la méthode addFriend de l'apiClient
-    const response = await apiClient.request('/api/users/friends', {
-      method: 'POST',
-      body: JSON.stringify({ username: username })
-    });
-    if (response.ok) {
-      await fetchFriends(); // Rafraîchir la liste
-      setShowAddModal(false);
-      showNotification(`Demande d'ami envoyée à ${username} !`, 'success');
-    } else {
-      // Gérer les différents codes d'erreur
-      const errorData = await response.json().catch(() => ({}));
-      if (response.status === 400) {
-        showNotification("Vous ne pouvez pas vous inviter vous-même !", 'error');
-      } else if (response.status === 409) {
-        showNotification("Vous êtes déjà ami avec cette personne ou une demande est en cours !", 'error');
-      } else if (response.status === 404) {
-        showNotification("Utilisateur non trouvé !", 'error');
+        if (data.friends && data.friends.length > 0) {
+          console.log("🔍 DEBUG: Structure du premier ami:", data.friends[0]);
+        }
+
+        setFriends(data.friends || []);
+        setPendingInvitations(data.pendingRequests || []);
       } else {
-        showNotification(errorData.message || "Erreur lors de l'envoi de la demande d'ami", 'error');
+        console.error('Error fetching friends, status:', response.status);
+        throw new Error(`API error: ${response.status}`);
       }
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+      setFriends([]);
+      setPendingInvitations([]);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error: any) {
-    console.error('Error sending friend request:', error);
-    showNotification("Erreur lors de l'envoi de la demande d'ami", 'error');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
-const handleAcceptInvitation = async (id: number) => {
-  try {
-    setIsLoading(true);
-    console.log('🔍 DEBUG: Accepting invitation with friendship_id:', id);
-    const response = await apiClient.request(`/api/users/friends/${id}/accept`, {
-      method: 'PUT',
-      body: JSON.stringify({}) // Corps vide au format JSON pour éviter l'erreur FST_ERR_CTP_EMPTY_JSON_BODY
-    });
-    if (response.ok) {
-      await fetchFriends();
-      showNotification("Demande d'ami acceptée !", 'success');
-    } else {
-      throw new Error(`HTTP ${response.status}`);
+  const handleAddFriend = async (username: string) => {
+    if (user && username.toLowerCase() === user.username.toLowerCase()) {
+      showNotification("Vous ne pouvez pas vous inviter vous-même !", 'error');
+      return;
     }
-  } catch (error) {
-    console.error('Error accepting invitation:', error);
-    showNotification("Erreur lors de l'acceptation de l'invitation", 'error');
-  } finally {
-    setIsLoading(false);
-  }
-};
 
-const handleDeclineInvitation = async (id: number) => {
-  try {
-    setIsLoading(true);
-    console.log('🔍 DEBUG: Declining invitation with friendship_id:', id);
-    const response = await apiClient.request(`/api/users/friends/${id}`, {
-      method: 'DELETE'
-    });
-    if (response.ok) {
-      await fetchFriends();
-      showNotification("Demande d'ami refusée", 'info');
-    } else {
-      throw new Error(`HTTP ${response.status}`);
+    try {
+      setIsLoading(true);
+      console.log('🔍 DEBUG: Sending friend request to:', username);
+      const response = await apiClient.request('/api/users/friends', {
+        method: 'POST',
+        body: JSON.stringify({ username: username })
+      });
+      if (response.ok) {
+        await fetchFriends();
+        setShowAddModal(false);
+        showNotification(`Demande d'ami envoyée à ${username} !`, 'success');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 400) {
+          showNotification("Vous ne pouvez pas vous inviter vous-même !", 'error');
+        } else if (response.status === 409) {
+          showNotification("Vous êtes déjà ami avec cette personne ou une demande est en cours !", 'error');
+        } else if (response.status === 404) {
+          showNotification("Utilisateur non trouvé !", 'error');
+        } else {
+          showNotification(errorData.message || "Erreur lors de l'envoi de la demande d'ami", 'error');
+        }
+      }
+    } catch (error: any) {
+      console.error('Error sending friend request:', error);
+      showNotification("Erreur lors de l'envoi de la demande d'ami", 'error');
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Error declining invitation:', error);
-    showNotification("Erreur lors du refus de l'invitation", 'error');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
-const handleRemoveFriend = async (id: number) => {
-  console.log('🔍 DEBUG: handleRemoveFriend appelé avec ID:', id);
-  try {
-    setIsLoading(true);
-    const response = await apiClient.request(`/api/users/friends/${id}`, {
-      method: 'DELETE'
-    });
-    if (response.ok) {
-      await fetchFriends();
-      showNotification("Ami supprimé", 'info');
-    } else {
-      throw new Error(`HTTP ${response.status}`);
+  const handleAcceptInvitation = async (id: number) => {
+    try {
+      setIsLoading(true);
+      console.log('🔍 DEBUG: Accepting invitation with friendship_id:', id);
+      const response = await apiClient.request(`/api/users/friends/${id}/accept`, {
+        method: 'PUT',
+        body: JSON.stringify({})
+      });
+      if (response.ok) {
+        await fetchFriends();
+        showNotification("Demande d'ami acceptée !", 'success');
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      showNotification("Erreur lors de l'acceptation de l'invitation", 'error');
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Error removing friend:', error);
-    showNotification("Erreur lors de la suppression de l'ami", 'error');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
+
+  const handleDeclineInvitation = async (id: number) => {
+    try {
+      setIsLoading(true);
+      console.log('🔍 DEBUG: Declining invitation with friendship_id:', id);
+      const response = await apiClient.request(`/api/users/friends/${id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        await fetchFriends();
+        showNotification("Demande d'ami refusée", 'info');
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error declining invitation:', error);
+      showNotification("Erreur lors du refus de l'invitation", 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveFriend = async (id: number) => {
+    console.log('🔍 DEBUG: handleRemoveFriend appelé avec ID:', id);
+    try {
+      setIsLoading(true);
+      const response = await apiClient.request(`/api/users/friends/${id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        await fetchFriends();
+        showNotification("Ami supprimé", 'info');
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error removing friend:', error);
+      showNotification("Erreur lors de la suppression de l'ami", 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchFriends();
@@ -266,8 +259,8 @@ const handleRemoveFriend = async (id: number) => {
             <h1 className="text-4xl font-bold text-white mb-6">LOADING FRIENDS...</h1>
             <div className="flex justify-center space-x-1">
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
-              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
             </div>
           </div>
         </div>
@@ -293,18 +286,16 @@ const handleRemoveFriend = async (id: number) => {
           </p>
         </div>
 
-        {/* Notification */}
         {notification && (
-          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg border-2 max-w-md ${
-            notification.type === 'success' 
-              ? 'bg-green-500/90 border-green-400 text-white' 
+          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg border-2 max-w-md ${notification.type === 'success'
+              ? 'bg-green-500/90 border-green-400 text-white'
               : notification.type === 'error'
-              ? 'bg-red-500/90 border-red-400 text-white'
-              : 'bg-blue-500/90 border-blue-400 text-white'
-          }`}>
+                ? 'bg-red-500/90 border-red-400 text-white'
+                : 'bg-blue-500/90 border-blue-400 text-white'
+            }`}>
             <div className="flex items-center justify-between">
               <span className="font-medium">{notification.message}</span>
-              <button 
+              <button
                 onClick={() => setNotification(null)}
                 className="ml-4 text-white/80 hover:text-white"
               >
@@ -315,9 +306,7 @@ const handleRemoveFriend = async (id: number) => {
         )}
 
         <div className="flex-1 flex flex-col lg:flex-row gap-4">
-          {/* Left Side - Friends Lists */}
           <div className="flex-1 flex flex-col gap-4">
-            {/* Online Friends */}
             <div className="bg-black border-4 border-green-400 rounded-lg p-6 flex-1">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-green-400 text-center">
@@ -330,7 +319,7 @@ const handleRemoveFriend = async (id: number) => {
                   + ADD FRIEND
                 </button>
               </div>
-              
+
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {onlineFriends.length > 0 ? (
                   onlineFriends.map((friend) => (
@@ -345,12 +334,10 @@ const handleRemoveFriend = async (id: number) => {
                             {friend.display_name || friend.username}
                           </button>
                           <div className="flex items-center space-x-1">
-                            <div className={`w-2 h-2 rounded-full ${
-                              friend.online_status === 'online' ? 'bg-green-400' : 'bg-gray-400'
-                            }`}></div>
-                            <span className={`text-xs ${
-                              friend.online_status === 'online' ? 'text-green-400' : 'text-gray-400'
-                            }`}>
+                            <div className={`w-2 h-2 rounded-full ${friend.online_status === 'online' ? 'bg-green-400' : 'bg-gray-400'
+                              }`}></div>
+                            <span className={`text-xs ${friend.online_status === 'online' ? 'text-green-400' : 'text-gray-400'
+                              }`}>
                               {friend.online_status === 'online' ? 'Online' : 'Offline'}
                             </span>
                           </div>
@@ -374,7 +361,6 @@ const handleRemoveFriend = async (id: number) => {
               </div>
             </div>
 
-            {/* Offline Friends */}
             <div className="bg-black border-4 border-gray-400 rounded-lg p-6 flex-1">
               <h2 className="text-xl font-bold text-gray-400 text-center mb-4">
                 OFFLINE ({offlineFriends.length})
@@ -417,9 +403,7 @@ const handleRemoveFriend = async (id: number) => {
             </div>
           </div>
 
-          {/* Right Side - Pending Invitations */}
           <div className="lg:w-80 flex flex-col gap-4">
-            {/* Received Invitations */}
             <div className="bg-black border-4 border-yellow-400 rounded-lg p-6 flex-1">
               <h2 className="text-xl font-bold text-yellow-400 text-center mb-4">
                 RECEIVED ({receivedInvitations.length})
@@ -459,7 +443,6 @@ const handleRemoveFriend = async (id: number) => {
               </div>
             </div>
 
-            {/* Sent Invitations */}
             <div className="bg-black border-4 border-blue-400 rounded-lg p-6 flex-1">
               <h2 className="text-xl font-bold text-blue-400 text-center mb-4">
                 SENT ({sentInvitations.length})
@@ -495,7 +478,6 @@ const handleRemoveFriend = async (id: number) => {
           </div>
         </div>
 
-        {/* Bottom Navigation */}
         <div className="mt-6 text-center">
           <button
             onClick={() => router.push('/')}
