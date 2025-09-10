@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { MenuButton } from "@/components/ui/MenuButton";
 import { BackButton } from "@/components/ui/BackButton";
+import { TwoFactorVerifyModal } from "@/components/ui/TwoFactorVerifyModal";
 import PongCanvas from "@/components/pongs/PongCanvas";
 import { t } from "@/lib_front/i18n";
 import { useApp } from "@/lib_front/store";
@@ -44,6 +45,11 @@ function LoginViewContent() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // États 2FA
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [tempUserId, setTempUserId] = useState<number | null>(null);
+  const [pendingLoginData, setPendingLoginData] = useState<any>(null);
 
   // Gestion des erreurs OAuth depuis les query parameters
   useEffect(() => {
@@ -117,8 +123,10 @@ function LoginViewContent() {
         });
         router.push("/settings");
       } else if (result.requires2FA) {
-        // TODO: gérer la 2FA si besoin
-        setFormError("Two-factor authentication required.");
+        // L'utilisateur a la 2FA activée, afficher le modal de vérification
+        setTempUserId((result as any).tempUserId);
+        setPendingLoginData(result);
+        setShow2FAModal(true);
       } else {
         setFormError(result.error || "Login failed");
       }
@@ -126,6 +134,30 @@ function LoginViewContent() {
       setFormError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Gérer la réussite de la vérification 2FA
+  const handle2FASuccess = (response: any) => {
+    if (response.success && response.accessToken) {
+      // Stocker les tokens et les infos utilisateur
+      localStorage.setItem('accessToken', response.accessToken);
+      if (response.refreshToken) {
+        localStorage.setItem('refreshToken', response.refreshToken);
+      }
+      if (response.user) {
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
+
+      addNotification && addNotification({
+        type: "success",
+        message: "Connexion 2FA réussie ! Bienvenue.",
+      });
+
+      setShow2FAModal(false);
+      router.push("/settings");
+    } else {
+      setFormError("2FA verification failed");
     }
   };
 
@@ -384,6 +416,21 @@ function LoginViewContent() {
           </div>
         </div>
       </main>
+      
+      {/* Modal 2FA */}
+      {show2FAModal && tempUserId && (
+        <TwoFactorVerifyModal
+          isOpen={show2FAModal}
+          onClose={() => {
+            setShow2FAModal(false);
+            setTempUserId(null);
+            setPendingLoginData(null);
+          }}
+          onSuccess={handle2FASuccess}
+          tempUserId={tempUserId}
+          username={username}
+        />
+      )}
     </div>
   );
 }

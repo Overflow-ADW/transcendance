@@ -264,6 +264,80 @@ class ApiClient {
     return response.json();
   }
 
+  // ============ MÉTHODES 2FA ============
+
+  /**
+   * Obtenir le statut 2FA de l'utilisateur connecté
+   */
+  async get2FAStatus() {
+    const response = await this.request('/api/2fa/status');
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || 'Failed to get 2FA status');
+    }
+    return response.json();
+  }
+
+  /**
+   * Initier la configuration 2FA (génère le QR code)
+   */
+  async setup2FA() {
+    const response = await this.request('/api/2fa/setup', {
+      method: 'POST'
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || 'Failed to setup 2FA');
+    }
+    return response.json();
+  }
+
+  /**
+   * Activer la 2FA avec le code de vérification
+   */
+  async enable2FA(token: string) {
+    const response = await this.request('/api/2fa/enable', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || 'Failed to enable 2FA');
+    }
+    return response.json();
+  }
+
+  /**
+   * Vérifier un code 2FA lors de la connexion
+   */
+  async verify2FA(token: string, tempUserId: number) {
+    const response = await fetch(`${this.baseURL}/api/2fa/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, tempUserId })
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || 'Failed to verify 2FA token');
+    }
+    return response.json();
+  }
+
+  /**
+   * Désactiver la 2FA avec mot de passe et code de vérification
+   */
+  async disable2FA(password: string, token: string) {
+    const response = await this.request('/api/2fa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ password, token })
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || 'Failed to disable 2FA');
+    }
+    return response.json();
+  }
+
   // ============ MÉTHODES UTILISATEUR ET PROFIL ============
 
   async getProfile() {

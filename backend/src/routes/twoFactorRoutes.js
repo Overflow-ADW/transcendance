@@ -8,6 +8,7 @@ const {
   isValidTOTPSecret 
 } = require('../utils/twoFactorUtils');
 const { authenticateToken } = require('../middleware/auth');
+const { generateTokenPair } = require('../utils/jwtUtils');
 const Joi = require('joi');
 
 // Schémas de validation
@@ -32,9 +33,9 @@ async function twoFactorRoutes(fastify, options) {
   
   /**
    * Génère un secret TOTP temporaire pour configuration 2FA
-   * POST /api/auth/2fa/setup
+   * POST /api/2fa/setup
    */
-  fastify.post('/2fa/setup', { 
+  fastify.post('/setup', { 
     preHandler: [authenticateToken] 
   }, async (request, reply) => {
     try {
@@ -90,9 +91,9 @@ async function twoFactorRoutes(fastify, options) {
 
   /**
    * Active l'authentification à deux facteurs
-   * POST /api/auth/2fa/enable
+   * POST /api/2fa/enable
    */
-  fastify.post('/2fa/enable', { 
+  fastify.post('/enable', { 
     preHandler: [authenticateToken]
   }, async (request, reply) => {
     try {
@@ -181,9 +182,9 @@ async function twoFactorRoutes(fastify, options) {
 
   /**
    * Statut 2FA de l'utilisateur
-   * GET /api/auth/2fa/status
+   * GET /api/2fa/status
    */
-  fastify.get('/2fa/status', { 
+  fastify.get('/status', { 
     preHandler: [authenticateToken] 
   }, async (request, reply) => {
     try {
@@ -223,6 +224,221 @@ async function twoFactorRoutes(fastify, options) {
       reply.code(500).send({ 
         error: 'Erreur interne du serveur',
         message: 'Impossible de récupérer le statut 2FA'
+      });
+    }
+  });
+
+  /**
+   * Vérification d'un code TOTP pour l'authentification
+   * POST /api/2fa/verify
+   */
+  fastify.post('/verify', async (request, reply) => {
+    try {
+      const { token, tempUserId } = request.body;
+
+      if (!token || !/^\d{6}$/.test(token)) {
+        return reply.code(400).send({ 
+          error: 'Token invalide',
+          message: 'Le token doit être composé de 6 chiffres'
+        });
+      }
+
+      if (!tempUserId) {
+        return reply.code(400).send({ 
+          error: 'ID utilisateur manquant',
+          message: 'L\'identifiant temporaire est requis'
+        });
+      }
+
+      // Récupère le secret de l'utilisateur
+      const user = fastify.db.prepare(`
+        SELECT 
+          id, username, email, two_factor_enabled, two_factor_secret, 
+          two_factor_backup_codes, is_admin, status, created_at
+        FROM users 
+        WHERE id = ? AND two_factor_enabled = 1
+      `).get(tempUserId);
+
+      if (!user) {
+        return reply.code(404).send({ 
+          error: 'Utilisateur non trouvé ou 2FA non activé' 
+        });
+      }
+
+      // Vérifie le token TOTP
+      const isValidToken = verifyTOTPToken(token, user.two_factor_secret);
+      
+      if (!isValidToken) {
+        // Vérifier si c'est un code de sauvegarde
+        let backupCodes = [];
+        if (user.two_factor_backup_codes) {
+          try {
+            backupCodes = JSON.parse(user.two_factor_backup_codes);
+          } catch (e) {
+            backupCodes = [];
+          }
+        }
+
+        const backupResult = verifyBackupCode(token.toUpperCase(), backupCodes);
+        
+        if (backupResult.isValid) {
+          // Supprimer le code de sauvegarde utilisé
+          const remainingCodes = backupCodes.filter(code => code !== backupResult.usedCodeHash);
+          
+          fastify.db.prepare(`
+            UPDATE users 
+            SET two_factor_backup_codes = ? 
+            WHERE id = ?
+          `).run(JSON.stringify(remainingCodes), user.id);
+
+          fastify.log.info(`Code de sauvegarde utilisé pour l'utilisateur ${user.id}`);
+        } else {
+          fastify.log.warn(`Tentative de connexion 2FA avec token invalide - User: ${user.id}`);
+          return reply.code(400).send({ 
+            error: 'Code de vérification invalide',
+            message: 'Vérifiez votre code à 6 chiffres ou utilisez un code de sauvegarde'
+          });
+        }
+      }
+
+      // Génère les tokens JWT
+      const { accessToken, refreshToken } = generateTokenPair({
+        userId: user.id,
+        username: user.username,
+        email: user.email,
+        is_admin: user.is_admin
+      });
+
+      fastify.log.info(`Connexion 2FA réussie pour l'utilisateur ${user.id}`);
+
+      reply.send({
+        success: true,
+        message: 'Authentification à deux facteurs réussie',
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          is_admin: !!user.is_admin,
+          two_factor_enabled: true,
+          status: user.status,
+          created_at: user.created_at
+        },
+        accessToken,
+        refreshToken
+      });
+
+    } catch (error) {
+      fastify.log.error('Erreur lors de la vérification 2FA:', error);
+      reply.code(500).send({ 
+        error: 'Erreur interne du serveur',
+        message: 'Impossible de vérifier le code 2FA'
+      });
+    }
+  });
+
+  /**
+   * Désactive l'authentification à deux facteurs
+   * POST /api/2fa/disable
+   */
+  fastify.post('/disable', { 
+    preHandler: [authenticateToken]
+  }, async (request, reply) => {
+    try {
+      const { password, token } = request.body;
+      
+      if (!password || password.length < 8) {
+        return reply.code(400).send({ 
+          error: 'Mot de passe requis',
+          message: 'Le mot de passe actuel est requis pour désactiver la 2FA'
+        });
+      }
+
+      if (!token || !/^\d{6}$/.test(token)) {
+        return reply.code(400).send({ 
+          error: 'Code de vérification requis',
+          message: 'Un code de vérification à 6 chiffres est requis'
+        });
+      }
+
+      const userId = request.user.userId;
+
+      // Récupère l'utilisateur avec le mot de passe
+      const user = fastify.db.prepare(`
+        SELECT 
+          id, password_hash, two_factor_enabled, two_factor_secret, 
+          two_factor_backup_codes
+        FROM users 
+        WHERE id = ?
+      `).get(userId);
+
+      if (!user) {
+        return reply.code(404).send({ error: 'Utilisateur non trouvé' });
+      }
+
+      if (!user.two_factor_enabled) {
+        return reply.code(400).send({ 
+          error: 'Authentification à deux facteurs non activée' 
+        });
+      }
+
+      // Vérifier le mot de passe
+      const bcrypt = require('bcrypt');
+      const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+      
+      if (!isPasswordValid) {
+        return reply.code(400).send({ 
+          error: 'Mot de passe incorrect',
+          message: 'Le mot de passe actuel est incorrect'
+        });
+      }
+
+      // Vérifier le code TOTP ou de sauvegarde
+      let isValidCode = verifyTOTPToken(token, user.two_factor_secret);
+      
+      if (!isValidCode && user.two_factor_backup_codes) {
+        // Vérifier avec les codes de sauvegarde
+        let backupCodes = [];
+        try {
+          backupCodes = JSON.parse(user.two_factor_backup_codes);
+        } catch (e) {
+          backupCodes = [];
+        }
+        
+        const backupResult = verifyBackupCode(token.toUpperCase(), backupCodes);
+        isValidCode = backupResult.isValid;
+      }
+
+      if (!isValidCode) {
+        fastify.log.warn(`Tentative de désactivation 2FA avec code invalide - User: ${userId}`);
+        return reply.code(400).send({ 
+          error: 'Code de vérification invalide',
+          message: 'Vérifiez votre code à 6 chiffres ou utilisez un code de sauvegarde'
+        });
+      }
+
+      // Désactiver la 2FA
+      fastify.db.prepare(`
+        UPDATE users 
+        SET 
+          two_factor_enabled = 0,
+          two_factor_secret = NULL,
+          two_factor_temp_secret = NULL,
+          two_factor_backup_codes = NULL
+        WHERE id = ?
+      `).run(userId);
+
+      fastify.log.info(`2FA désactivé avec succès pour l'utilisateur ${userId}`);
+
+      reply.send({
+        success: true,
+        message: 'Authentification à deux facteurs désactivée avec succès'
+      });
+
+    } catch (error) {
+      fastify.log.error('Erreur lors de la désactivation 2FA:', error);
+      reply.code(500).send({ 
+        error: 'Erreur interne du serveur',
+        message: 'Impossible de désactiver l\'authentification à deux facteurs'
       });
     }
   });

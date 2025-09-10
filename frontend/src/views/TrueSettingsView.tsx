@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
+import { TwoFactorModal } from "@/components/ui/TwoFactorModal";
 import { useRouter } from 'next/navigation';
 import { apiClient } from "@/lib_front/api";
 import { useAuth } from "@/lib_front/AuthContext";
@@ -205,10 +206,18 @@ export default function TrueSettingsView() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [twoFA2FAMode, setTwoFA2FAMode] = useState<'setup' | 'disable'>('setup');
   const [isLoading, setIsLoading] = useState(false);
   const [isSavingLanguage, setIsSavingLanguage] = useState(false);
   const [isChangingUsername, setIsChangingUsername] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [twoFAStatus, setTwoFAStatus] = useState({
+    enabled: false,
+    setupInProgress: false,
+    remainingBackupCodes: 0,
+    loading: true
+  });
 
   const languages: LanguageOption[] = [
     { code: 'en', name: 'English', flag: '🇬🇧' },
@@ -235,7 +244,23 @@ export default function TrueSettingsView() {
       }
     };
 
+    const load2FAStatus = async () => {
+      try {
+        const status = await apiClient.get2FAStatus();
+        setTwoFAStatus({
+          enabled: status.enabled,
+          setupInProgress: status.setupInProgress,
+          remainingBackupCodes: status.remainingBackupCodes,
+          loading: false
+        });
+      } catch (error) {
+        console.error('Error loading 2FA status:', error);
+        setTwoFAStatus(prev => ({ ...prev, loading: false }));
+      }
+    };
+
     loadCurrentLanguage();
+    load2FAStatus();
   }, []);
 
   const handleLanguageChange = async (newLanguage: Language) => {
@@ -374,6 +399,30 @@ export default function TrueSettingsView() {
     }
   };
 
+  const handle2FAToggle = () => {
+    if (twoFAStatus.enabled) {
+      setTwoFA2FAMode('disable');
+    } else {
+      setTwoFA2FAMode('setup');
+    }
+    setShow2FAModal(true);
+  };
+
+  const handle2FASuccess = async () => {
+    // Recharger le statut 2FA
+    try {
+      const status = await apiClient.get2FAStatus();
+      setTwoFAStatus({
+        enabled: status.enabled,
+        setupInProgress: status.setupInProgress,
+        remainingBackupCodes: status.remainingBackupCodes,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Error reloading 2FA status:', error);
+    }
+  };
+
   return (
     <GradientBackground>
       <div className="min-h-screen h-screen p-4 flex flex-col">
@@ -458,6 +507,35 @@ export default function TrueSettingsView() {
                     {isChangingPassword ? 'CHANGING PASSWORD...' : 'CHANGE PASSWORD'}
                   </button>
 
+                  {/* Two-Factor Authentication Button */}
+                  <button
+                    onClick={handle2FAToggle}
+                    disabled={twoFAStatus.loading}
+                    className={`w-full p-4 border-2 rounded-lg font-bold text-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      twoFAStatus.enabled 
+                        ? 'bg-orange-600/20 border-orange-400 text-orange-400 hover:bg-orange-600 hover:text-white'
+                        : 'bg-green-600/20 border-green-400 text-green-400 hover:bg-green-600 hover:text-white'
+                    }`}
+                  >
+                    {twoFAStatus.loading ? 'LOADING...' :
+                     twoFAStatus.enabled ? 'DISABLE 2FA' : 'ENABLE 2FA'}
+                  </button>
+
+                  {/* 2FA Status Info */}
+                  {twoFAStatus.enabled && !twoFAStatus.loading && (
+                    <div className="text-center text-sm space-y-1">
+                      <p className="text-green-400">✅ Two-Factor Authentication is enabled</p>
+                      {twoFAStatus.remainingBackupCodes > 0 && (
+                        <p className="text-yellow-400">
+                          {twoFAStatus.remainingBackupCodes} backup code{twoFAStatus.remainingBackupCodes > 1 ? 's' : ''} remaining
+                        </p>
+                      )}
+                      {twoFAStatus.remainingBackupCodes === 0 && (
+                        <p className="text-red-400">⚠️ No backup codes remaining</p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Logout Button */}
                   <button
                     onClick={() => setShowLogoutModal(true)}
@@ -508,6 +586,12 @@ export default function TrueSettingsView() {
           onClose={() => setShowPasswordModal(false)}
           onConfirm={handleChangePassword}
           title="Change Password"
+        />
+        <TwoFactorModal
+          isOpen={show2FAModal}
+          onClose={() => setShow2FAModal(false)}
+          onSuccess={handle2FASuccess}
+          mode={twoFA2FAMode}
         />
       </div>
     </GradientBackground>

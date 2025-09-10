@@ -159,22 +159,12 @@ async function authRoutes(fastify, options) {
       // GESTION 2FA - ÉTAPE INTERMÉDIAIRE
       // ========================================
       if (user.two_factor_enabled) {
-        // Créer un token temporaire pour la vérification 2FA
-        const tempPayload = {
-          userId: user.id,
-          type: 'temp_login',
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 300 // 5 minutes
-        };
-        
-        const tempToken = Buffer.from(JSON.stringify(tempPayload)).toString('base64');
-        
         fastify.log.info(`🔐 2FA requis pour utilisateur: ${user.username} (ID: ${user.id})`);
         
         return reply.send({
           message: 'Authentification 2FA requise',
           requires_2fa: true,
-          temp_token: tempToken,
+          tempUserId: user.id,
           user: {
             id: user.id,
             username: user.username
