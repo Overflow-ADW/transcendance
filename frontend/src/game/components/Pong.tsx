@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Pong as PongGame } from '@/game/pong/game/Pong';
+import { Pong as PongGame } from '@/game/Pong';
 import { AIDifficulty } from '@/game/utils/AI/pongAI';
 import { GameType } from '@/game/utils/pongData';
 
@@ -13,22 +13,17 @@ export default function Pong({ msg }: PongProps) {
 
   useEffect(() => {
     if (canvasRef.current) {
-      // Créer l'instance du jeu
       pongGameRef.current = new PongGame(canvasRef.current);
       
-      // Vérifier le mode de jeu
       const gameMode = localStorage.getItem('game-mode');
       
       if (gameMode === 'multiplayer') {
-        // Mode multijoueur avec paddle centrale
         console.log('Démarrage du mode multijoueur avec paddle centrale');
         pongGameRef.current.setGameMode(GameType.MULTIPLAYER_PONG);
       } else if (gameMode === 'ai') {
-        // Mode IA
         const aiDifficulty = localStorage.getItem('ai-difficulty');
         
         if (aiDifficulty && pongGameRef.current) {
-          // Convertir la difficulté string en enum
           let difficulty: AIDifficulty;
           switch (aiDifficulty.toLowerCase()) {
             case 'easy':
@@ -44,12 +39,10 @@ export default function Pong({ msg }: PongProps) {
               difficulty = AIDifficulty.MEDIUM;
           }
           
-          // Activer l'IA avec la difficulté sélectionnée
           pongGameRef.current.enableAI(difficulty);
           console.log(`IA activée avec difficulté: ${aiDifficulty}`);
         }
       } else {
-        // Mode par défaut (2 joueurs)
         console.log('Mode 2 joueurs par défaut');
       }
 
@@ -63,22 +56,18 @@ export default function Pong({ msg }: PongProps) {
 
       window.addEventListener('keydown', handleKeyPress);
 
-      // Nettoyer l'écouteur d'événements lors du démontage
       return () => {
         window.removeEventListener('keydown', handleKeyPress);
       };
     }
 
-    // Cleanup function
     return () => {
       if (pongGameRef.current) {
-        // Nettoyer les ressources du jeu si nécessaire
         pongGameRef.current = null;
       }
     };
   }, []);
 
-  // Fonction pour arrêter le jeu manuellement (peut être appelée par un bouton)
   const handleStopGame = () => {
     if (pongGameRef.current && !pongGameRef.current.isManuallystopped()) {
       pongGameRef.current.stopGame();
