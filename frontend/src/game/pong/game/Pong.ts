@@ -1065,6 +1065,114 @@ export class Pong {
                 return; // IMPORTANT : Sortir immédiatement sans traitement backend
             }
             
+            // NOUVEAU : Traitement spécial pour le mode tournament
+            if (this.gameMode === 'tournament') {
+                console.log("🏆 Mode tournament - Traitement de fin de match");
+                
+                // Calculer la durée de la partie
+                const gameEndTime = Date.now();
+                const duration = Math.round((gameEndTime - this.gameStartTime) / 1000); // en secondes
+                
+                // Récupérer les données du match actuel
+                const currentMatchData = localStorage.getItem('current-match');
+                if (currentMatchData) {
+                    try {
+                        const matchData = JSON.parse(currentMatchData);
+                        
+                        console.log('🏆 Données du match récupérées:', {
+                            matchId: matchData.id,
+                            tournamentId: matchData.tournamentId,
+                            player1: matchData.player1,
+                            player2: matchData.player2,
+                            scores: `${this.gameData.player0Score}-${this.gameData.player1Score}`,
+                            winner: winner,
+                            duration: duration
+                        });
+                        
+                        // Déterminer l'ID du gagnant basé sur les données du match
+                        const winnerId = winner === 0 ? matchData.player1.id : matchData.player2.id;
+                        
+                        // Préparer les données pour l'API tournament
+                        const tournamentMatchResult = {
+                            scorePlayer1: this.gameData.player0Score,
+                            scorePlayer2: this.gameData.player1Score,
+                            winnerId: winnerId
+                        };
+                        
+                        console.log('🏆 Envoi des résultats au backend tournament:', {
+                            matchId: matchData.id,
+                            matchResult: tournamentMatchResult
+                        });
+                        
+                        // Utiliser la route spécialisée pour les matchs de tournoi
+                        apiClient.completeMatch(matchData.id, tournamentMatchResult)
+                            .then((response) => {
+                                console.log('✅ Match tournament sauvegardé avec succès:', response);
+                                
+                                // Signaler la fin du match pour actualiser le bracket
+                                localStorage.setItem('match-completed', 'true');
+                                console.log('🔄 Signal match-completed défini pour actualisation du bracket');
+                                
+                                // Afficher le message de game over
+                                this.showGameOverMessage();
+                                
+                                // Retourner au bracket après un délai
+                                setTimeout(() => {
+                                    this.gameOverMesh.isVisible = false;
+                                    setTimeout(() => {
+                                        console.log("Match tournament terminé - retour au bracket");
+                                        this.stopGame();
+                                    }, 500);
+                                }, GAME_CONFIG.RESET_DELAY_MS);
+                            })
+                            .catch((error) => {
+                                console.error('❌ Erreur lors de la sauvegarde du match tournament:', error);
+                                
+                                // Même en cas d'erreur, signaler la fin du match pour permettre la progression
+                                localStorage.setItem('match-completed', 'true');
+                                console.log('🔄 Signal match-completed défini malgré l\'erreur');
+                                
+                                this.showGameOverMessage();
+                                setTimeout(() => {
+                                    this.gameOverMesh.isVisible = false;
+                                    setTimeout(() => {
+                                        console.log("Match tournament terminé (avec erreur) - retour au bracket");
+                                        this.stopGame();
+                                    }, 500);
+                                }, GAME_CONFIG.RESET_DELAY_MS);
+                            });
+                    } catch (e) {
+                        console.error('❌ Erreur lors du parsing des données de match tournament:', e);
+                        localStorage.setItem('match-completed', 'true');
+                        
+                        // Afficher quand même le game over et retourner
+                        this.showGameOverMessage();
+                        setTimeout(() => {
+                            this.gameOverMesh.isVisible = false;
+                            setTimeout(() => {
+                                console.log("Erreur parsing - retour au bracket");
+                                this.stopGame();
+                            }, 500);
+                        }, GAME_CONFIG.RESET_DELAY_MS);
+                    }
+                } else {
+                    console.warn('⚠️ Aucune donnée de match trouvée pour le tournament');
+                    localStorage.setItem('match-completed', 'true');
+                    
+                    // Afficher quand même le game over et retourner
+                    this.showGameOverMessage();
+                    setTimeout(() => {
+                        this.gameOverMesh.isVisible = false;
+                        setTimeout(() => {
+                            console.log("Pas de données de match - retour au bracket");
+                            this.stopGame();
+                        }, 500);
+                    }, GAME_CONFIG.RESET_DELAY_MS);
+                }
+                
+                return; // IMPORTANT : Sortir immédiatement sans traitement backend normal
+            }
+            
             // POUR LES AUTRES MODES SEULEMENT (duel, ai) - traitement backend normal
             console.log("🎮 Mode avec backend - Préparation des données de sauvegarde");
             

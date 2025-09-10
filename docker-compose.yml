@@ -13,9 +13,8 @@ services:
       - NODE_ENV=development
       - DATABASE_PATH=/app/data/database.sqlite
     volumes:
-      - ./backend/src:/app/src
-      - ./database:/app/data
-      - /app/node_modules
+      - backend_data:/app/data
+      - backend_node_modules:/app/node_modules
     networks:
       - transcendance-network
     restart: unless-stopped
@@ -28,8 +27,6 @@ services:
     container_name: transcendance-frontend
     ports:
       - "8080:80"
-    volumes:
-      - ./frontend/src:/app/src
     depends_on:
       - backend
     networks:
@@ -38,6 +35,8 @@ services:
 
 volumes:
   backend_data:
+    driver: local
+  backend_node_modules:
     driver: local
 
 networks:

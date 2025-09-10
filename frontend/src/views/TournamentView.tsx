@@ -43,7 +43,7 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const { login } = useAuth();
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     if (searchQuery.length >= 2) {
@@ -52,7 +52,7 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
           setIsSearching(true);
           const response = await apiClient.searchUsers(searchQuery);
           // Filtrer les joueurs qui sont déjà dans la liste
-          const filteredResults = response.users.filter((result: { id: number }) => 
+          const filteredResults = response.results.filter((result: { id: number }) => 
             !currentPlayers.some(player => player.id === result.id)
           );
           setSearchResults(filteredResults);
@@ -145,24 +145,34 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
               <button
                 onClick={async () => {
                   try {
-                    const result = await login({
+                    setIsVerifying(true);
+                    setError(null);
+                    
+                    const result = await apiClient.verifyPassword({
                       username: selectedUser.username,
                       password: password
                     });
+                    
                     if (result.success) {
+                      // Ajouter le joueur sans le connecter
                       onSelect(selectedUser);
+                      setSelectedUser(null);
+                      setPassword("");
+                      setError(null);
                       onClose();
                     } else {
                       setError('Invalid password');
                     }
                   } catch (err) {
                     setError('Failed to verify password');
+                  } finally {
+                    setIsVerifying(false);
                   }
                 }}
-                disabled={!password}
+                disabled={!password || isVerifying}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Verify & Add
+                {isVerifying ? 'Verifying...' : 'Verify & Add'}
               </button>
             </div>
           </div>
@@ -231,6 +241,47 @@ export default function TournamentView() {
     }
   };
 
+  const handleStartTournament = async () => {
+    if (players.length < 2) {
+      return;
+    }
+
+    try {
+      // 1. Créer le tournoi en base de données
+      const tournamentResponse = await apiClient.createTournament({
+        name: `Tournoi de ${user?.display_name || user?.username}`,
+        description: `Tournoi avec ${players.length} joueurs`,
+        maxPlayers: 4,
+        format: 'elimination'
+      });
+
+      if (!tournamentResponse.tournament) {
+        throw new Error('Erreur lors de la création du tournoi');
+      }
+
+      const tournamentId = tournamentResponse.tournament.id;
+
+      // 2. Ajouter tous les participants (le créateur est déjà ajouté)
+      for (const player of players) {
+        if (player.id !== user?.id) {
+          await apiClient.addTournamentParticipant(tournamentId, player.id);
+        }
+      }
+
+      // 3. Démarrer le tournoi (créer les matchs)
+      const startResponse = await apiClient.startTournament(tournamentId);
+
+      // 4. Sauvegarder l'ID du tournoi et rediriger
+      localStorage.setItem('current-tournament-id', tournamentId.toString());
+      localStorage.setItem('tournament-players', JSON.stringify(players));
+      
+      router.push("/tournament-bracket");
+    } catch (error) {
+      console.error('Erreur lors du démarrage du tournoi:', error);
+      // Optionnel: afficher une notification d'erreur à l'utilisateur
+    }
+  };
+
   const removePlayer = (id: number) => {
     if (id !== user?.id) { // Ne pas permettre la suppression du joueur actuel
       setPlayers(prev => prev.filter(p => p.id !== id));
@@ -293,16 +344,16 @@ export default function TournamentView() {
         <div>
           <button
             onClick={() => {
-              if (players.length === 4) {
-                router.push("/tournament-bracket");
+              if (players.length >= 2) {
+                handleStartTournament();
               }
             }}
             className={`bg-transparent border-4 border-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:scale-105 ${
-              players.length === 4
+              players.length >= 2
                 ? "text-yellow-400 hover:bg-yellow-400 hover:text-black"
                 : "text-yellow-400/50 border-yellow-400/50 cursor-not-allowed"
             }`}
-            disabled={players.length < 4}
+            disabled={players.length < 2}
           >
             START
           </button>
