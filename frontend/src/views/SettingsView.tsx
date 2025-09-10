@@ -15,7 +15,7 @@ export default function SettingsView() {
       
       {/* Version Desktop (xl et plus) - Layout original avec carré noir */}
       <div className="hidden xl:block min-h-screen flex items-center justify-center p-16">
-        <div className="bg-black w-full h-[calc(100vh-8rem)] rounded-lg flex flex-col justify-center items-center">
+        <div className="w-full h-[calc(100vh-8rem)] rounded-lg flex flex-col justify-center items-center">
           <div className="w-full max-w-lg space-y-6">
             <button 
               onClick={() => router.push("/play")}

@@ -86,8 +86,8 @@ export default function MultiplayerView() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Couleurs pour les joueurs
-  const playerColors = ["#2323FF", "#8A00C4", "#FFD700", "#28A745"]; // Bleu, Violet, Jaune, Vert
+  // Couleurs pour les joueurs (3 joueurs max)
+  const playerColors = ["#2323FF", "#8A00C4", "#FFD700"]; // Bleu, Violet, Jaune
 
   // Charger les joueurs sauvegardés au démarrage
   useEffect(() => {
@@ -125,13 +125,13 @@ export default function MultiplayerView() {
 }, []);
 
   const addPlayer = () => {
-    if (players.length < 4) {
+    if (players.length < 3) {
       setShowAddModal(true);
     }
   };
 
   const handleAddPlayer = (name: string) => {
-    if (players.length < 4) {
+    if (players.length < 3) {
       const newPlayer: Player = {
         id: players.length + 1,
         name: name.toUpperCase(),
@@ -154,8 +154,8 @@ export default function MultiplayerView() {
     }
   };
 
-  // Créer un tableau de 4 slots
-  const slots: GameSlot[] = Array.from({ length: 4 }, (_, i) => {
+  // Créer un tableau de 3 slots
+  const slots: GameSlot[] = Array.from({ length: 3 }, (_, i) => {
     const player = players[i];
     return player || { id: `empty-${i}`, name: "INVITE PLAYER", color: "", isHost: false, isEmpty: true };
   });
@@ -168,61 +168,110 @@ export default function MultiplayerView() {
           <h1 className="text-5xl md:text-6xl font-bold text-white text-center tracking-wider">
             MULTIPLAYER
           </h1>
-          <p className="text-xl text-white/70 text-center mt-2">4 Players Local</p>
+          <p className="text-xl text-white/70 text-center mt-2">3 Players Local</p>
         </div>
 
-        {/* Grille 2x2 des joueurs */}
-        <div className="grid grid-cols-2 gap-6 mb-12">
-          {slots.map((slot, index) => (
-            <div key={slot.id} className="relative">
-              {'isEmpty' in slot ? (
-                <button
-                  onClick={addPlayer}
-                  className="bg-white text-black border-4 border-white rounded-3xl px-12 py-6 text-xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[280px] h-[100px] flex items-center justify-center"
-                >
-                  + INVITE PLAYER
-                </button>
-              ) : (
-                <div className="relative">
+        {/* Layout pour 3 joueurs : 2 en haut, 1 en bas centré */}
+        <div className="mb-12">
+          {/* Ligne du haut : 2 joueurs */}
+          <div className="flex justify-center gap-6 mb-6">
+            {slots.slice(0, 2).map((slot, index) => (
+              <div key={slot.id} className="relative">
+                {'isEmpty' in slot ? (
                   <button
-                    className="border-4 rounded-3xl px-12 py-6 text-xl font-bold transition-all duration-300 hover:scale-105 min-w-[280px] h-[100px] flex items-center justify-center"
-                    style={{
-                      backgroundColor: `${slot.color}20`,
-                      borderColor: slot.color,
-                      color: slot.color
-                    }}
+                    onClick={addPlayer}
+                    className="bg-white text-black border-4 border-white rounded-3xl px-12 py-6 text-xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[280px] h-[100px] flex items-center justify-center"
                   >
-                    <div className="flex flex-col items-center">
-                      <span>{slot.name}</span>
-                      {slot.isHost && (
-                        <span className="text-xs mt-1 opacity-80">HOST</span>
-                      )}
-                      <span className="text-xs mt-1 opacity-60">
-                        Player {index + 1}
-                      </span>
-                    </div>
+                    + INVITE PLAYER
                   </button>
-                  
-                  {slot.id > 1 && ( // Ne pas afficher le X pour l'hôte (YOU)
+                ) : (
+                  <div className="relative">
                     <button
-                      onClick={() => removePlayer(slot.id)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 transition-colors"
+                      className="border-4 rounded-3xl px-12 py-6 text-xl font-bold transition-all duration-300 hover:scale-105 min-w-[280px] h-[100px] flex items-center justify-center"
+                      style={{
+                        backgroundColor: `${slot.color}20`,
+                        borderColor: slot.color,
+                        color: slot.color
+                      }}
                     >
-                      ×
+                      <div className="flex flex-col items-center">
+                        <span>{slot.name}</span>
+                        {slot.isHost && (
+                          <span className="text-xs mt-1 opacity-80">HOST</span>
+                        )}
+                        <span className="text-xs mt-1 opacity-60">
+                          Player {index + 1}
+                        </span>
+                      </div>
                     </button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                    
+                    {slot.id > 1 && ( // Ne pas afficher le X pour l'hôte (YOU)
+                      <button
+                        onClick={() => removePlayer(slot.id)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 transition-colors"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {/* Ligne du bas : 1 joueur centré */}
+          <div className="flex justify-center">
+            {slots.slice(2, 3).map((slot, index) => (
+              <div key={slot.id} className="relative">
+                {'isEmpty' in slot ? (
+                  <button
+                    onClick={addPlayer}
+                    className="bg-white text-black border-4 border-white rounded-3xl px-12 py-6 text-xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[280px] h-[100px] flex items-center justify-center"
+                  >
+                    + INVITE PLAYER
+                  </button>
+                ) : (
+                  <div className="relative">
+                    <button
+                      className="border-4 rounded-3xl px-12 py-6 text-xl font-bold transition-all duration-300 hover:scale-105 min-w-[280px] h-[100px] flex items-center justify-center"
+                      style={{
+                        backgroundColor: `${slot.color}20`,
+                        borderColor: slot.color,
+                        color: slot.color
+                      }}
+                    >
+                      <div className="flex flex-col items-center">
+                        <span>{slot.name}</span>
+                        {slot.isHost && (
+                          <span className="text-xs mt-1 opacity-80">HOST</span>
+                        )}
+                        <span className="text-xs mt-1 opacity-60">
+                          Player {index + 3}
+                        </span>
+                      </div>
+                    </button>
+                    
+                    {slot.id > 1 && ( // Ne pas afficher le X pour l'hôte (YOU)
+                      <button
+                        onClick={() => removePlayer(slot.id)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 transition-colors"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Indicateur de statut */}
         <div className="mb-8">
-          {players.length < 4 && (
+          {players.length < 3 && (
             <div className="text-center">
               <p className="text-white/70 text-lg mb-2">
-                Waiting for players... ({players.length}/4)
+                Waiting for players... ({players.length}/3)
               </p>
               <div className="flex justify-center space-x-1">
                 <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
@@ -231,10 +280,10 @@ export default function MultiplayerView() {
               </div>
             </div>
           )}
-          {players.length === 4 && (
+          {players.length === 3 && (
             <div className="text-center">
               <p className="text-green-400 text-lg font-bold mb-2">
-                ✓ All players ready! (4/4)
+                ✓ All players ready! (3/3)
               </p>
               <p className="text-white/60 text-sm">Ready to start the game</p>
             </div>
@@ -242,11 +291,11 @@ export default function MultiplayerView() {
         </div>
 
         {/* Game Info */}
-        {players.length === 4 && (
+        {players.length === 3 && (
           <div className="mb-8 p-4 bg-black/50 border-2 border-yellow-400/50 rounded-lg">
             <h3 className="text-yellow-400 font-bold text-center mb-2">GAME MODE</h3>
             <p className="text-white/80 text-center text-sm">
-              4-Player Battle Royale • Local Multiplayer
+              3-Player Battle • Local Multiplayer
             </p>
           </div>
         )}
@@ -255,7 +304,7 @@ export default function MultiplayerView() {
         <div className="flex gap-6">
           <button
             onClick={() => {
-              if (players.length === 4) {
+              if (players.length === 3) {
                 // Sauvegarder les joueurs et le mode de jeu avant de démarrer
                 localStorage.setItem('multiplayer-players', JSON.stringify(players));
                 localStorage.setItem('game-mode', 'multiplayer');
@@ -263,13 +312,13 @@ export default function MultiplayerView() {
               }
             }}
             className={`px-12 py-4 rounded-full text-2xl font-bold transition-all duration-300 ${
-              players.length === 4
+              players.length === 3
                 ? 'bg-transparent border-4 border-green-400 text-green-400 hover:bg-green-400 hover:text-black hover:scale-105'
                 : 'bg-gray-600 border-4 border-gray-500 text-gray-400 cursor-not-allowed'
             }`}
-            disabled={players.length !== 4}
+            disabled={players.length !== 3}
           >
-            {players.length === 4 ? 'START GAME' : `WAITING (${players.length}/4)`}
+            {players.length === 3 ? 'START GAME' : `WAITING (${players.length}/3)`}
           </button>
           
           <button
@@ -283,18 +332,15 @@ export default function MultiplayerView() {
         {/* Instructions */}
         <div className="mt-8 max-w-2xl text-center">
           <h4 className="text-white font-bold mb-2">HOW TO PLAY</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-white/70">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-white/70">
             <div>
-              <span className="font-bold text-blue-400">Player 1 (Left):</span> Z/S keys
+              <span className="font-bold text-blue-400">Player 1:</span> Z/S keys
             </div>
             <div>
-              <span className="font-bold text-purple-400">Player 2 (Right):</span> O/L keys
+              <span className="font-bold text-purple-400">Player 2:</span> O/L keys
             </div>
             <div>
-              <span className="font-bold text-yellow-400">Player 3 (Top):</span> I/K keys
-            </div>
-            <div>
-              <span className="font-bold text-green-400">Player 4 (Bottom):</span> 8/5 numpad
+              <span className="font-bold text-yellow-400">Player 3:</span> I/K keys
             </div>
           </div>
           <p className="text-white/50 text-xs mt-4">Last player standing wins!</p>

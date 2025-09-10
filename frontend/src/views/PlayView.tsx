@@ -11,16 +11,9 @@ export default function PlayView() {
   return (
     <GradientBackground>
       <div className="min-h-screen p-16">
-        {/* Bouton return en haut à gauche */}
-        <button 
-          onClick={() => router.push("settings")}
-          className="absolute top-8 left-8 px-6 py-3 bg-transparent border-2 border-white/60 text-white text-base rounded-full transition-all duration-300 hover:bg-white/20"
-        >
-          return
-        </button>
         
         {/* Cadre noir qui remplit tout l'écran disponible */}
-        <div className="bg-black w-full h-[calc(100vh-8rem)] rounded-lg flex flex-col justify-center items-center">
+        <div className="w-full h-[calc(100vh-8rem)] rounded-lg flex flex-col justify-center items-center">
           <div className="w-full max-w-2xl px-8 space-y-8">
             <button 
               onClick={() => router.push("/chooseIA")}

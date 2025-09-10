@@ -22,7 +22,7 @@ export default function ChooseIAView() {
     <GradientBackground>
       <div className="min-h-screen flex items-center justify-center p-16">
         {/* Cadre noir centré comme Settings */}
-        <div className="bg-black min-h-[70vh] rounded-lg p-10 flex flex-col justify-center items-center w-full max-w-2xl">
+        <div className="min-h-[70vh] rounded-lg p-10 flex flex-col justify-center items-center w-full max-w-2xl">
           <div className="w-full max-w-lg space-y-6">
             <h2 className="text-4xl font-bold text-white text-center mb-8">
               CHOOSE DIFFICULTY
