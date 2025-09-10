@@ -1418,123 +1418,97 @@ export class PongBall {
         fastParticles.addVelocityGradient(0.8, 3.5); // Réduit de 4.5
         fastParticles.addVelocityGradient(1.0, 3.0); // Réduit de 3.75
         
-        // Pas de gravité pour garder la direction
         fastParticles.gravity = new Vector3(0, 0, 0);
         
-        // Rendre la balle invisible immédiatement
         this.ball.isVisible = false;
         
-        // Démarrer les particules
         fastParticles.start();
         
-        // Nettoyer après optimisé
         setTimeout(() => {
             fastParticles.stop();
             
-            // Nettoyer les ressources plus rapidement
             setTimeout(() => {
                 fastParticles.dispose();
-            }, 2000); // Réduit de 3000
-        }, 250); // Légèrement réduit
+            }, 2000);
+        }, 250);
     }
 
     private createPaddleDisintegrationEffect(playerScored: number): void {
-        console.log(`Création de l'effet de désintégration de la raquette - joueur marqué: ${playerScored} (VERSION SANS SHOCKWAVE)`);
         
-        // Déterminer quelle raquette se désintègre (celle qui n'a pas marqué)
+        if (this.gameData.gameType === GameType.MULTIPLAYER_PONG)
+                return ;
         const paddleToDisintegrate = playerScored === 0 ? this.player1 : this.player0;
         const paddleColor = playerScored === 0 ? MAIN_COLORS.RGB_PURPLE : MAIN_COLORS.RGB_BLUE;
         
-        // Obtenir la position de la raquette
         const paddlePosition = paddleToDisintegrate.position.clone();
         
-        // Créer un système de particules pour la raquette - AUGMENTÉ DE 30%
-        const paddleParticles = new ParticleSystem("paddleDisintegrationParticles", 390, this.scene); // 300 * 1.3 = 390
-        
-        // Texture des particules
+        const paddleParticles = new ParticleSystem("paddleDisintegrationParticles", 390, this.scene);
+
         const particleTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
         paddleParticles.particleTexture = particleTexture;
-        
-        // Positionner l'émetteur à la position de la raquette
+
         paddleParticles.emitter = paddlePosition;
+
+        paddleParticles.minEmitBox = new Vector3(-3, -3, -25);
+        paddleParticles.maxEmitBox = new Vector3(3, 3, 25);
         
-        // Zone d'émission adaptée à la forme de la raquette - TAILLE ORIGINALE
-        paddleParticles.minEmitBox = new Vector3(-3, -3, -25);  // TAILLE ORIGINALE AGRANDIE
-        paddleParticles.maxEmitBox = new Vector3(3, 3, 25);    // TAILLE ORIGINALE AGRANDIE
-        
-        // Couleurs des particules basées sur la couleur de la raquette - LUMINOSITÉ AUGMENTÉE DRASTIQUEMENT
         paddleParticles.color1 = new Color4(
-            Math.min(1, paddleColor.r * 4.0),  // AUGMENTÉ DE 2.5 à 4.0 pour plus de luminosité
+            Math.min(1, paddleColor.r * 4.0),
             Math.min(1, paddleColor.g * 4.0),
             Math.min(1, paddleColor.b * 4.0),
             1.0
         );
-        paddleParticles.color2 = new Color4(1.0, 1.0, 1.0, 1.0);  // BLANC PUR ULTRA BRILLANT
+        paddleParticles.color2 = new Color4(1.0, 1.0, 1.0, 1.0);
         paddleParticles.colorDead = new Color4(
-            Math.min(1, paddleColor.r * 2.0),  // AUGMENTÉ même pour la couleur finale
+            Math.min(1, paddleColor.r * 2.0),
             Math.min(1, paddleColor.g * 2.0),
             Math.min(1, paddleColor.b * 2.0),
             0
         );
         
-        // Taille des particules - TAILLE AUGMENTÉE pour plus de visibilité
-        paddleParticles.minSize = 1.2;  // AUGMENTÉ de 1.0 à 1.2
-        paddleParticles.maxSize = 3.5;  // AUGMENTÉ de 3.0 à 3.5
+        paddleParticles.minSize = 1.2;
+        paddleParticles.maxSize = 3.5;
         
-        // Durée de vie originale généreuse
-        paddleParticles.minLifeTime = 1.0;  // DURÉE ORIGINALE
-        paddleParticles.maxLifeTime = 2.0;  // DURÉE ORIGINALE
+        paddleParticles.minLifeTime = 1.0;
+        paddleParticles.maxLifeTime = 2.0;
         
-        // Direction d'émission vers l'extérieur - VITESSE RÉDUITE DE 20%
         const directionX = playerScored === 0 ? 1 : -1;
-        paddleParticles.direction1 = new Vector3(directionX * 32, -12, -16);  // 40 * 0.8 = 32, 15 * 0.8 = 12, 20 * 0.8 = 16
-        paddleParticles.direction2 = new Vector3(directionX * 32, 12, 16);    // VITESSE RÉDUITE DE 20%
+        paddleParticles.direction1 = new Vector3(directionX * 32, -12, -16);
+        paddleParticles.direction2 = new Vector3(directionX * 32, 12, 16);
         
-        // Puissance d'émission réduite de 20%
-        paddleParticles.minEmitPower = 24;  // 30 * 0.8 = 24
-        paddleParticles.maxEmitPower = 48;  // 60 * 0.8 = 48
+        paddleParticles.minEmitPower = 24;
+        paddleParticles.maxEmitPower = 48;
         
-        // Mode additif pour maximum de luminosité
         paddleParticles.blendMode = ParticleSystem.BLENDMODE_ADD;
         
-        // Émetteur en forme de boîte avec dimensions originales
         paddleParticles.createBoxEmitter(
             new Vector3(directionX, 0, 0),
             new Vector3(directionX, 0, 0),
-            new Vector3(-3, -3, -25),    // TAILLE ORIGINALE
-            new Vector3(3, 3, 25)       // TAILLE ORIGINALE
+            new Vector3(-3, -3, -25),
+            new Vector3(3, 3, 25)
         );
         
-        // Rotation des particules originale
-        paddleParticles.minAngularSpeed = -3.0;  // ROTATION ORIGINALE
-        paddleParticles.maxAngularSpeed = 3.0;   // ROTATION ORIGINALE
+        paddleParticles.minAngularSpeed = -3.0;
+        paddleParticles.maxAngularSpeed = 3.0;
         
-        // Quantité de particules augmentée de 30%
         paddleParticles.emitRate = 0;
-        paddleParticles.manualEmitCount = 325;  // 250 * 1.3 = 325
+        paddleParticles.manualEmitCount = 325;
         
-        // Gravité légère vers le bas
-        paddleParticles.gravity = new Vector3(0, -8, 0);  // GRAVITÉ ORIGINALE
+        paddleParticles.gravity = new Vector3(0, -8, 0);
         
-        // Rendre la raquette temporairement transparente
         const originalAlpha = (paddleToDisintegrate.material as StandardMaterial).alpha || 1.0;
-        (paddleToDisintegrate.material as StandardMaterial).alpha = 0.2;  // PLUS TRANSPARENT
+        (paddleToDisintegrate.material as StandardMaterial).alpha = 0.2;
         
-        // Démarrer les particules
         paddleParticles.start();
         
-        // SUPPRIMER COMPLÈTEMENT L'EFFET DE SHOCKWAVE - ne pas appeler createOriginalPaddleShockwave
-        
-        // Nettoyer et restaurer la raquette après l'animation - TIMING ORIGINAL
         setTimeout(() => {
             paddleParticles.stop();
             
-            // Restaurer la visibilité de la raquette
             (paddleToDisintegrate.material as StandardMaterial).alpha = originalAlpha;
             
             setTimeout(() => {
                 paddleParticles.dispose();
-            }, 3000); // TEMPS ORIGINAL LONG
-        }, 500); // TEMPS ORIGINAL
+            }, 3000);
+        }, 500);
     }
 }
