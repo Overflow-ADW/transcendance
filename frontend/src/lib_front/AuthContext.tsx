@@ -22,9 +22,9 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (credentials: { username: string; password: string; twoFactorToken?: string }) => Promise<{ 
-    success: boolean; 
-    error?: string; 
+  login: (credentials: { username: string; password: string; twoFactorToken?: string }) => Promise<{
+    success: boolean;
+    error?: string;
     requires2FA?: boolean;
     tempUserId?: number;
     user?: any;
@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     return null;
   });
+
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -71,20 +72,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Vérifier l'authentification au chargement
   useEffect(() => {
-    console.log('🔄 Initial Auth State:', { user, isAuthenticated });
     checkAuthStatus();
   }, []);
 
   const checkAuthStatus = async () => {
-    console.log('🔄 Starting Auth Check');
     try {
       const token = apiClient.getToken();
       const storedUser = localStorage.getItem('user');
-      
-      console.log('📦 Stored Data:', { hasToken: !!token, hasStoredUser: !!storedUser });
-      
+
       if (!token) {
-        console.log('❌ No token found');
         setLoading(false);
         setIsAuthenticated(false);
         setUser(null);
@@ -98,74 +94,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(parsedUser);
           setIsAuthenticated(true);
         } catch (e) {
-          console.error('❌ Error parsing stored user:', e);
+          // Silent error handling
         }
       }
 
       // Vérifier le token auprès du backend
-      console.log('🔄 Verifying token with backend...');
       const data = await apiClient.verifyToken(token);
-
       if ((data.valid || data.code === 'TOKEN_VALID') && data.user) {
-        console.log('✅ Token valid, updating user data');
         setUser(data.user);
         setIsAuthenticated(true);
         apiClient.setToken(token);
         localStorage.setItem('user', JSON.stringify(data.user));
       } else {
-        console.log('❌ Invalid token response:', data);
         setIsAuthenticated(false);
         setUser(null);
         apiClient.clearAuth();
       }
     } catch (error) {
-      console.error('❌ Auth check error:', error);
       // Garder l'authentification en cas d'erreur réseau
       if (error instanceof TypeError || (error instanceof Error && error.message.includes('Failed to fetch'))) {
-        console.log('⚠️ Network error - keeping existing auth state');
         // Ne rien faire, garder l'état actuel
         return;
       } else {
-        console.log('❌ Non-network error - clearing auth state');
         setUser(null);
         setIsAuthenticated(false);
         apiClient.clearAuth();
       }
     } finally {
       setLoading(false);
-      console.log('🔄 Auth Check Complete:', { user, isAuthenticated });
     }
   };
 
   const login = async (credentials: { username: string; password: string; twoFactorToken?: string }) => {
     try {
       const data = await apiClient.login(credentials);
-      
+
       if (data.requires_2fa) {
-        return { 
-          success: false, 
+        return {
+          success: false,
           requires2FA: true,
           tempUserId: data.tempUserId,
           user: data.user
         };
       }
-      
+
       if (data.accessToken) {
         apiClient.setToken(data.accessToken);
         setUser(data.user);
         setIsAuthenticated(true);
-        
+
         // Stocker refresh token
         if (data.refreshToken) {
           localStorage.setItem('refreshToken', data.refreshToken);
         }
-        
+
         // Stocker utilisateur pour persistance
         localStorage.setItem('user', JSON.stringify(data.user));
-        
+
         return { success: true };
       }
-      
+
       return { success: false, error: data.error || data.message || 'Login failed' };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -175,20 +163,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (userData: { username: string; email: string; password: string }) => {
     try {
       const data = await apiClient.register(userData);
-      
+
       if (data.accessToken) {
         apiClient.setToken(data.accessToken);
         setUser(data.user);
         setIsAuthenticated(true);
-        
+
         if (data.refreshToken) {
           localStorage.setItem('refreshToken', data.refreshToken);
         }
-        
+
         localStorage.setItem('user', JSON.stringify(data.user));
         return { success: true };
       }
-      
+
       return { success: false, error: data.error || data.message || 'Registration failed' };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -196,21 +184,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    console.log('🔥 AuthContext.logout() - Début de la déconnexion');
     try {
       // Appeler l'endpoint de logout
-      console.log('🔥 AuthContext.logout() - Appel apiClient.logout()');
       await apiClient.logout();
-      console.log('🔥 AuthContext.logout() - apiClient.logout() terminé avec succès');
     } catch (error) {
-      console.error('🔥 AuthContext.logout() - Erreur:', error);
+      // Silent error handling
     } finally {
       // Nettoyer l'état local dans tous les cas
-      console.log('🔥 AuthContext.logout() - Nettoyage de l\'état local');
       apiClient.clearAuth();
       setUser(null);
       setIsAuthenticated(false);
-      console.log('🔥 AuthContext.logout() - Déconnexion terminée');
     }
   };
 

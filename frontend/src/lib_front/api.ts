@@ -1,6 +1,6 @@
-import type { 
-  MatchItem, 
-  Winrate, 
+import type {
+  MatchItem,
+  Winrate,
   GameHistoryResponse,
   FriendsResponse,
   UserSearchResult,
@@ -18,7 +18,7 @@ function getApiBaseUrl(): string {
     // En production, utiliser l'origine actuelle (avec proxy Nginx)
     return window.location.origin;
   }
-  
+
   // Fallback pour le build-time
   return 'http://localhost:3000';
 }
@@ -45,14 +45,14 @@ class ApiClient {
       if (this.token) {
         return this.token;
       }
-      
+
       // Ensuite vérifier sessionStorage (navigation actuelle)
       const sessionToken = sessionStorage.getItem('accessToken');
       if (sessionToken) {
         this.token = sessionToken;
         return sessionToken;
       }
-      
+
       // Enfin vérifier localStorage (persistance longue durée)
       const localToken = localStorage.getItem('accessToken') || localStorage.getItem('auth_token');
       if (localToken) {
@@ -76,7 +76,7 @@ class ApiClient {
         // Stocker aussi dans sessionStorage pour la persistance pendant la navigation
         sessionStorage.setItem('accessToken', token);
       } catch (e) {
-        console.error('Error setting token:', e);
+        // Silent error handling
       }
     }
   }
@@ -94,20 +94,18 @@ class ApiClient {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
-        
-        // NOUVEAU : Nettoyer les données de jeu pour éviter les conflits entre comptes
+
+        // Nettoyer les données de jeu pour éviter les conflits entre comptes
         localStorage.removeItem('duel-players');
         localStorage.removeItem('multiplayer-players');
         localStorage.removeItem('game-mode');
-        
+
         // Nettoyer sessionStorage
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('refreshToken');
         sessionStorage.removeItem('oauth_provider');
-        
-        console.log('🧹 Nettoyage complet des données d\'authentification et de jeu');
       } catch (e) {
-        console.error('Error clearing auth:', e);
+        // Silent error handling
       }
     }
   }
@@ -117,7 +115,7 @@ class ApiClient {
    */
   async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
     let token = this.token || this.getToken();
-    
+
     // Déterminer si on doit inclure le Content-Type
     const hasBody = options.body !== undefined && options.body !== null;
     const headers: HeadersInit = {
@@ -135,12 +133,12 @@ class ApiClient {
 
     try {
       let response = await fetch(url, config);
-      
+
       // Gestion automatique des erreurs d'authentification
       if (response.status === 401) {
         // Essayer de refresh le token
         const refreshed = await this.tryRefreshToken();
-        
+
         if (refreshed) {
           // Mettre à jour le token dans la config
           token = this.token;
@@ -153,7 +151,7 @@ class ApiClient {
           };
           // Réessayer la requête avec le nouveau token
           response = await fetch(url, newConfig);
-          
+
           // Si ça échoue encore après le refresh, c'est une vraie erreur d'auth
           if (response.status === 401) {
             throw new Error('Authentication required');
@@ -162,12 +160,9 @@ class ApiClient {
           throw new Error('Authentication required');
         }
       }
-      
-      return response;
 
       return response;
     } catch (error) {
-      console.error('API Error:', error);
       throw error;
     }
   }
@@ -176,10 +171,10 @@ class ApiClient {
    * Essayer de refresh le token
    */
   private async tryRefreshToken(): Promise<boolean> {
-    const refreshToken = typeof window !== 'undefined' 
+    const refreshToken = typeof window !== 'undefined'
       ? localStorage.getItem('refreshToken') || localStorage.getItem('refresh_token')
       : null;
-    
+
     if (!refreshToken) return false;
 
     try {
@@ -197,14 +192,13 @@ class ApiClient {
         }
       }
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      // Silent error handling
     }
 
     return false;
   }
 
   // ============ MÉTHODES D'AUTHENTIFICATION ============
-
   async login(credentials: { username: string; password: string; twoFactorToken?: string }) {
     const response = await fetch(`${this.baseURL}/api/auth/login`, {
       method: 'POST',
@@ -227,15 +221,14 @@ class ApiClient {
     try {
       const response = await fetch(`${this.baseURL}/api/auth/verify`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ token })
       });
-
       const data = await response.json();
-      
+
       // Considérer la réponse comme valide si le code est TOKEN_VALID ou si valid est true
       if (data.code === 'TOKEN_VALID' || data.valid) {
         return {
@@ -244,10 +237,9 @@ class ApiClient {
           ...data
         };
       }
-      
+
       return data;
     } catch (error) {
-      console.error('Token verification error:', error);
       throw error;
     }
   }
@@ -261,19 +253,15 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(credentials)
     });
-
     return await response.json();
   }
 
   async logout() {
-    console.log('🔥 ApiClient.logout() - Appel de la route /api/auth/logout');
     const response = await this.request('/api/auth/logout', { method: 'POST' });
-    console.log('🔥 ApiClient.logout() - Réponse:', response.status, response.statusText);
     return response.json();
   }
 
   // ============ MÉTHODES 2FA ============
-
   /**
    * Obtenir le statut 2FA de l'utilisateur connecté
    */
@@ -347,7 +335,6 @@ class ApiClient {
   }
 
   // ============ MÉTHODES UTILISATEUR ET PROFIL ============
-
   async getProfile() {
     const response = await this.request('/api/users/profile');
     return response.json();
@@ -367,14 +354,13 @@ class ApiClient {
   }
 
   // ============ MÉTHODES AVATAR ============
-
-  async uploadAvatar(file: File): Promise<{avatarUrl: string, fileName: string, fileSize: number, message: string}> {
+  async uploadAvatar(file: File): Promise<{ avatarUrl: string, fileName: string, fileSize: number, message: string }> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = async () => {
         try {
           const imageData = reader.result as string;
-          
+
           const response = await this.request('/api/users/avatar', {
             method: 'POST',
             body: JSON.stringify({
@@ -400,7 +386,7 @@ class ApiClient {
     });
   }
 
-  async deleteAvatar(): Promise<{message: string}> {
+  async deleteAvatar(): Promise<{ message: string }> {
     const response = await this.request('/api/users/avatar', {
       method: 'DELETE'
     });
@@ -412,28 +398,27 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify({ username })
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || errorData.message || 'Failed to change username');
     }
-    
+
     return response.json();
   }
 
   // ============ MÉTHODES D'AMIS ============
-
   async getFriends(): Promise<FriendsResponse> {
     const response = await this.request('/api/users/friends');
     return response.json();
   }
 
-  async addFriend(username: string): Promise<{message: string}> {
+  async addFriend(username: string): Promise<{ message: string }> {
     const response = await this.request('/api/users/friends', {
       method: 'POST',
       body: JSON.stringify({ username })
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       const error = new Error(errorData.error || 'Failed to add friend');
@@ -442,11 +427,11 @@ class ApiClient {
       (error as any).response = { status: response.status, data: errorData };
       throw error;
     }
-    
+
     return response.json();
   }
 
-  async acceptFriendRequest(friendId: number): Promise<{message: string}> {
+  async acceptFriendRequest(friendId: number): Promise<{ message: string }> {
     const token = this.getToken();
     const response = await fetch(`${this.baseURL}/api/users/friends/${friendId}/accept`, {
       method: 'PUT',
@@ -455,15 +440,15 @@ class ApiClient {
         // Pas de Content-Type pour éviter l'erreur Fastify avec body vide
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to accept friend request: ${response.statusText}`);
     }
-    
+
     return response.json();
   }
 
-  async removeFriend(friendId: number): Promise<{message: string}> {
+  async removeFriend(friendId: number): Promise<{ message: string }> {
     const response = await this.request(`/api/users/friends/${friendId}`, {
       method: 'DELETE'
     });
@@ -476,7 +461,6 @@ class ApiClient {
   }
 
   // ============ MÉTHODES TOURNOI ============
-
   async getTournamentParticipants(tournamentId: number) {
     const response = await this.request(`/api/tournaments/${tournamentId}/participants`);
     return response.json();
@@ -550,12 +534,12 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(passwordData)
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || errorData.message || 'Failed to change password');
     }
-    
+
     return response.json();
   }
 
@@ -566,21 +550,20 @@ class ApiClient {
     gameMode?: string;
   } = {}): Promise<GameHistoryResponse> {
     const queryParams = new URLSearchParams();
-    
+
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.limit) queryParams.append('limit', params.limit.toString());
     if (params.status) queryParams.append('status', params.status);
     if (params.gameMode) queryParams.append('gameMode', params.gameMode);
-    
+
     const queryString = queryParams.toString();
     const endpoint = `/api/users/games/history${queryString ? `?${queryString}` : ''}`;
-    
+
     const response = await this.request(endpoint);
     return response.json();
   }
 
   // ============ MÉTHODES DE JEU ============
-
   async completeGame(gameData: {
     player2_id?: number | null;
     ai_opponent?: boolean;

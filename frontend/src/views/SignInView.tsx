@@ -87,7 +87,6 @@ function SignInViewContent() {
     }
 
     const oauthUrl = `${API_BASE}/api/oauth/${provider}`;
-    console.log(`🔄 Redirection OAuth ${provider}:`, oauthUrl);
 
     sessionStorage.setItem('oauth_provider', provider);
 
@@ -378,8 +377,8 @@ function SignInViewContent() {
                   spellCheck={false}
                   placeholder="Username"
                   className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${fieldErrors.username
-                      ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
-                      : "border-blue-500 text-blue-300 focus:bg-blue-500/20 focus:border-blue-400 placeholder-blue-400/60"
+                    ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
+                    : "border-blue-500 text-blue-300 focus:bg-blue-500/20 focus:border-blue-400 placeholder-blue-400/60"
                     }`}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -396,8 +395,8 @@ function SignInViewContent() {
                   type="password"
                   placeholder="Password"
                   className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${fieldErrors.password
-                      ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
-                      : "border-purple-500 text-purple-300 focus:bg-purple-500/20 focus:border-purple-400 placeholder-purple-400/60"
+                    ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
+                    : "border-purple-500 text-purple-300 focus:bg-purple-500/20 focus:border-purple-400 placeholder-purple-400/60"
                     }`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -414,8 +413,8 @@ function SignInViewContent() {
                   type="password"
                   placeholder="Confirm Password"
                   className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${fieldErrors.confirm
-                      ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
-                      : "border-orange-500 text-orange-300 focus:bg-orange-500/20 focus:border-orange-400 placeholder-orange-400/60"
+                    ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
+                    : "border-orange-500 text-orange-300 focus:bg-orange-500/20 focus:border-orange-400 placeholder-orange-400/60"
                     }`}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}

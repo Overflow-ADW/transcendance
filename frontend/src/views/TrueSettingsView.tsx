@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { TwoFactorModal } from "@/components/ui/TwoFactorModal";
@@ -231,7 +230,7 @@ export default function TrueSettingsView() {
           setCurrentLanguage(savedLang);
         }
       } catch (error) {
-        console.error('Error loading language settings:', error);
+        // Silent error handling
       }
     };
 
@@ -245,7 +244,6 @@ export default function TrueSettingsView() {
           loading: false
         });
       } catch (error) {
-        console.error('Error loading 2FA status:', error);
         setTwoFAStatus(prev => ({ ...prev, loading: false }));
       }
     };
@@ -259,13 +257,10 @@ export default function TrueSettingsView() {
 
     setIsSavingLanguage(true);
     try {
-      console.log('Changing language to:', newLanguage);
       localStorage.setItem('user-language', newLanguage);
       setCurrentLanguage(newLanguage);
-
       await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
-      console.error('Error updating language:', error);
       alert('Failed to update language settings');
     } finally {
       setIsSavingLanguage(false);
@@ -281,11 +276,8 @@ export default function TrueSettingsView() {
 
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       localStorage.setItem('user', JSON.stringify({ ...userData, username: newUsername }));
-
       alert('Please log out and log back in to see the changes in all parts of the application.');
     } catch (error: any) {
-      console.error('Username change error:', error);
-
       if (error.message && error.message.includes('Username already taken')) {
         alert('This username is already taken. Please choose another one.');
       } else if (error.message && error.message.includes('VALIDATION_ERROR')) {
@@ -304,11 +296,8 @@ export default function TrueSettingsView() {
       const response = await apiClient.changePassword(data);
       alert('Password changed successfully!');
       setShowPasswordModal(false);
-
       alert('Please log out and log back in with your new password.');
     } catch (error: any) {
-      console.error('Password change error:', error);
-
       if (error.message && error.message.includes('Mot de passe actuel incorrect')) {
         alert('Current password is incorrect. Please try again.');
       } else if (error.message && error.message.includes('VALIDATION_ERROR')) {
@@ -324,15 +313,9 @@ export default function TrueSettingsView() {
   const handleLogout = async () => {
     setIsLoading(true);
     try {
-      console.log('🔥 TrueSettingsView.handleLogout() - Début de la déconnexion');
-
       await logout();
-
-      console.log('🔥 TrueSettingsView.handleLogout() - Déconnexion réussie, redirection vers /login');
-
       router.push('/login');
     } catch (error) {
-      console.error('🔥 TrueSettingsView.handleLogout() - Erreur:', error);
       alert('Failed to logout. Please try again.');
     } finally {
       setIsLoading(false);
@@ -342,15 +325,12 @@ export default function TrueSettingsView() {
 
   const clearGameData = async () => {
     try {
-
       localStorage.removeItem('tournament-players');
       localStorage.removeItem('duel-players');
       localStorage.removeItem('game-mode');
       localStorage.removeItem('ai-difficulty');
-
       alert('Game data cleared successfully');
     } catch (error) {
-      console.error('Error clearing game data:', error);
       alert('Failed to clear game data');
     }
   };
@@ -374,7 +354,7 @@ export default function TrueSettingsView() {
         loading: false
       });
     } catch (error) {
-      console.error('Error reloading 2FA status:', error);
+      // Silent error handling
     }
   };
 
@@ -389,13 +369,11 @@ export default function TrueSettingsView() {
 
         <div className="flex-1 max-w-4xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-
             <div className="flex flex-col space-y-4">
               <div className="bg-black border-4 border-blue-400 rounded-lg p-6 flex-1">
                 <h2 className="text-xl font-bold text-blue-400 text-center mb-6">
                   LANGUAGE / LANGUE / TAAL
                 </h2>
-
                 <div className="space-y-3">
                   {languages.map((lang) => (
                     <button
@@ -403,8 +381,8 @@ export default function TrueSettingsView() {
                       onClick={() => handleLanguageChange(lang.code)}
                       disabled={isSavingLanguage}
                       className={`w-full p-4 rounded-lg border-2 transition-all duration-300 flex items-center justify-between ${currentLanguage === lang.code
-                          ? 'bg-blue-400/20 border-blue-400 text-blue-400'
-                          : 'bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white/40'
+                        ? 'bg-blue-400/20 border-blue-400 text-blue-400'
+                        : 'bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white/40'
                         } ${isSavingLanguage ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
                     >
                       <div className="flex items-center space-x-3">
@@ -421,7 +399,6 @@ export default function TrueSettingsView() {
                     </button>
                   ))}
                 </div>
-
                 {isSavingLanguage && (
                   <div className="mt-4 text-center">
                     <p className="text-blue-400 text-sm">Saving language preference...</p>
@@ -435,7 +412,6 @@ export default function TrueSettingsView() {
                 <h2 className="text-xl font-bold text-red-400 text-center mb-6">
                   ACCOUNT
                 </h2>
-
                 <div className="space-y-4">
                   <button
                     onClick={() => setShowUsernameModal(true)}
@@ -457,8 +433,8 @@ export default function TrueSettingsView() {
                     onClick={handle2FAToggle}
                     disabled={twoFAStatus.loading}
                     className={`w-full p-4 border-2 rounded-lg font-bold text-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${twoFAStatus.enabled
-                        ? 'bg-orange-600/20 border-orange-400 text-orange-400 hover:bg-orange-600 hover:text-white'
-                        : 'bg-green-600/20 border-green-400 text-green-400 hover:bg-green-600 hover:text-white'
+                      ? 'bg-orange-600/20 border-orange-400 text-orange-400 hover:bg-orange-600 hover:text-white'
+                      : 'bg-green-600/20 border-green-400 text-green-400 hover:bg-green-600 hover:text-white'
                       }`}
                   >
                     {twoFAStatus.loading ? 'LOADING...' :
@@ -488,8 +464,6 @@ export default function TrueSettingsView() {
                   </button>
                 </div>
               </div>
-
-
             </div>
           </div>
 
@@ -500,7 +474,6 @@ export default function TrueSettingsView() {
             >
               PROFILE
             </button>
-
             <button
               onClick={() => router.push("/")}
               className="px-8 py-3 bg-transparent border-4 border-white text-white text-lg font-bold rounded-lg transition-all duration-300 hover:bg-white hover:text-black hover:scale-105"
@@ -515,18 +488,21 @@ export default function TrueSettingsView() {
           onClose={() => setShowLogoutModal(false)}
           onConfirm={handleLogout}
         />
+
         <ChangeUsernameModal
           isOpen={showUsernameModal}
           onClose={() => setShowUsernameModal(false)}
           onConfirm={handleChangeUsername}
           title="Change Username"
         />
+
         <ChangePasswordModal
           isOpen={showPasswordModal}
           onClose={() => setShowPasswordModal(false)}
           onConfirm={handleChangePassword}
           title="Change Password"
         />
+
         <TwoFactorModal
           isOpen={show2FAModal}
           onClose={() => setShow2FAModal(false)}

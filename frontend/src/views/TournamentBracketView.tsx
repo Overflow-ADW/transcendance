@@ -1,6 +1,5 @@
 // src/views/TournamentBracketView.tsx
 "use client";
-
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useRouter } from 'next/navigation';
 import { useApp } from "@/lib_front/store";
@@ -41,6 +40,7 @@ export default function TournamentBracketView() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [tournamentId, setTournamentId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+
   const colors = ["#8A00C4", "#2323FF", "#FF6B35", "#28A745"];
 
   useEffect(() => {
@@ -85,9 +85,7 @@ export default function TournamentBracketView() {
 
         setMatches(enrichedMatches);
         setLoading(false);
-
       } catch (error) {
-        console.error('Erreur lors du chargement du tournoi:', error);
         router.push('/tournament');
       }
     };
@@ -99,11 +97,8 @@ export default function TournamentBracketView() {
     if (!tournamentId) return;
 
     try {
-      console.log('🔄 Rechargement des données du tournoi:', tournamentId);
       setLoading(true);
-
       const matchesResponse = await apiClient.getTournamentMatches(tournamentId);
-      console.log('📦 Réponse API getTournamentMatches:', matchesResponse);
       const matchesData = matchesResponse.matches || [];
 
       const enrichedMatches = matchesData.map((match: any) => ({
@@ -124,35 +119,19 @@ export default function TournamentBracketView() {
         } : null
       }));
 
-      console.log('✅ Matchs enrichis:', enrichedMatches.map((m: Match) => ({
-        id: m.id,
-        type: m.match_type,
-        status: m.status,
-        player1: m.player1?.name,
-        player2: m.player2?.name,
-        score1: m.score_player1,
-        score2: m.score_player2,
-        winner: m.winner_id
-      })));
-
       setMatches(enrichedMatches);
       setLoading(false);
-
     } catch (error) {
-      console.error('❌ Erreur lors du rechargement du tournoi:', error);
       setLoading(false);
     }
   };
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      console.log('📦 Storage change détecté:', { key: e.key, newValue: e.newValue });
       if (e.key === 'match-completed' && e.newValue === 'true') {
-        console.log('🏆 Match terminé détecté via storage - rechargement des données');
         setTimeout(() => {
           reloadTournamentData();
           localStorage.removeItem('match-completed');
-          console.log('🧹 Flag match-completed nettoyé');
         }, 1000);
       }
     };
@@ -161,13 +140,10 @@ export default function TournamentBracketView() {
 
     const handleFocus = () => {
       const matchCompleted = localStorage.getItem('match-completed');
-      console.log('👁️ Focus window - vérification match-completed:', matchCompleted);
       if (matchCompleted === 'true') {
-        console.log('🏆 Match terminé détecté via focus - rechargement des données');
         setTimeout(() => {
           reloadTournamentData();
           localStorage.removeItem('match-completed');
-          console.log('🧹 Flag match-completed nettoyé (focus)');
         }, 1000);
       }
     };
@@ -190,19 +166,9 @@ export default function TournamentBracketView() {
   };
 
   const handlePlayMatch = (match: Match) => {
-    console.log('🎮 Tentative de jouer le match:', {
-      matchId: match.id,
-      status: match.status,
-      player1: match.player1?.name,
-      player2: match.player2?.name,
-      type: match.match_type
-    });
-
     if (match.status === 'completed') {
-      console.log('❌ Match déjà terminé, impossible de jouer');
       return;
     }
-
 
     const matchData = {
       id: match.id,
@@ -213,11 +179,8 @@ export default function TournamentBracketView() {
       player2_id: match.player2?.id
     };
 
-    console.log('💾 Sauvegarde des données du match dans localStorage:', matchData);
     localStorage.setItem('current-match', JSON.stringify(matchData));
     localStorage.setItem('game-mode', 'tournament');
-
-    console.log('🚀 Redirection vers le jeu...');
     router.push("/game");
   };
 
@@ -229,6 +192,7 @@ export default function TournamentBracketView() {
         const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return timeA - timeB;
       });
+
     const thirdPlace = matches.find(m => m.match_type === 'third_place') || null;
     const final = matches.find(m => m.match_type === 'final') || null;
 
@@ -279,14 +243,12 @@ export default function TournamentBracketView() {
                 <h3 className="font-press-start text-lg text-center text-yellow-400 mb-8">
                   FINAL
                 </h3>
-
                 <div className="bg-black border-4 border-yellow-400 rounded-lg p-6">
                   <div className="text-center mb-4">
                     <span className="font-press-start text-sm text-gray-400">
                       CHAMPIONSHIP
                     </span>
                   </div>
-
                   <div className="space-y-4">
                     <div
                       className="flex items-center justify-between border-2 rounded p-3"
@@ -310,11 +272,9 @@ export default function TournamentBracketView() {
                         </span>
                       </div>
                     </div>
-
                     <div className="text-center">
                       <span className="font-press-start text-yellow-400 text-lg">VS</span>
                     </div>
-
                     <div
                       className="flex items-center justify-between border-2 rounded p-3"
                       style={{
@@ -338,13 +298,12 @@ export default function TournamentBracketView() {
                       </div>
                     </div>
                   </div>
-
                   <div className="text-center mt-6">
                     <button
                       onClick={() => handlePlayMatch(final)}
                       className={`font-press-start px-6 py-2 rounded border-2 text-sm ${final.status === 'completed'
-                          ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
-                          : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
+                        ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
+                        : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
                         }`}
                       disabled={final.status === 'completed'}
                     >
@@ -361,7 +320,6 @@ export default function TournamentBracketView() {
                   <h3 className="font-press-start text-lg text-center text-yellow-400 mb-8">
                     SEMI-FINALS
                   </h3>
-
                   {semifinals.map((match, index) => (
                     <div key={match.id} className="bg-black border-4 border-purple-500 rounded-lg p-4">
                       <div className="text-center mb-4">
@@ -369,7 +327,6 @@ export default function TournamentBracketView() {
                           SEMI {index + 1}
                         </span>
                       </div>
-
                       <div className="space-y-3">
                         <div
                           className="flex items-center justify-between border-2 rounded p-2"
@@ -393,7 +350,6 @@ export default function TournamentBracketView() {
                             </span>
                           </div>
                         </div>
-
                         <div
                           className="flex items-center justify-between border-2 rounded p-2"
                           style={{
@@ -417,13 +373,12 @@ export default function TournamentBracketView() {
                           </div>
                         </div>
                       </div>
-
                       <div className="text-center mt-4">
                         <button
                           onClick={() => handlePlayMatch(match)}
                           className={`font-press-start px-4 py-1 rounded border-2 text-xs ${match.status === 'completed'
-                              ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
-                              : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
+                            ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
+                            : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
                             }`}
                           disabled={match.status === 'completed'}
                         >
@@ -452,7 +407,6 @@ export default function TournamentBracketView() {
                           3RD PLACE
                         </span>
                       </div>
-
                       <div className="space-y-3">
                         <div
                           className="flex items-center justify-between border-2 rounded p-2"
@@ -476,7 +430,6 @@ export default function TournamentBracketView() {
                             </span>
                           </div>
                         </div>
-
                         <div
                           className="flex items-center justify-between border-2 rounded p-2"
                           style={{
@@ -500,13 +453,12 @@ export default function TournamentBracketView() {
                           </div>
                         </div>
                       </div>
-
                       <div className="text-center mt-4">
                         <button
                           onClick={() => handlePlayMatch(thirdPlace)}
                           className={`font-press-start px-4 py-1 rounded border-2 text-xs ${thirdPlace.status === 'completed'
-                              ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
-                              : 'bg-transparent border-orange-400 text-orange-400 hover:bg-orange-400 hover:text-black'
+                            ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
+                            : 'bg-transparent border-orange-400 text-orange-400 hover:bg-orange-400 hover:text-black'
                             }`}
                           disabled={thirdPlace.status === 'completed'}
                         >
@@ -523,7 +475,6 @@ export default function TournamentBracketView() {
                           CHAMPIONSHIP
                         </span>
                       </div>
-
                       <div className="space-y-4">
                         <div
                           className="flex items-center justify-between border-2 rounded p-3"
@@ -547,11 +498,9 @@ export default function TournamentBracketView() {
                             </span>
                           </div>
                         </div>
-
                         <div className="text-center">
                           <span className="font-press-start text-yellow-400 text-lg">VS</span>
                         </div>
-
                         <div
                           className="flex items-center justify-between border-2 rounded p-3"
                           style={{
@@ -575,13 +524,12 @@ export default function TournamentBracketView() {
                           </div>
                         </div>
                       </div>
-
                       <div className="text-center mt-6">
                         <button
                           onClick={() => handlePlayMatch(final)}
                           className={`font-press-start px-6 py-2 rounded border-2 text-sm ${final.status === 'completed'
-                              ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
-                              : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
+                            ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
+                            : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
                             }`}
                           disabled={final.status === 'completed'}
                         >
@@ -603,6 +551,7 @@ export default function TournamentBracketView() {
             </div>
           )}
         </div>
+
         <div className="text-center mt-12">
           <button
             onClick={() => router.push('/tournament')}

@@ -310,8 +310,8 @@ export default function MultiplayerView() {
               }
             }}
             className={`px-12 py-4 rounded-full text-2xl font-bold transition-all duration-300 ${players.length === 3
-                ? 'bg-transparent border-4 border-green-400 text-green-400 hover:bg-green-400 hover:text-black hover:scale-105'
-                : 'bg-gray-600 border-4 border-gray-500 text-gray-400 cursor-not-allowed'
+              ? 'bg-transparent border-4 border-green-400 text-green-400 hover:bg-green-400 hover:text-black hover:scale-105'
+              : 'bg-gray-600 border-4 border-gray-500 text-gray-400 cursor-not-allowed'
               }`}
             disabled={players.length !== 3}
           >
@@ -330,7 +330,7 @@ export default function MultiplayerView() {
           <h4 className="text-white font-bold mb-2">HOW TO PLAY</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-white/70">
             <div>
-              <span className="font-bold text-blue-400">Player 1:</span> Z/S keys
+              <span className="font-bold text-blue-400">Player 1:</span> w/S keys
             </div>
             <div>
               <span className="font-bold text-purple-400">Player 2:</span> O/L keys

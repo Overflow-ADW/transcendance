@@ -52,13 +52,6 @@ export default function HomeView() {
                     variant="holographic"
                   />
                 </li>
-                <li>
-                  <MenuButton
-                    label={t(lang, "settings")}
-                    onClick={() => router.push("/settings")}
-                    variant="default"
-                  />
-                </li>
               </ul>
             </div>
           </aside>
@@ -97,15 +90,6 @@ export default function HomeView() {
                   className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 border-blue-500 text-blue-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-blue-500/20 hover:scale-105 hover:border-blue-400"
                 >
                   LOGIN
-                </button>
-              </div>
-
-              <div className="w-full">
-                <button
-                  onClick={() => router.push("/settings")}
-                  className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 border-yellow-500 text-yellow-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-yellow-500/20 hover:scale-105 hover:border-yellow-400"
-                >
-                  {t(lang, "settings").toUpperCase()}
                 </button>
               </div>
             </div>

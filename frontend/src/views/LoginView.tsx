@@ -157,7 +157,6 @@ function LoginViewContent() {
     }
 
     const oauthUrl = `${API_BASE}/api/oauth/${provider}`;
-    console.log(`🔄 Redirection OAuth ${provider}:`, oauthUrl);
 
     sessionStorage.setItem('oauth_provider', provider);
 

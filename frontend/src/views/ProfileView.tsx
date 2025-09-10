@@ -1,6 +1,4 @@
 "use client";
-
-
 import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { AvatarUploader } from "@/components/profile/AvatarUploader";
@@ -13,7 +11,6 @@ function ProfileView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, loading } = useAuth();
-
   const visitedUserId = searchParams?.get('userId');
   const isVisitorProfile = visitedUserId && parseInt(visitedUserId) !== user?.id;
 
@@ -63,6 +60,7 @@ function ProfileView() {
     winrates?: Array<{ value: number; label: string; color?: string }>;
     matches?: Array<{ id: number; opponent: string; result: string; mode: string }>;
   }
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [avatarURL, setAvatarURL] = useState("");
@@ -71,65 +69,25 @@ function ProfileView() {
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
-  console.log("🔥 ProfileView Render - États:", {
-    user,
-    isAuthenticated,
-    loading,
-    profile,
-    isLoading,
-    profileError,
-    token: apiClient.getToken(),
-    localStorage_user: typeof window !== 'undefined' ? localStorage.getItem('user') : null,
-    localStorage_token: typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
-  });
-
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      console.log("🚨 REDIRECTION vers /login - Raison: !loading && !isAuthenticated");
-      console.log("🚨 État détaillé:", {
-        loading,
-        isAuthenticated,
-        user,
-        hasToken: !!apiClient.getToken()
-      });
       router.push('/login');
       return;
-    }
-
-    if (!loading && isAuthenticated && user) {
-      console.log("✅ Utilisateur authentifié, profil peut être chargé");
     }
   }, [isAuthenticated, loading, router, user]);
 
   const fetchUserProfile = async () => {
-    console.log("🔄 fetchUserProfile - Début");
-    console.log("🔄 Token disponible:", !!apiClient.getToken());
-    console.log("🔄 User authentifié:", isAuthenticated);
-    console.log("🔄 Profil visiteur ?", isVisitorProfile);
-    console.log("🔄 Visited User ID:", visitedUserId);
-
     try {
       let data;
-
       if (isVisitorProfile) {
-        console.log("🔄 Appel apiClient.getPublicProfile()...");
         data = await apiClient.getPublicProfile(parseInt(visitedUserId!));
-        console.log("✅ Profil public récupéré avec succès:", data);
       } else {
-        console.log("🔄 Appel apiClient.getProfile()...");
         data = await apiClient.getProfile();
-        console.log("✅ Profil personnel récupéré avec succès:", data);
       }
 
       if (!data || typeof data !== 'object') {
         throw new Error('Invalid profile data received');
       }
-
-      console.log("✅ Profil récupéré:", {
-        username: data.username,
-        recentGamesCount: data.recentGames?.length || 0,
-        isOwn: !isVisitorProfile
-      });
 
       const finalProfile = {
         ...data,
@@ -151,38 +109,22 @@ function ProfileView() {
         })) : []
       };
 
-      console.log("✅ Profile final créé avec", finalProfile.matches?.length || 0, "matches");
-
       setProfile(finalProfile);
-
       setAvatarURL(data.avatar_url || data.avatar || "");
       setProfileError(null);
     } catch (error: any) {
-      console.error('🚨 Erreur fetchUserProfile:', error);
-      console.error('🚨 Détails erreur:', {
-        message: error?.message,
-        status: error?.status,
-        response: error?.response,
-        stack: error?.stack
-      });
       setProfileError(error?.message || String(error));
     }
   };
 
   const updateAvatar = async (newAvatarURL: string) => {
-    console.log("🔄 updateAvatar - Début:", newAvatarURL);
     setIsSavingAvatar(true);
-
     try {
-      console.log("🔄 Appel apiClient.updateProfile()...");
       await apiClient.updateProfile({ avatar: newAvatarURL });
-      console.log("✅ Avatar mis à jour avec succès");
-
       setProfile((prev: any) => prev ? { ...prev, avatar: newAvatarURL } : null);
       setAvatarURL(newAvatarURL);
       alert('Avatar updated successfully!');
     } catch (error) {
-      console.error('🚨 Erreur updateAvatar:', error);
       alert('Failed to update avatar');
     } finally {
       setIsSavingAvatar(false);
@@ -190,41 +132,20 @@ function ProfileView() {
   };
 
   useEffect(() => {
-    console.log("🔄 Profile Loading useEffect triggered");
-    console.log("🔄 Conditions:", {
-      loading,
-      isAuthenticated,
-      user,
-      visitedUserId,
-      isVisitorProfile,
-      shouldLoadProfile: !loading && isAuthenticated && user
-    });
-
     if (!loading && isAuthenticated && user) {
-      console.log("🔄 Conditions remplies, chargement du profil...");
       setIsLoading(true);
       fetchUserProfile().finally(() => {
-        console.log("🔄 fetchUserProfile terminé, setIsLoading(false)");
         setIsLoading(false);
       });
-    } else {
-      console.log("🔄 Conditions non remplies, pas de chargement du profil");
     }
   }, [loading, isAuthenticated, user, visitedUserId]);
 
   if (loading) {
-    console.log("🔄 Affichage: Loading auth...");
     return (
       <GradientBackground>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-xl text-white mb-4">Loading authentication...</h2>
-            <div className="text-sm text-white/60 mb-4">
-              Auth loading: {loading ? 'true' : 'false'}<br />
-              Is authenticated: {isAuthenticated ? 'true' : 'false'}<br />
-              Has user: {user ? 'true' : 'false'}<br />
-              Has token: {apiClient.getToken() ? 'true' : 'false'}
-            </div>
             <div className="flex justify-center space-x-1">
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
@@ -237,18 +158,11 @@ function ProfileView() {
   }
 
   if (isLoading) {
-    console.log("🔄 Affichage: Loading profile...");
     return (
       <GradientBackground>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-xl text-white mb-4">Loading profile...</h2>
-            <div className="text-sm text-white/60 mb-4">
-              Profile loading: {isLoading ? 'true' : 'false'}<br />
-              Auth loading: {loading ? 'true' : 'false'}<br />
-              Is authenticated: {isAuthenticated ? 'true' : 'false'}<br />
-              Has user: {user ? 'true' : 'false'}
-            </div>
             <div className="flex justify-center space-x-1">
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
               <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
@@ -261,19 +175,11 @@ function ProfileView() {
   }
 
   if (!profile) {
-    console.log("🚨 Affichage: Échec du chargement du profil");
     return (
       <GradientBackground>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-xl text-white mb-4">Failed to load profile</h2>
-            <div className="text-sm text-white/60 mb-4">
-              Auth states:<br />
-              - loading: {loading ? 'true' : 'false'}<br />
-              - isAuthenticated: {isAuthenticated ? 'true' : 'false'}<br />
-              - user: {user ? user.username : 'null'}<br />
-              - token: {apiClient.getToken() ? 'exists' : 'missing'}
-            </div>
             {profileError && (
               <div className="mb-4 p-3 bg-red-900/60 text-red-300 rounded-lg border border-red-500/40">
                 <strong>Error:</strong> {profileError}
@@ -282,7 +188,6 @@ function ProfileView() {
             <div className="flex gap-4 justify-center">
               <button
                 onClick={() => {
-                  console.log("🔄 Retry button clicked");
                   window.location.reload();
                 }}
                 className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
@@ -291,7 +196,6 @@ function ProfileView() {
               </button>
               <button
                 onClick={() => {
-                  console.log("🔄 Manual profile fetch");
                   setIsLoading(true);
                   fetchUserProfile().finally(() => setIsLoading(false));
                 }}
@@ -306,18 +210,9 @@ function ProfileView() {
     );
   }
 
-  console.log("✅ Affichage: Profil chargé avec succès");
-
   return (
     <GradientBackground>
       <div className="min-h-screen h-screen p-4 flex flex-col">
-        <div className="bg-black/50 text-white text-xs p-2 mb-4 rounded">
-          <strong>Debug Info:</strong> Auth: {isAuthenticated ? '✅' : '❌'} |
-          User: {user?.username || 'None'} |
-          Profile: {profile?.username || 'None'} |
-          Token: {apiClient.getToken() ? '✅' : '❌'}
-        </div>
-
         <div className="flex-1 max-w-6xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
             <div className="flex flex-col">
@@ -347,18 +242,15 @@ function ProfileView() {
                     }}
                     onSave={async () => {
                       if (!selectedFile) return;
-
                       try {
                         setIsSavingAvatar(true);
                         const response = await apiClient.uploadAvatar(selectedFile);
                         if (response.avatarUrl && profile) {
-
                           setProfile({
                             ...profile,
                             avatar_url: response.avatarUrl
                           });
                           setAvatarURL(response.avatarUrl);
-
                           if (tempPreviewURL) {
                             URL.revokeObjectURL(tempPreviewURL);
                           }
@@ -366,7 +258,6 @@ function ProfileView() {
                           setSelectedFile(null);
                         }
                       } catch (error: any) {
-                        console.error('Error updating avatar:', error);
                         alert(error.message || 'Failed to update avatar');
                       } finally {
                         setIsSavingAvatar(false);
@@ -374,28 +265,22 @@ function ProfileView() {
                     }}
                     onDelete={async () => {
                       if (!avatarURL && !tempPreviewURL) return;
-
                       try {
                         setIsSavingAvatar(true);
                         await apiClient.deleteAvatar();
-
                         if (profile) {
                           setProfile({
                             ...profile,
                             avatar_url: undefined
                           });
                         }
-
                         setAvatarURL("");
-
                         if (tempPreviewURL) {
                           URL.revokeObjectURL(tempPreviewURL);
                         }
                         setTempPreviewURL(null);
                         setSelectedFile(null);
-
                       } catch (error: any) {
-                        console.error('Error deleting avatar:', error);
                         alert(error.message || 'Failed to delete avatar');
                       } finally {
                         setIsSavingAvatar(false);
@@ -512,6 +397,7 @@ function ProfileView() {
                     </button>
                   )}
                 </div>
+
                 <div className="grid grid-cols-4 gap-2 mb-3 p-3 bg-blue-400/10 border-2 border-blue-400/30 rounded-lg flex-shrink-0">
                   <div className="text-center font-bold text-blue-400 uppercase text-xs">
                     Opponent
@@ -526,6 +412,7 @@ function ProfileView() {
                     Mode
                   </div>
                 </div>
+
                 <div className="space-y-2 flex-1 overflow-y-auto">
                   {profile && Array.isArray(profile.matches) && profile.matches.length > 0 ? (
                     profile.matches.map((match: any, index: number) => (
@@ -560,10 +447,11 @@ function ProfileView() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {/* Bouton PLAY masqué sur mobile et iPad (moins de 1024px) */}
                 {!isVisitorProfile && (
                   <button
                     onClick={() => router.push("/play")}
-                    className="px-8 py-3 bg-transparent border-4 border-green-400 text-green-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-green-400 hover:text-black hover:scale-105"
+                    className="hidden lg:block px-8 py-3 bg-transparent border-4 border-green-400 text-green-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-green-400 hover:text-black hover:scale-105"
                   >
                     PLAY
                   </button>
