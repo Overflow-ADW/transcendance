@@ -5,6 +5,7 @@ const path = require('path');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const gameRoutes = require('./routes/gameRoutes');
+const tournamentRoutes = require('./routes/tournamentRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const twoFactorRoutes = require('./routes/twoFactorRoutes');
 const oauthRoutes = require('./routes/oauthRoutes');
@@ -68,9 +69,14 @@ fastify.register(require('@fastify/session'), {
   saveUninitialized: false
 });
 
-// Décorateur pour l'authentification
+// Décorateurs pour l'authentification et la protection des routes
 const { authenticateToken } = require('./middleware/auth');
+const { ensureNotAuthenticated, ensureAuthenticated, ensureAdmin } = require('./middleware/routeGuards');
+
 fastify.decorate('authenticate', authenticateToken);
+fastify.decorate('ensureNotAuthenticated', ensureNotAuthenticated);
+fastify.decorate('ensureAuthenticated', ensureAuthenticated);
+fastify.decorate('ensureAdmin', ensureAdmin);
 
 // Routes API
 fastify.register(authRoutes, { prefix: '/api/auth' });
@@ -86,6 +92,7 @@ fastify.register(async function (fastify) {
 
 fastify.register(userRoutes, { prefix: '/api/users' });
 fastify.register(gameRoutes, { prefix: '/api/games' });
+fastify.register(tournamentRoutes, { prefix: '/api/tournaments' });
 fastify.register(twoFactorRoutes, { prefix: '/api/2fa' });
 fastify.register(adminRoutes, { prefix: '/api/admin' });
 

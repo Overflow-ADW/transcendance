@@ -1,17 +1,16 @@
 // src/routes/adminRoutes.js
-const { authenticateToken } = require('../middleware/auth'); // On peut l'utiliser pour restreindre l'accès
+const { authenticateToken } = require('../middleware/auth');
 
 async function adminRoutes(fastify, options) {
   const db = fastify.db;
 
-  fastify.get('/list-users', { preHandler: [authenticateToken] }, async (request, reply) => {
-    // add admin verif
-    // if (!request.user.isAdmin) return reply.status(403).send({ error: 'Accès refusé' });
-    
-    try {
-      const users = db.prepare('SELECT id, username, email, created_at FROM users ORDER BY created_at DESC').all();
-      
-      return reply.send({
+  // Protéger toutes les routes admin en vérifiant l'authentification et les droits admin
+  fastify.addHook('onRequest', fastify.ensureAuthenticated);
+  fastify.addHook('preHandler', fastify.ensureAdmin);
+
+  fastify.get('/list-users', async (request, reply) => {
+    try {
+      const users = db.prepare('SELECT id, username, email, created_at FROM users ORDER BY created_at DESC').all();      return reply.send({
         users: users,
         count: users.length
       });

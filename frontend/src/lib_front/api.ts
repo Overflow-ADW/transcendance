@@ -110,12 +110,16 @@ class ApiClient {
   async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
     let token = this.token || this.getToken();
     
+    // Déterminer si on doit inclure le Content-Type
+    const hasBody = options.body !== undefined && options.body !== null;
+    const headers: HeadersInit = {
+      ...(hasBody && { 'Content-Type': 'application/json' }),
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...(options.headers as Record<string, string>)
+    };
+
     const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers
-      },
+      headers,
       ...options
     };
 
@@ -135,7 +139,7 @@ class ApiClient {
           const newConfig = {
             ...config,
             headers: {
-              ...config.headers,
+              ...headers,
               'Authorization': `Bearer ${token}`
             }
           };
@@ -240,8 +244,23 @@ class ApiClient {
     }
   }
 
+  /**
+   * Vérifier un mot de passe sans se connecter
+   * Utilisé pour valider l'ajout de joueurs aux tournois
+   */
+  async verifyPassword(credentials: { username: string; password: string }) {
+    const response = await this.request('/api/auth/verify-password', {
+      method: 'POST',
+      body: JSON.stringify(credentials)
+    });
+
+    return await response.json();
+  }
+
   async logout() {
+    console.log('🔥 ApiClient.logout() - Appel de la route /api/auth/logout');
     const response = await this.request('/api/auth/logout', { method: 'POST' });
+    console.log('🔥 ApiClient.logout() - Réponse:', response.status, response.statusText);
     return response.json();
   }
 
@@ -249,6 +268,11 @@ class ApiClient {
 
   async getProfile() {
     const response = await this.request('/api/users/profile');
+    return response.json();
+  }
+
+  async getPublicProfile(userId: number) {
+    const response = await this.request(`/api/users/profile/${userId}`);
     return response.json();
   }
 
@@ -376,6 +400,23 @@ class ApiClient {
     return response.json();
   }
 
+  async getTournamentMatches(tournamentId: number) {
+    const response = await this.request(`/api/tournaments/${tournamentId}/matches`);
+    return response.json();
+  }
+
+  async completeMatch(matchId: number, matchData: {
+    scorePlayer1: number;
+    scorePlayer2: number;
+    winnerId: number;
+  }) {
+    const response = await this.request(`/api/tournaments/match/${matchId}/complete`, {
+      method: 'POST',
+      body: JSON.stringify(matchData)
+    });
+    return response.json();
+  }
+
   async joinTournament(tournamentId: number) {
     const response = await this.request(`/api/tournaments/${tournamentId}/join`, {
       method: 'POST'
@@ -385,13 +426,40 @@ class ApiClient {
 
   async createTournament(data: {
     name: string;
-    maxParticipants: number;
-    startTime?: string;
+    description?: string;
+    maxPlayers: number;
+    format?: string;
   }) {
     const response = await this.request('/api/tournaments', {
       method: 'POST',
       body: JSON.stringify(data)
     });
+    return response.json();
+  }
+
+  async addTournamentParticipant(tournamentId: number, userId: number) {
+    const response = await this.request(`/api/tournaments/${tournamentId}/participants`, {
+      method: 'POST',
+      body: JSON.stringify({ userId })
+    });
+    return response.json();
+  }
+
+  async startTournament(tournamentId: number) {
+    const response = await this.request(`/api/tournaments/${tournamentId}/start`, {
+      method: 'POST',
+      body: JSON.stringify({}) // Send empty object to satisfy content-type requirement
+    });
+    return response.json();
+  }
+
+  async getTournamentRanking(tournamentId: number) {
+    const response = await this.request(`/api/tournaments/${tournamentId}/ranking`);
+    return response.json();
+  }
+
+  async getTournamentSummary(tournamentId: number) {
+    const response = await this.request(`/api/tournaments/${tournamentId}/summary`);
     return response.json();
   }
 

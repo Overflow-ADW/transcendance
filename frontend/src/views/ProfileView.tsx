@@ -5,19 +5,28 @@
 import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { AvatarUploader } from "@/components/profile/AvatarUploader";
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from "@/lib_front/AuthContext";
 import { apiClient } from "@/lib_front/api";
+import { withProtectedRoute } from "@/lib_front/routeProtection";
 
-export default function ProfileView() {
+function ProfileView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated, loading } = useAuth();
+  
+  // Récupérer l'ID utilisateur depuis les paramètres de recherche
+  const visitedUserId = searchParams.get('userId');
+  const isVisitorProfile = visitedUserId && parseInt(visitedUserId) !== user?.id;
+  
   interface Profile {
     id: number;
     username: string;
     display_name?: string;
     avatar_url?: string;
     winrate?: number;
+    isOwn?: boolean;
+    areWeFriends?: boolean;
     stats?: {
       friends: number;
       gamesPlayed: number;
@@ -111,11 +120,21 @@ export default function ProfileView() {
     console.log("🔄 fetchUserProfile - Début");
     console.log("🔄 Token disponible:", !!apiClient.getToken());
     console.log("🔄 User authentifié:", isAuthenticated);
+    console.log("🔄 Profil visiteur ?", isVisitorProfile);
+    console.log("🔄 Visited User ID:", visitedUserId);
     
     try {
-      console.log("🔄 Appel apiClient.getProfile()...");
-      const data = await apiClient.getProfile();
-      console.log("✅ Profil récupéré avec succès:", data);
+      let data;
+      
+      if (isVisitorProfile) {
+        console.log("🔄 Appel apiClient.getPublicProfile()...");
+        data = await apiClient.getPublicProfile(parseInt(visitedUserId!));
+        console.log("✅ Profil public récupéré avec succès:", data);
+      } else {
+        console.log("🔄 Appel apiClient.getProfile()...");
+        data = await apiClient.getProfile();
+        console.log("✅ Profil personnel récupéré avec succès:", data);
+      }
       
       // Vérifions si nous avons bien reçu les données
       if (!data || typeof data !== 'object') {
@@ -126,6 +145,8 @@ export default function ProfileView() {
       console.log("📝 Display name:", data.display_name);
       console.log("📝 Username:", data.username);
       console.log("📝 Recent Games:", data.recentGames);
+      console.log("📝 Is Own Profile:", data.isOwn);
+      console.log("📝 Are We Friends:", data.areWeFriends);
       console.log("📝 Recent Games détaillées:");
       data.recentGames?.forEach((game: any, i: number) => {
         console.log(`  ${i+1}. ID: ${game.id}, mode: ${game.game_mode}, opponent: ${game.opponent_username || 'IA'}`);
@@ -136,6 +157,7 @@ export default function ProfileView() {
         ...data,
         display_name: data.display_name || undefined,
         avatar_url: data.avatar_url || data.avatar || "",
+        isOwn: !isVisitorProfile, // Profil personnel si pas un profil visiteur
         // Transformer les données pour compatibilité legacy avec nouveaux win rates
         winrates: data.stats?.winRates ? [
           { value: data.stats.winRates.vsAI, label: 'VS IA', color: 'bg-blue-600' },
@@ -194,6 +216,8 @@ export default function ProfileView() {
       loading,
       isAuthenticated,
       user,
+      visitedUserId,
+      isVisitorProfile,
       shouldLoadProfile: !loading && isAuthenticated && user
     });
 
@@ -208,7 +232,7 @@ export default function ProfileView() {
     } else {
       console.log("🔄 Conditions non remplies, pas de chargement du profil");
     }
-  }, [loading, isAuthenticated, user]);
+  }, [loading, isAuthenticated, user, visitedUserId]); // Ajouter visitedUserId aux dépendances
 
   // 🔥 DEBUG: État de chargement avec plus d'infos
   if (loading) {
@@ -333,27 +357,35 @@ export default function ProfileView() {
                       @{profile.username}
                     </div>
                   )}
+                  {isVisitorProfile && profile.areWeFriends !== undefined && (
+                    <div className="text-sm text-white/80 mt-2 px-3 py-1 bg-white/10 rounded-full inline-block">
+                      {profile.areWeFriends ? '✓ Ami' : '👤 Visiteur'}
+                    </div>
+                  )}
                 </div>
-                <AvatarUploader
-                  value={tempPreviewURL || avatarURL}
-                  onPickTemp={(file, url) => {
-                    setSelectedFile(file);
-                    setTempPreviewURL(url);
-                  }}
-                  onSave={async () => {
-                    if (!selectedFile) return;
-                    
-                    try {
-                      setIsSavingAvatar(true);
-                      const response = await apiClient.uploadAvatar(selectedFile);
-                      if (response.avatarUrl && profile) {
-                        // L'avatar URL vient du backend, on l'utilise tel quel
-                        // car Nginx proxy /uploads/ vers le backend
-                        setProfile({
-                          ...profile,
-                          avatar_url: response.avatarUrl
-                        });
-                        setAvatarURL(response.avatarUrl);
+                
+                {/* Afficher l'AvatarUploader seulement pour son propre profil */}
+                {!isVisitorProfile ? (
+                  <AvatarUploader
+                    value={tempPreviewURL || avatarURL}
+                    onPickTemp={(file, url) => {
+                      setSelectedFile(file);
+                      setTempPreviewURL(url);
+                    }}
+                    onSave={async () => {
+                      if (!selectedFile) return;
+                      
+                      try {
+                        setIsSavingAvatar(true);
+                        const response = await apiClient.uploadAvatar(selectedFile);
+                        if (response.avatarUrl && profile) {
+                          // L'avatar URL vient du backend, on l'utilise tel quel
+                          // car Nginx proxy /uploads/ vers le backend
+                          setProfile({
+                            ...profile,
+                            avatar_url: response.avatarUrl
+                          });
+                          setAvatarURL(response.avatarUrl);
                         
                         // Nettoyer les états temporaires
                         if (tempPreviewURL) {
@@ -403,6 +435,29 @@ export default function ProfileView() {
                   saveLabel={isSavingAvatar ? "Saving..." : "Save"}
                   deleteLabel="Remove"
                 />
+                ) : (
+                  /* Pour les profils visiteurs, afficher seulement l'avatar en lecture seule */
+                  <div className="text-center">
+                    <div className="mx-auto w-32 h-32 bg-white/10 border-2 border-white/20 rounded-lg overflow-hidden mb-4">
+                      {avatarURL ? (
+                        <img 
+                          src={avatarURL} 
+                          alt={`Avatar de ${profile.display_name || profile.username}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-white/60 text-4xl">
+                          👤
+                        </div>
+                      )}
+                    </div>
+                    {profile.areWeFriends === false && (
+                      <p className="text-white/60 text-sm">
+                        Ajoutez {profile.display_name || profile.username} en ami pour voir plus de détails
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -483,12 +538,14 @@ export default function ProfileView() {
                   <h2 className="text-xl font-bold text-blue-400 text-center">
                     MATCH HISTORY
                   </h2>
-                  <button
-                    onClick={() => router.push("/history")}
-                    className="px-4 py-2 bg-blue-500/20 border border-blue-400 text-blue-400 text-sm font-bold rounded-lg transition-all duration-300 hover:bg-blue-400 hover:text-white hover:scale-105"
-                  >
-                    📜 VOIR TOUT
-                  </button>
+                  {!isVisitorProfile && (
+                    <button
+                      onClick={() => router.push("/history")}
+                      className="px-4 py-2 bg-blue-500/20 border border-blue-400 text-blue-400 text-sm font-bold rounded-lg transition-all duration-300 hover:bg-blue-400 hover:text-white hover:scale-105"
+                    >
+                      📜 SEE ALL
+                    </button>
+                  )}
                 </div>
                 {/* Header du tableau */}
                 <div className="grid grid-cols-4 gap-2 mb-3 p-3 bg-blue-400/10 border-2 border-blue-400/30 rounded-lg flex-shrink-0">
@@ -559,3 +616,6 @@ export default function ProfileView() {
     </GradientBackground>
   );
 }
+
+// Exporter le composant avec la protection de route
+export default withProtectedRoute(ProfileView);

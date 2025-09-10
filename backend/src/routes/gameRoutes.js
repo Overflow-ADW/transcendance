@@ -2,6 +2,9 @@ const { authenticateToken } = require('../middleware/auth');
 
 async function gameRoutes(fastify, options) {
   const db = fastify.db;
+  
+  // S'assurer que toutes les routes de jeu nécessitent une authentification
+  fastify.addHook('onRequest', fastify.ensureAuthenticated);
 
   fastify.post('/start', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {

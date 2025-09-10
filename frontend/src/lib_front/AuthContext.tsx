@@ -9,6 +9,7 @@ interface User {
   avatar?: string;
   display_name?: string;
   twoFactorEnabled: boolean;
+  is_admin?: boolean;
   stats?: {
     gamesPlayed: number;
     wins: number;
@@ -184,16 +185,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    console.log('🔥 AuthContext.logout() - Début de la déconnexion');
     try {
       // Appeler l'endpoint de logout
+      console.log('🔥 AuthContext.logout() - Appel apiClient.logout()');
       await apiClient.logout();
+      console.log('🔥 AuthContext.logout() - apiClient.logout() terminé avec succès');
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('🔥 AuthContext.logout() - Erreur:', error);
     } finally {
       // Nettoyer l'état local dans tous les cas
+      console.log('🔥 AuthContext.logout() - Nettoyage de l\'état local');
       apiClient.clearAuth();
       setUser(null);
       setIsAuthenticated(false);
+      console.log('🔥 AuthContext.logout() - Déconnexion terminée');
     }
   };
 

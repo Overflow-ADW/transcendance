@@ -172,9 +172,7 @@ export interface UserSearchResult {
 }
 
 export interface SearchUsersResponse {
-  users: UserSearchResult[];
-  total: number;
-  page: number;
-  limit: number;
-  hasMore: boolean;
+  query: string;
+  results: UserSearchResult[];
+  count: number;
 }

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useRouter } from 'next/navigation';
 import { apiClient } from "@/lib_front/api";
+import { useAuth } from "@/lib_front/AuthContext";
 
 type Language = 'fr' | 'en' | 'nl';
 
@@ -199,6 +200,7 @@ const LogoutModal = ({ isOpen, onClose, onConfirm }: LogoutModalProps) => {
 
 export default function TrueSettingsView() {
   const router = useRouter();
+  const { logout } = useAuth();
   const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
@@ -328,36 +330,17 @@ export default function TrueSettingsView() {
   const handleLogout = async () => {
     setIsLoading(true);
     try {
-      // TODO: Remplacer par votre appel API de déconnexion
-      // const response = await fetch('/api/auth/logout', {
-      //   method: 'POST'
-      // });
-      // 
-      // if (response.ok) {
-      //   // Nettoyer le localStorage/sessionStorage
-      //   localStorage.clear();
-      //   sessionStorage.clear();
-      //   
-      //   // Rediriger vers la page de connexion
-      //   router.push('/login');
-      // } else {
-      //   throw new Error('Logout failed');
-      // }
-
-      // Simulation temporaire
-      console.log('Logging out...');
+      console.log('🔥 TrueSettingsView.handleLogout() - Début de la déconnexion');
       
-      // Nettoyer les données locales
-      localStorage.clear();
-      sessionStorage.clear();
+      // Utiliser le système d'authentification centralisé
+      await logout();
       
-      // Simuler un délai d'API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🔥 TrueSettingsView.handleLogout() - Déconnexion réussie, redirection vers /login');
       
       // Rediriger vers la page de connexion
       router.push('/login');
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error('🔥 TrueSettingsView.handleLogout() - Erreur:', error);
       alert('Failed to logout. Please try again.');
     } finally {
       setIsLoading(false);

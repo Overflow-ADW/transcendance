@@ -76,7 +76,7 @@ async function oauthRoutes(fastify, options) {
    * GET /api/oauth/google
    * Redirige vers l'autorisation Google OAuth
    */
-  fastify.get('/google', async (request, reply) => {
+  fastify.get('/google', { preHandler: fastify.ensureNotAuthenticated }, async (request, reply) => {
     try {
       const state = OAuthUtils.generateState();
       
@@ -112,6 +112,9 @@ async function oauthRoutes(fastify, options) {
   fastify.get('/google/callback', async (request, reply) => {
     try {
       const { code, state, error } = request.query;
+      const authHeader = request.headers.authorization;
+      const token = request.cookies?.jwt;
+      const isAlreadyAuthenticated = !!token || (authHeader && authHeader.startsWith('Bearer '));
 
       fastify.log.info('📥 Callback Google OAuth reçu', { 
         hasCode: !!code, 
@@ -231,7 +234,7 @@ async function oauthRoutes(fastify, options) {
    * GET /api/oauth/github
    * Redirige vers l'autorisation GitHub OAuth
    */
-  fastify.get('/github', async (request, reply) => {
+  fastify.get('/github', { preHandler: fastify.ensureNotAuthenticated }, async (request, reply) => {
     try {
       const state = OAuthUtils.generateState();
       
@@ -265,6 +268,9 @@ async function oauthRoutes(fastify, options) {
   fastify.get('/github/callback', async (request, reply) => {
     try {
       const { code, state, error } = request.query;
+      const authHeader = request.headers.authorization;
+      const token = request.cookies?.jwt;
+      const isAlreadyAuthenticated = !!token || (authHeader && authHeader.startsWith('Bearer '));
 
       fastify.log.info('📥 Callback GitHub OAuth reçu', { 
         hasCode: !!code, 
