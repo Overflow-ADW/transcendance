@@ -1,11 +1,8 @@
 FROM node:20-alpine
 
-# Créer un utilisateur non-root
-RUN adduser -D -u 1001 appuser
-
 WORKDIR /app
 
-# Copier et installer les dépendances en tant que root
+# Copier et installer les dépendances
 COPY package*.json ./
 RUN npm install --production
 
@@ -16,11 +13,7 @@ COPY src/ ./src/
 RUN mkdir -p /app/uploads/avatars /app/uploads/default /app/data
 COPY uploads/ ./uploads/
 
-# Changer la propriété vers l'utilisateur non-root
-RUN chown -R appuser:appuser /app
-
-# Passer à l'utilisateur non-root
-USER appuser
+# Garder root comme UID unique pour compatibilité avec les volumes
 
 EXPOSE 3000
 
