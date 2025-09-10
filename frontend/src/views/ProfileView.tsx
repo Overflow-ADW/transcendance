@@ -141,19 +141,14 @@ function ProfileView() {
         throw new Error('Invalid profile data received');
       }
 
-      // Log pour debug
-      console.log("📝 Display name:", data.display_name);
-      console.log("📝 Username:", data.username);
-      console.log("📝 Recent Games:", data.recentGames);
-      console.log("📝 Is Own Profile:", data.isOwn);
-      console.log("📝 Are We Friends:", data.areWeFriends);
-      console.log("📝 Recent Games détaillées:");
-      data.recentGames?.forEach((game: any, i: number) => {
-        console.log(`  ${i+1}. ID: ${game.id}, mode: ${game.game_mode}, opponent: ${game.opponent_username || 'IA'}`);
+      // Log pour debug - plus concis maintenant
+      console.log("✅ Profil récupéré:", {
+        username: data.username,
+        recentGamesCount: data.recentGames?.length || 0,
+        isOwn: !isVisitorProfile
       });
-      console.log("📝 Stats:", data.stats);
       
-      setProfile({
+      const finalProfile = {
         ...data,
         display_name: data.display_name || undefined,
         avatar_url: data.avatar_url || data.avatar || "",
@@ -172,7 +167,11 @@ function ProfileView() {
           score: `${game.user_score}-${game.opponent_score}`,
           date: game.created_at
         })) : []
-      });
+      };
+      
+      console.log("✅ Profile final créé avec", finalProfile.matches?.length || 0, "matches");
+      
+      setProfile(finalProfile);
       
       // L'avatar URL vient du backend et sera servi par le proxy Nginx
       setAvatarURL(data.avatar_url || data.avatar || "");
@@ -564,13 +563,16 @@ function ProfileView() {
                 </div>
                 {/* Matches */}
                 <div className="space-y-2 flex-1 overflow-y-auto">
-                  {profile.matches && profile.matches.length > 0 ? (
-                    profile.matches.map((match: any) => (
-                      <div key={match.id} className="grid grid-cols-4 gap-2 p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
-                        <div className="text-center text-white text-sm truncate">
+                  {profile && Array.isArray(profile.matches) && profile.matches.length > 0 ? (
+                    profile.matches.map((match: any, index: number) => (
+                      <div 
+                        key={match.id} 
+                        className="grid grid-cols-4 gap-2 p-3 bg-gray-800/80 border border-gray-600/50 rounded-lg hover:bg-gray-700/80 transition-colors shadow-lg"
+                      >
+                        <div className="text-center text-white font-medium text-sm truncate">
                           {match.opponent}
                         </div>
-                        <div className="text-center text-white text-sm font-mono">
+                        <div className="text-center text-gray-200 text-sm font-mono font-bold">
                           {match.score || '-'}
                         </div>
                         <div className={`text-center font-bold uppercase text-sm ${
@@ -578,7 +580,7 @@ function ProfileView() {
                         }`}>
                           {match.result}
                         </div>
-                        <div className="text-center text-white/80 text-xs capitalize">
+                        <div className="text-center text-blue-300 text-xs capitalize font-medium">
                           {match.mode}
                         </div>
                       </div>
