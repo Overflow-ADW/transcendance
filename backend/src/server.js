@@ -35,7 +35,7 @@ fastify.register(require('@fastify/cors'), {
 
 // Rate limiting pour sécurité
 fastify.register(require('@fastify/rate-limit'), {
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 1000,     // Augmenté pour le développement
   timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW) || 900000 // 15 minutes
 });
 

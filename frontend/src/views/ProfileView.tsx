@@ -596,12 +596,22 @@ function ProfileView() {
 
               {/* Boutons d'action */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={() => router.push("/trueSettings")}
-                  className="px-8 py-3 bg-transparent border-4 border-purple-400 text-purple-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-purple-400 hover:text-white hover:scale-105"
-                >
-                  SETTINGS
-                </button>
+                {!isVisitorProfile && (
+                  <button
+                    onClick={() => router.push("/play")}
+                    className="px-8 py-3 bg-transparent border-4 border-green-400 text-green-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-green-400 hover:text-black hover:scale-105"
+                  >
+                    PLAY
+                  </button>
+                )}
+                {!isVisitorProfile && (
+                  <button
+                    onClick={() => router.push("/trueSettings")}
+                    className="px-8 py-3 bg-transparent border-4 border-purple-400 text-purple-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-purple-400 hover:text-white hover:scale-105"
+                  >
+                    SETTINGS
+                  </button>
+                )}
                 <button
                   onClick={() => router.push("/friends")}
                   className="px-8 py-3 bg-transparent border-4 border-white text-white text-lg font-bold rounded-lg transition-all duration-300 hover:bg-white hover:text-black hover:scale-105"
