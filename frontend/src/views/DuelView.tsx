@@ -105,25 +105,47 @@ export default function DuelView() {
 
   // Charger les joueurs sauvegardés au démarrage
   useEffect(() => {
+    // TOUJOURS récupérer l'utilisateur connecté actuel
+    let currentUser = null;
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        currentUser = JSON.parse(storedUser);
+      }
+    } catch (e) {
+      console.warn('Erreur lors de la récupération des données utilisateur:', e);
+    }
+
     const savedPlayers = localStorage.getItem('duel-players');
-    if (savedPlayers) {
-      setPlayers(JSON.parse(savedPlayers));
-    } else {
-      // NOUVEAU : Récupérer l'utilisateur connecté et l'utiliser comme joueur par défaut
-      let currentUser = null;
+    if (savedPlayers && currentUser) {
       try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          currentUser = JSON.parse(storedUser);
+        const parsedPlayers = JSON.parse(savedPlayers);
+        
+        // Vérifier que le premier joueur correspond à l'utilisateur connecté
+        const hostName = currentUser.display_name || currentUser.username || "YOU";
+        
+        if (parsedPlayers.length > 0 && parsedPlayers[0].isMainPlayer) {
+          // Mettre à jour le nom du joueur principal avec l'utilisateur connecté actuel
+          parsedPlayers[0].name = hostName;
+          setPlayers(parsedPlayers);
+          localStorage.setItem('duel-players', JSON.stringify(parsedPlayers));
+        } else {
+          // Réinitialiser si les données sont corrompues
+          const defaultPlayers = [{ id: 1, name: hostName, color: "#8A00C4", isMainPlayer: true }];
+          setPlayers(defaultPlayers);
+          localStorage.setItem('duel-players', JSON.stringify(defaultPlayers));
         }
       } catch (e) {
-        console.warn('Erreur lors de la récupération des données utilisateur:', e);
+        console.warn('Erreur lors du parsing des joueurs sauvegardés:', e);
+        // Fallback vers l'utilisateur par défaut
+        const hostName = currentUser.display_name || currentUser.username || "YOU";
+        const defaultPlayers = [{ id: 1, name: hostName, color: "#8A00C4", isMainPlayer: true }];
+        setPlayers(defaultPlayers);
+        localStorage.setItem('duel-players', JSON.stringify(defaultPlayers));
       }
-
-      // Utiliser le nom de l'utilisateur connecté s'il existe
+    } else {
+      // Pas de données sauvegardées ou pas d'utilisateur connecté
       const hostName = currentUser?.display_name || currentUser?.username || "YOU";
-      
-      // Sauvegarder le joueur par défaut avec le vrai nom
       const defaultPlayers = [{ id: 1, name: hostName, color: "#8A00C4", isMainPlayer: true }];
       setPlayers(defaultPlayers);
       localStorage.setItem('duel-players', JSON.stringify(defaultPlayers));

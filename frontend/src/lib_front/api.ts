@@ -88,16 +88,24 @@ class ApiClient {
     this.token = null;
     if (typeof window !== 'undefined') {
       try {
-        // Nettoyer localStorage
+        // Nettoyer localStorage - Tokens d'authentification
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('auth_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
         
+        // NOUVEAU : Nettoyer les données de jeu pour éviter les conflits entre comptes
+        localStorage.removeItem('duel-players');
+        localStorage.removeItem('multiplayer-players');
+        localStorage.removeItem('game-mode');
+        
         // Nettoyer sessionStorage
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('oauth_provider');
+        
+        console.log('🧹 Nettoyage complet des données d\'authentification et de jeu');
       } catch (e) {
         console.error('Error clearing auth:', e);
       }

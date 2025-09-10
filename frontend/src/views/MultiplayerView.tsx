@@ -91,32 +91,57 @@ export default function MultiplayerView() {
 
   // Charger les joueurs sauvegardés au démarrage
   useEffect(() => {
+    // TOUJOURS récupérer l'utilisateur connecté actuel
+    let currentUser = null;
+    try {
+        const storedUser = localStorage.getItem('user');
+        console.log("🎮 DEBUG - Utilisateur stocké:", storedUser);
+        if (storedUser) {
+            currentUser = JSON.parse(storedUser);
+            console.log("🎮 DEBUG - Utilisateur parsé:", currentUser);
+        }
+    } catch (e) {
+        console.warn('Erreur lors de la récupération des données utilisateur:', e);
+    }
+
     const savedPlayers = localStorage.getItem('multiplayer-players');
     console.log("🎮 DEBUG - Joueurs sauvegardés:", savedPlayers);
     
-    if (savedPlayers) {
-        const players = JSON.parse(savedPlayers);
-        console.log("🎮 DEBUG - Joueurs parsés:", players);
-        setPlayers(players);
-    } else {
-        // NOUVEAU : Récupérer l'utilisateur connecté et l'utiliser comme joueur par défaut
-        let currentUser = null;
+    if (savedPlayers && currentUser) {
         try {
-            const storedUser = localStorage.getItem('user');
-            console.log("🎮 DEBUG - Utilisateur stocké:", storedUser);
-            if (storedUser) {
-                currentUser = JSON.parse(storedUser);
-                console.log("🎮 DEBUG - Utilisateur parsé:", currentUser);
+            const parsedPlayers = JSON.parse(savedPlayers);
+            console.log("🎮 DEBUG - Joueurs parsés:", parsedPlayers);
+            
+            // Vérifier que le premier joueur correspond à l'utilisateur connecté
+            const hostName = currentUser.display_name || currentUser.username || "YOU";
+            
+            if (parsedPlayers.length > 0 && parsedPlayers[0].isHost) {
+                // Mettre à jour le nom du joueur hôte avec l'utilisateur connecté actuel
+                parsedPlayers[0].name = hostName;
+                setPlayers(parsedPlayers);
+                localStorage.setItem('multiplayer-players', JSON.stringify(parsedPlayers));
+                console.log("🎮 DEBUG - Joueurs mis à jour:", parsedPlayers);
+            } else {
+                // Réinitialiser si les données sont corrompues
+                const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
+                setPlayers(defaultPlayers);
+                localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
+                console.log("🎮 DEBUG - Joueurs réinitialisés:", defaultPlayers);
             }
         } catch (e) {
-            console.warn('Erreur lors de la récupération des données utilisateur:', e);
+            console.warn('Erreur lors du parsing des joueurs sauvegardés:', e);
+            // Fallback vers l'utilisateur par défaut
+            const hostName = currentUser.display_name || currentUser.username || "YOU";
+            const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
+            setPlayers(defaultPlayers);
+            localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
+            console.log("🎮 DEBUG - Fallback joueurs par défaut:", defaultPlayers);
         }
-
-        // Utiliser le surnom de l'utilisateur connecté s'il existe
+    } else {
+        // Pas de données sauvegardées ou pas d'utilisateur connecté
         const hostName = currentUser?.display_name || currentUser?.username || "YOU";
         console.log("🎮 DEBUG - Nom d'hôte utilisé:", hostName);
         
-        // Sauvegarder le joueur par défaut avec le vrai nom
         const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
         setPlayers(defaultPlayers);
         localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
