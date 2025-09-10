@@ -500,13 +500,6 @@ export default function TrueSettingsView() {
             </button>
             
             <button
-              onClick={() => router.push("/play")}
-              className="px-8 py-3 bg-transparent border-4 border-yellow-400 text-yellow-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-yellow-400 hover:text-black hover:scale-105"
-            >
-              PLAY
-            </button>
-            
-            <button
               onClick={() => router.push("/")}
               className="px-8 py-3 bg-transparent border-4 border-white text-white text-lg font-bold rounded-lg transition-all duration-300 hover:bg-white hover:text-black hover:scale-105"
             >

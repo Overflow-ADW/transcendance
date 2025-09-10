@@ -13,14 +13,14 @@ export default function HomeView() {
   const { lang } = useApp();
 
   return (
-    <div className="fixed inset-0 relative">
+    <div className="w-screen h-screen overflow-hidden relative">
       {/* Animation Pong en arrière-plan (toujours en plein écran) */}
       <div className="absolute inset-0 w-full h-full">
         <PongCanvas />
       </div>
 
       {/* Overlay avec opacité pour lisibilité sur mobile/tablet */}
-      <div className="absolute inset-0 bg-black/40 md:bg-transparent"></div>
+      <div className="absolute inset-0 bg-black/40 xl:bg-transparent"></div>
 
       {/* Pas de bouton retour sur la home */}
       <BackButton label={t(lang, "return")} hidden />
@@ -28,10 +28,10 @@ export default function HomeView() {
       {/* Contenu principal */}
       <main className="relative z-10 w-full h-full flex">
         
-        {/* Version Desktop (md et plus) - Layout original 2 colonnes */}
-        <div className="hidden md:flex w-full h-full">
+        {/* Version Desktop (xl et plus) - Layout 2 colonnes */}
+        <div className="hidden xl:flex w-screen h-screen">
           {/* ============ COLONNE GAUCHE ============ */}
-          <aside className="w-1/2 h-full bg-black flex">
+          <aside className="w-1/2 h-screen bg-black flex flex-shrink-0">
             <div className="m-auto w-full max-w-[520px] px-8">
               <div className="mb-16">
                 <button
@@ -70,20 +70,20 @@ export default function HomeView() {
           </aside>
 
           {/* ============ COLONNE DROITE ============ */}
-          <section className="w-1/2 h-full bg-blue-600">
+          <section className="w-1/2 h-screen bg-blue-600 flex-shrink-0">
             <PongCanvas />
           </section>
         </div>
 
-        {/* Version Mobile/Tablet (sm et md) - Boutons centrés avec animation en arrière-plan */}
-        <div className="flex md:hidden w-full h-full min-h-screen items-center justify-center p-4 sm:p-6">
-          <div className="w-full max-w-sm sm:max-w-md space-y-6 sm:space-y-8">
+        {/* Version Mobile/Tablet (jusqu'à 1024px) - Boutons centrés avec animation en arrière-plan */}
+        <div className="flex xl:hidden w-full h-full min-h-screen items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12">
+          <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl space-y-6 sm:space-y-8 md:space-y-10 lg:space-y-12">
             
             {/* Titre Welcome */}
-            <div className="text-center mb-8 sm:mb-12">
+            <div className="text-center mb-8 sm:mb-12 md:mb-16 lg:mb-20">
               <button
                 type="button"
-                className="w-full py-4 sm:py-6 px-6 sm:px-8 bg-black/80 border-4 border-purple-600 text-yellow-300 text-2xl sm:text-3xl md:text-4xl font-black tracking-wider rounded-md uppercase backdrop-blur-sm"
+                className="w-full py-4 sm:py-6 md:py-8 lg:py-10 px-6 sm:px-8 md:px-10 lg:px-12 bg-black/80 border-4 border-purple-600 text-yellow-300 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-wider rounded-md uppercase backdrop-blur-sm transition-all duration-300 hover:scale-105"
                 onClick={() => router.push("/")} 
               >
                 {t(lang, "welcome")}
@@ -91,11 +91,11 @@ export default function HomeView() {
             </div>
 
             {/* Menu Buttons */}
-            <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-10">
               <div className="w-full">
                 <button
                   onClick={() => router.push("/signin")}
-                  className="w-full py-3 sm:py-4 px-4 sm:px-6 bg-black/80 border-3 border-purple-500 text-purple-300 text-lg sm:text-xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-purple-500/20 hover:scale-105 hover:border-purple-400"
+                  className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 border-purple-500 text-purple-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-purple-500/20 hover:scale-105 hover:border-purple-400"
                 >
                   SIGN IN
                 </button>
@@ -104,7 +104,7 @@ export default function HomeView() {
               <div className="w-full">
                 <button
                   onClick={() => router.push("/login")}
-                  className="w-full py-3 sm:py-4 px-4 sm:px-6 bg-black/80 border-3 border-blue-500 text-blue-300 text-lg sm:text-xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-blue-500/20 hover:scale-105 hover:border-blue-400"
+                  className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 border-blue-500 text-blue-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-blue-500/20 hover:scale-105 hover:border-blue-400"
                 >
                   LOGIN
                 </button>
@@ -113,7 +113,7 @@ export default function HomeView() {
               <div className="w-full">
                 <button
                   onClick={() => router.push("/settings")}
-                  className="w-full py-3 sm:py-4 px-4 sm:px-6 bg-black/80 border-3 border-yellow-500 text-yellow-300 text-lg sm:text-xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-yellow-500/20 hover:scale-105 hover:border-yellow-400"
+                  className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 border-yellow-500 text-yellow-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-yellow-500/20 hover:scale-105 hover:border-yellow-400"
                 >
                   {t(lang, "settings").toUpperCase()}
                 </button>
@@ -121,8 +121,8 @@ export default function HomeView() {
             </div>
 
             {/* Logo ou branding en bas (optionnel) */}
-            <div className="text-center mt-8 sm:mt-12">
-              <p className="text-white/60 text-xs sm:text-sm font-medium backdrop-blur-sm bg-black/40 rounded-full px-3 sm:px-4 py-1 sm:py-2 inline-block">
+            <div className="text-center mt-8 sm:mt-12 md:mt-16 lg:mt-20">
+              <p className="text-white/60 text-xs sm:text-sm md:text-base lg:text-lg font-medium backdrop-blur-sm bg-black/40 rounded-full px-3 sm:px-4 md:px-6 lg:px-8 py-1 sm:py-2 md:py-3 lg:py-4 inline-block">
                 PONG ULTIMATE
               </p>
             </div>
