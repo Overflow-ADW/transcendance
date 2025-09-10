@@ -16,7 +16,7 @@ function ProfileView() {
   const { user, isAuthenticated, loading } = useAuth();
   
   // Récupérer l'ID utilisateur depuis les paramètres de recherche
-  const visitedUserId = searchParams.get('userId');
+  const visitedUserId = searchParams?.get('userId');
   const isVisitorProfile = visitedUserId && parseInt(visitedUserId) !== user?.id;
   
   interface Profile {

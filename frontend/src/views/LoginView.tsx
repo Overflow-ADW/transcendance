@@ -45,6 +45,46 @@ function LoginViewContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Gestion des erreurs OAuth depuis les query parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+    const provider = params.get('provider');
+    
+    if (error) {
+      let errorMessage = "Erreur d'authentification";
+      
+      switch (error) {
+        case 'oauth_denied':
+          errorMessage = `Connexion ${provider} annulée`;
+          break;
+        case 'oauth_failed':
+          errorMessage = `Erreur lors de la connexion ${provider}`;
+          break;
+        case 'missing_code':
+          errorMessage = `Code d'autorisation manquant pour ${provider}`;
+          break;
+        case 'invalid_state':
+          errorMessage = 'Erreur de sécurité OAuth (state invalide)';
+          break;
+        case 'oauth_setup_failed':
+          errorMessage = `Configuration OAuth ${provider} incorrecte`;
+          break;
+        default:
+          errorMessage = params.get('message') || errorMessage;
+      }
+      
+      setFormError(errorMessage);
+      addNotification && addNotification({
+        type: "error",
+        message: errorMessage,
+      });
+      
+      // Nettoyer l'URL
+      window.history.replaceState({}, document.title, '/login');
+    }
+  }, [addNotification]);
+
   // Rediriger si déjà connecté
   useEffect(() => {
     if (user) {
@@ -92,7 +132,19 @@ function LoginViewContent() {
   // URL backend pour OAuth (adapté à l'env)
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
   const handleOAuth = (provider: 'google' | 'github') => {
-    window.location.href = `${API_BASE}/api/oauth/${provider}`;
+    // Vérifier que l'API base est configurée
+    if (!API_BASE) {
+      setFormError(`Configuration OAuth manquante (NEXT_PUBLIC_API_BASE_URL)`);
+      return;
+    }
+    
+    const oauthUrl = `${API_BASE}/api/oauth/${provider}`;
+    console.log(`🔄 Redirection OAuth ${provider}:`, oauthUrl);
+    
+    // Stocker l'intention de connexion pour gérer le retour
+    sessionStorage.setItem('oauth_provider', provider);
+    
+    window.location.href = oauthUrl;
   };
 
   return (

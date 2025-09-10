@@ -27,8 +27,11 @@ COPY --from=build --chown=appuser:appuser /app/out /usr/share/nginx/html
 # Copier la configuration Nginx
 COPY --chown=appuser:appuser nginx.conf /etc/nginx/nginx.conf
 
-# Ajuster les permissions
-RUN chown -R appuser:appuser /var/cache/nginx /var/run /var/log/nginx
+# Créer les répertoires nécessaires avec les bonnes permissions
+RUN mkdir -p /tmp/nginx /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp \
+    /var/cache/nginx/fastcgi_temp /var/cache/nginx/uwsgi_temp /var/cache/nginx/scgi_temp \
+    && chown -R appuser:appuser /tmp/nginx /var/cache/nginx /var/log/nginx \
+    && chmod -R 755 /tmp/nginx /var/cache/nginx
 
 # Passer à l'utilisateur non-root
 USER appuser

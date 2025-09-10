@@ -12,8 +12,8 @@ RUN npm install --production
 # Copier le code source
 COPY src/ ./src/
 
-# Créer les dossiers d'upload
-RUN mkdir -p /app/uploads/avatars /app/uploads/default
+# Créer les dossiers d'upload et de base de données
+RUN mkdir -p /app/uploads/avatars /app/uploads/default /app/data
 COPY uploads/ ./uploads/
 
 # Changer la propriété vers l'utilisateur non-root
