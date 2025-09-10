@@ -206,17 +206,12 @@ function GameView() {
                 <div>
                   <span className="font-bold" style={{ color: players[1]?.color }}>
                     {players[1]?.name}:
-                  </span> ↑/↓
+                  </span> O/L
                 </div>
                 <div>
                   <span className="font-bold" style={{ color: players[2]?.color }}>
                     {players[2]?.name}:
                   </span> I/K
-                </div>
-                <div>
-                  <span className="font-bold" style={{ color: players[3]?.color }}>
-                    {players[3]?.name}:
-                  </span> 8/5
                 </div>
               </div>
             </div>

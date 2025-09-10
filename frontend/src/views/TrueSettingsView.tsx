@@ -5,11 +5,12 @@ import { TwoFactorModal } from "@/components/ui/TwoFactorModal";
 import { useRouter } from 'next/navigation';
 import { apiClient } from "@/lib_front/api";
 import { useAuth } from "@/lib_front/AuthContext";
-
-type Language = 'fr' | 'en' | 'nl';
+import { t } from "@/lib_front/i18n";
+import type { Lang } from "@/lib_front/types";
+import { useApp } from "@/lib_front/store";
 
 interface LanguageOption {
-  code: Language;
+  code: Lang;
   name: string;
   flag: string;
 }
@@ -199,7 +200,7 @@ const LogoutModal = ({ isOpen, onClose, onConfirm }: LogoutModalProps) => {
 export default function TrueSettingsView() {
   const router = useRouter();
   const { logout } = useAuth();
-  const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
+  const { lang: currentLanguage, setLang: setCurrentLanguage, addNotification } = useApp();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -223,17 +224,6 @@ export default function TrueSettingsView() {
   ];
 
   useEffect(() => {
-    const loadCurrentLanguage = async () => {
-      try {
-        const savedLang = localStorage.getItem('user-language') as Language;
-        if (savedLang && ['en', 'fr', 'nl'].includes(savedLang)) {
-          setCurrentLanguage(savedLang);
-        }
-      } catch (error) {
-        // Silent error handling
-      }
-    };
-
     const load2FAStatus = async () => {
       try {
         const status = await apiClient.get2FAStatus();
@@ -248,20 +238,27 @@ export default function TrueSettingsView() {
       }
     };
 
-    loadCurrentLanguage();
     load2FAStatus();
   }, []);
 
-  const handleLanguageChange = async (newLanguage: Language) => {
+  const handleLanguageChange = async (newLanguage: Lang) => {
     if (newLanguage === currentLanguage) return;
 
     setIsSavingLanguage(true);
     try {
       localStorage.setItem('user-language', newLanguage);
       setCurrentLanguage(newLanguage);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      addNotification({
+        type: 'success',
+        message: t(newLanguage, 'languageChanged'),
+        duration: 3000
+      });
     } catch (error) {
-      alert('Failed to update language settings');
+      addNotification({
+        type: 'error',
+        message: t(currentLanguage, 'languageChangeError'),
+        duration: 3000
+      });
     } finally {
       setIsSavingLanguage(false);
     }
@@ -372,18 +369,19 @@ export default function TrueSettingsView() {
             <div className="flex flex-col space-y-4">
               <div className="bg-black border-4 border-blue-400 rounded-lg p-6 flex-1">
                 <h2 className="text-xl font-bold text-blue-400 text-center mb-6">
-                  LANGUAGE / LANGUE / TAAL
+                  {t(currentLanguage, 'settings').toUpperCase()}
                 </h2>
                 <div className="space-y-3">
                   {languages.map((lang) => (
                     <button
                       key={lang.code}
-                      onClick={() => handleLanguageChange(lang.code)}
+                      onClick={() => handleLanguageChange(lang.code as Lang)}
                       disabled={isSavingLanguage}
-                      className={`w-full p-4 rounded-lg border-2 transition-all duration-300 flex items-center justify-between ${currentLanguage === lang.code
-                        ? 'bg-blue-400/20 border-blue-400 text-blue-400'
-                        : 'bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white/40'
-                        } ${isSavingLanguage ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                      className={`w-full p-4 rounded-lg border-2 transition-all duration-300 flex items-center justify-between ${
+                        currentLanguage === lang.code
+                          ? 'bg-blue-400/20 border-blue-400 text-blue-400'
+                          : 'bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white/40'
+                      } ${isSavingLanguage ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
                     >
                       <div className="flex items-center space-x-3">
                         <span className="text-2xl">{lang.flag}</span>
@@ -401,7 +399,7 @@ export default function TrueSettingsView() {
                 </div>
                 {isSavingLanguage && (
                   <div className="mt-4 text-center">
-                    <p className="text-blue-400 text-sm">Saving language preference...</p>
+                    <p className="text-blue-400 text-sm">{t(currentLanguage, 'saving')}...</p>
                   </div>
                 )}
               </div>
@@ -410,7 +408,7 @@ export default function TrueSettingsView() {
             <div className="flex flex-col space-y-4">
               <div className="bg-black border-4 border-red-400 rounded-lg p-6 flex-1">
                 <h2 className="text-xl font-bold text-red-400 text-center mb-6">
-                  ACCOUNT
+                  {t(currentLanguage, 'account')}
                 </h2>
                 <div className="space-y-4">
                   <button
@@ -418,7 +416,7 @@ export default function TrueSettingsView() {
                     disabled={isChangingUsername}
                     className="w-full p-4 bg-purple-600/20 border-2 border-purple-400 text-purple-400 rounded-lg font-bold text-lg transition-all duration-300 hover:bg-purple-600 hover:text-white hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isChangingUsername ? 'CHANGING USERNAME...' : 'CHANGE USERNAME'}
+                    {isChangingUsername ? t(currentLanguage, 'changingUsername') : t(currentLanguage, 'changeUsername')}
                   </button>
 
                   <button
@@ -426,7 +424,7 @@ export default function TrueSettingsView() {
                     disabled={isChangingPassword}
                     className="w-full p-4 bg-blue-600/20 border-2 border-blue-400 text-blue-400 rounded-lg font-bold text-lg transition-all duration-300 hover:bg-blue-600 hover:text-white hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isChangingPassword ? 'CHANGING PASSWORD...' : 'CHANGE PASSWORD'}
+                    {isChangingPassword ? t(currentLanguage, 'changingPassword') : t(currentLanguage, 'changePassword')}
                   </button>
 
                   <button
@@ -437,8 +435,8 @@ export default function TrueSettingsView() {
                       : 'bg-green-600/20 border-green-400 text-green-400 hover:bg-green-600 hover:text-white'
                       }`}
                   >
-                    {twoFAStatus.loading ? 'LOADING...' :
-                      twoFAStatus.enabled ? 'DISABLE 2FA' : 'ENABLE 2FA'}
+                    {twoFAStatus.loading ? t(currentLanguage, 'loading') :
+                      twoFAStatus.enabled ? t(currentLanguage, 'disable2FA') : t(currentLanguage, 'enable2FA')}
                   </button>
 
                   {twoFAStatus.enabled && !twoFAStatus.loading && (
@@ -460,7 +458,7 @@ export default function TrueSettingsView() {
                     disabled={isLoading}
                     className="w-full p-4 bg-red-600/20 border-2 border-red-400 text-red-400 rounded-lg font-bold text-lg transition-all duration-300 hover:bg-red-600 hover:text-white hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'LOGGING OUT...' : 'LOGOUT'}
+                    {isLoading ? t(currentLanguage, 'loggingOut') : t(currentLanguage, 'logout')}
                   </button>
                 </div>
               </div>

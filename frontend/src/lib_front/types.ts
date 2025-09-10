@@ -1,6 +1,6 @@
 // src/lib_front/types.ts
 
-export type Lang = "fr" | "en" | "es";
+export type Lang = "fr" | "en" | "nl";
 
 export type View =
   | "home"
