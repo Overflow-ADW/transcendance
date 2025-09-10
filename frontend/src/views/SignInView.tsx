@@ -22,7 +22,7 @@ type SignInErrorBody = {
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-const REGISTER_ENDPOINT = `${API_BASE}/api/auth/register`; // Utilisation de la route correcte avec /api
+const REGISTER_ENDPOINT = `${API_BASE}/api/auth/register`;
 
 export default function SignInView() {
   const [mounted, setMounted] = useState(false);
@@ -31,7 +31,6 @@ export default function SignInView() {
     setMounted(true);
   }, []);
 
-  // Version simple pour le premier rendu (évite les warnings d'hydratation)
   if (!mounted) {
     return (
       <div className="w-screen h-screen overflow-hidden relative">
@@ -73,7 +72,6 @@ export default function SignInView() {
     );
   }
 
-  // Version complète après hydratation
   return <SignInViewContent />;
 }
 
@@ -81,35 +79,28 @@ function SignInViewContent() {
   const router = useRouter();
   const { lang, addNotification } = useApp();
 
-  // URL backend pour OAuth (adapté à l'env, côté client)
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
   const handleOAuth = (provider: 'google' | 'github') => {
-    // Vérifier que l'API base est configurée
     if (!API_BASE) {
       setFormError(`Configuration OAuth manquante (NEXT_PUBLIC_API_BASE_URL)`);
       return;
     }
-    
+
     const oauthUrl = `${API_BASE}/api/oauth/${provider}`;
-    console.log(`🔄 Redirection OAuth ${provider}:`, oauthUrl);
-    
-    // Stocker l'intention de connexion pour gérer le retour
+
     sessionStorage.setItem('oauth_provider', provider);
-    
+
     window.location.href = oauthUrl;
   };
 
-  // États du formulaire
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
-  // États UI
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  // Validation locale — même philosophie que pour le Login
   const validate = () => {
     const errors: Record<string, string[]> = {};
 
@@ -140,7 +131,6 @@ function SignInViewContent() {
       const res = await fetch(REGISTER_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Pas d'email, on travaille en username + password
         body: JSON.stringify({ username, password }),
       });
 
@@ -153,7 +143,6 @@ function SignInViewContent() {
 
       if (!res.ok) {
         if (res.status === 400 || res.status === 401 || res.status === 422 || res.status === 409) {
-          // 409 si username déjà pris, selon ton backend
           const message =
             (data as SignInErrorBody)?.message ||
             "Registration failed. Please check your information.";
@@ -163,7 +152,7 @@ function SignInViewContent() {
         } else {
           setFormError(
             (data as SignInErrorBody)?.message ||
-              `Server error (${res.status}). Please try again later.`
+            `Server error (${res.status}). Please try again later.`
           );
         }
         return;
@@ -178,13 +167,11 @@ function SignInViewContent() {
         return;
       }
 
-      // Stockage token — cohérent avec LoginView
       localStorage.setItem("accessToken", accessToken);
       if (refreshToken) {
         localStorage.setItem("refreshToken", refreshToken);
       }
 
-      // Notification succès et redirection vers login
       addNotification && addNotification({
         type: "success",
         message: "Compte créé avec succès ! Connecte-toi pour continuer.",
@@ -199,19 +186,15 @@ function SignInViewContent() {
 
   return (
     <div className="w-screen h-screen overflow-hidden relative">
-      {/* Animation Pong en arrière-plan (toujours en plein écran) */}
       <div className="absolute inset-0 w-full h-full">
         <PongCanvas />
       </div>
 
-      {/* Overlay avec opacité pour lisibilité sur mobile/tablet */}
       <div className="absolute inset-0 bg-black/40 xl:bg-transparent"></div>
 
       <main className="relative z-10 w-full h-full flex">
-        
-        {/* Version Desktop (xl et plus) - Layout 2 colonnes */}
+
         <div className="hidden xl:flex w-screen h-screen">
-          {/* ============ COLONNE GAUCHE - MENU ============ */}
           <aside className="w-1/2 h-screen bg-black flex flex-shrink-0">
             <div className="m-auto w-full max-w-[520px] px-8">
               <div className="mb-16">
@@ -251,7 +234,6 @@ function SignInViewContent() {
             </div>
           </aside>
 
-          {/* ============ COLONNE DROITE - FORMULAIRE SIGN IN ============ */}
           <section className="w-1/2 h-screen bg-blue-600 flex items-center justify-center p-8 flex-shrink-0">
             <form
               className="w-full max-w-md space-y-6 bg-black/80 backdrop-blur-sm p-8 rounded-lg border border-white/20"
@@ -276,9 +258,8 @@ function SignInViewContent() {
                   autoCorrect="off"
                   spellCheck={false}
                   placeholder="Username"
-                  className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${
-                    fieldErrors.username ? "border-red-500" : "border-gray-600"
-                  } focus:border-purple-400 focus:outline-none transition-colors`}
+                  className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${fieldErrors.username ? "border-red-500" : "border-gray-600"
+                    } focus:border-purple-400 focus:outline-none transition-colors`}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
@@ -293,9 +274,8 @@ function SignInViewContent() {
                 <input
                   type="password"
                   placeholder="Password"
-                  className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${
-                    fieldErrors.password ? "border-red-500" : "border-gray-600"
-                  } focus:border-purple-400 focus:outline-none transition-colors`}
+                  className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${fieldErrors.password ? "border-red-500" : "border-gray-600"
+                    } focus:border-purple-400 focus:outline-none transition-colors`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -310,9 +290,8 @@ function SignInViewContent() {
                 <input
                   type="password"
                   placeholder="Confirm Password"
-                  className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${
-                    fieldErrors.confirm ? "border-red-500" : "border-gray-600"
-                  } focus:border-purple-400 focus:outline-none transition-colors`}
+                  className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${fieldErrors.confirm ? "border-red-500" : "border-gray-600"
+                    } focus:border-purple-400 focus:outline-none transition-colors`}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                 />
@@ -365,11 +344,9 @@ function SignInViewContent() {
           </section>
         </div>
 
-        {/* Version Mobile/Tablet (jusqu'à 1024px) - Formulaire centré avec animation en arrière-plan */}
         <div className="flex xl:hidden w-full h-full min-h-screen items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12">
           <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl space-y-6 sm:space-y-8 md:space-y-10 lg:space-y-12">
-            
-            {/* Titre Welcome */}
+
             <div className="text-center mb-8 sm:mb-12 md:mb-16 lg:mb-20">
               <button
                 type="button"
@@ -380,7 +357,6 @@ function SignInViewContent() {
               </button>
             </div>
 
-            {/* Formulaire d'inscription */}
             <form
               className="space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-10"
               onSubmit={onSubmit}
@@ -400,11 +376,10 @@ function SignInViewContent() {
                   autoCorrect="off"
                   spellCheck={false}
                   placeholder="Username"
-                  className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${
-                    fieldErrors.username 
-                      ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60" 
-                      : "border-blue-500 text-blue-300 focus:bg-blue-500/20 focus:border-blue-400 placeholder-blue-400/60"
-                  }`}
+                  className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${fieldErrors.username
+                    ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
+                    : "border-blue-500 text-blue-300 focus:bg-blue-500/20 focus:border-blue-400 placeholder-blue-400/60"
+                    }`}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
@@ -414,16 +389,15 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-              
+
               <div className="w-full">
                 <input
                   type="password"
                   placeholder="Password"
-                  className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${
-                    fieldErrors.password 
-                      ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60" 
-                      : "border-purple-500 text-purple-300 focus:bg-purple-500/20 focus:border-purple-400 placeholder-purple-400/60"
-                  }`}
+                  className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${fieldErrors.password
+                    ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
+                    : "border-purple-500 text-purple-300 focus:bg-purple-500/20 focus:border-purple-400 placeholder-purple-400/60"
+                    }`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -433,16 +407,15 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-              
+
               <div className="w-full">
                 <input
                   type="password"
                   placeholder="Confirm Password"
-                  className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${
-                    fieldErrors.confirm 
-                      ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60" 
-                      : "border-orange-500 text-orange-300 focus:bg-orange-500/20 focus:border-orange-400 placeholder-orange-400/60"
-                  }`}
+                  className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${fieldErrors.confirm
+                    ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
+                    : "border-orange-500 text-orange-300 focus:bg-orange-500/20 focus:border-orange-400 placeholder-orange-400/60"
+                    }`}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                 />
@@ -452,7 +425,7 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-              
+
               <div className="w-full">
                 <button
                   type="submit"
@@ -463,7 +436,6 @@ function SignInViewContent() {
                 </button>
               </div>
 
-              {/* Boutons OAuth Mobile/Tablet */}
               <div className="flex flex-col gap-3 mt-2">
                 <button
                   type="button"
@@ -484,7 +456,6 @@ function SignInViewContent() {
               </div>
             </form>
 
-            {/* Navigation */}
             <div className="text-center space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-10">
               <button
                 type="button"
@@ -493,8 +464,7 @@ function SignInViewContent() {
               >
                 Already have an account? Login
               </button>
-              
-              {/* Logo ou branding en bas */}
+
               <p className="text-white/60 text-xs sm:text-sm md:text-base lg:text-lg font-medium backdrop-blur-sm bg-black/40 rounded-full px-3 sm:px-4 md:px-6 lg:px-8 py-1 sm:py-2 md:py-3 lg:py-4 inline-block">
                 PONG ULTIMATE
               </p>

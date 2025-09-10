@@ -21,7 +21,6 @@ function GameView() {
   const [gameMode, setGameMode] = useState<string>('');
 
   useEffect(() => {
-    // Charger le mode de jeu et les joueurs
     const mode = localStorage.getItem('game-mode') || '';
     setGameMode(mode);
 
@@ -29,20 +28,19 @@ function GameView() {
 
     switch (mode) {
       case 'tournament':
-        // Récupérer les données du match en cours pour obtenir les vrais pseudos
         const currentMatch = localStorage.getItem('current-match');
         if (currentMatch) {
           const matchData = JSON.parse(currentMatch);
           if (matchData.player1 && matchData.player2) {
             loadedPlayers = [
-              { 
-                id: matchData.player1.id, 
+              {
+                id: matchData.player1.id,
                 name: matchData.player1.name || matchData.player1.username,
                 color: matchData.player1.color || "#8A00C4",
                 isMainPlayer: false
               },
-              { 
-                id: matchData.player2.id, 
+              {
+                id: matchData.player2.id,
                 name: matchData.player2.name || matchData.player2.username,
                 color: matchData.player2.color || "#2323FF",
                 isMainPlayer: false
@@ -50,28 +48,27 @@ function GameView() {
             ];
           }
         } else {
-          // Fallback vers les données du tournoi
           const tournamentPlayers = localStorage.getItem('tournament-players');
           if (tournamentPlayers) {
             loadedPlayers = JSON.parse(tournamentPlayers);
           }
         }
         break;
-        
+
       case 'duel':
         const duelPlayers = localStorage.getItem('duel-players');
         if (duelPlayers) {
           loadedPlayers = JSON.parse(duelPlayers);
         }
         break;
-        
+
       case 'multiplayer':
         const multiplayerPlayers = localStorage.getItem('multiplayer-players');
         if (multiplayerPlayers) {
           loadedPlayers = JSON.parse(multiplayerPlayers);
         }
         break;
-        
+
       case 'ai':
         const difficulty = localStorage.getItem('ai-difficulty') || 'medium';
         loadedPlayers = [
@@ -79,9 +76,8 @@ function GameView() {
           { id: 2, name: `AI (${difficulty.toUpperCase()})`, color: "#FF6B35" }
         ];
         break;
-        
+
       default:
-        // Mode par défaut si aucun mode n'est défini
         loadedPlayers = [
           { id: 1, name: "PLAYER 1", color: "#8A00C4" },
           { id: 2, name: "PLAYER 2", color: "#2323FF" }
@@ -92,12 +88,10 @@ function GameView() {
   }, []);
 
   const handleQuit = () => {
-    // Nettoyer le localStorage
     localStorage.removeItem('game-mode');
     localStorage.removeItem('ai-difficulty');
     localStorage.removeItem('current-match');
-    
-    // Retourner à la page play
+
     router.push('/play');
   };
 
@@ -120,18 +114,15 @@ function GameView() {
   return (
     <GradientBackground className="bg-black">
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        
-        {/* Header avec mode de jeu */}
+
         <div className="mb-4">
           <h1 className="text-2xl md:text-3xl font-bold text-white text-center tracking-wider">
             {getGameModeTitle()}
           </h1>
         </div>
 
-        {/* Affichage des joueurs */}
         <div className="mb-6 w-full max-w-4xl">
           {gameMode === 'multiplayer' ? (
-            // Affichage 2x2 pour multiplayer
             <div className="grid grid-cols-2 gap-4">
               {players.slice(0, 4).map((player, index) => (
                 <div
@@ -155,7 +146,6 @@ function GameView() {
               ))}
             </div>
           ) : (
-            // Affichage horizontal pour les autres modes
             <div className="flex justify-center gap-8">
               {players.slice(0, 2).map((player, index) => (
                 <div
@@ -184,21 +174,17 @@ function GameView() {
           )}
         </div>
 
-        {/* Zone de jeu avec canvas 60vw */}
         <div className="mb-8" style={{ width: '60vw', maxWidth: '800px' }}>
           <div className="bg-black border-4 border-white rounded-2xl p-1 relative">
-            {/* Conteneur de jeu avec aspect ratio 16:10 */}
             <div
               className="relative bg-black rounded-xl overflow-hidden"
               style={{ aspectRatio: "16/10" }}
             >
-              {/* Composant Pong intégré */}
               <Pong />
             </div>
           </div>
         </div>
 
-        {/* Bouton quit uniquement */}
         <div className="flex justify-center">
           <button
             onClick={handleQuit}
@@ -208,7 +194,6 @@ function GameView() {
           </button>
         </div>
 
-        {/* Instructions de contrôle pour multiplayer */}
         {gameMode === 'multiplayer' && (
           <div className="mt-6 text-center">
             <div className="text-white/70 text-sm">
@@ -242,5 +227,4 @@ function GameView() {
   );
 }
 
-// Exporter le composant avec la protection de route
 export default withProtectedRoute(GameView);

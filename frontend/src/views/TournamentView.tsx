@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from "@/lib_front/AuthContext";
 import { apiClient } from "@/lib_front/api";
 
-// Types pour les slots de tournoi
 type TournamentPlayer = {
   id: number;
   name: string;
@@ -51,8 +50,7 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
         try {
           setIsSearching(true);
           const response = await apiClient.searchUsers(searchQuery);
-          // Filtrer les joueurs qui sont déjà dans la liste
-          const filteredResults = response.results.filter((result: { id: number }) => 
+          const filteredResults = response.results.filter((result: { id: number }) =>
             !currentPlayers.some(player => player.id === result.id)
           );
           setSearchResults(filteredResults);
@@ -62,7 +60,7 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
           setIsSearching(false);
         }
       };
-      
+
       const timeoutId = setTimeout(searchUsers, 300);
       return () => clearTimeout(timeoutId);
     } else {
@@ -85,7 +83,7 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
           />
         </div>
-        
+
         <div className="max-h-60 overflow-y-auto">
           {isSearching ? (
             <div className="text-center py-4 text-gray-500">Searching...</div>
@@ -108,7 +106,7 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
             <div className="text-center py-4 text-gray-500">Type at least 2 characters to search</div>
           )}
         </div>
-        
+
         {selectedUser && (
           <div className="mt-4 border-t pt-4">
             <div className="mb-4">
@@ -147,14 +145,13 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
                   try {
                     setIsVerifying(true);
                     setError(null);
-                    
+
                     const result = await apiClient.verifyPassword({
                       username: selectedUser.username,
                       password: password
                     });
-                    
+
                     if (result.success) {
-                      // Ajouter le joueur sans le connecter
                       onSelect(selectedUser);
                       setSelectedUser(null);
                       setPassword("");
@@ -201,15 +198,13 @@ export default function TournamentView() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const colors = ["#8A00C4", "#2323FF", "#FF6B35", "#28A745"];
 
-  // Charger les joueurs du tournoi au démarrage
   useEffect(() => {
     if (user && players.length === 0) {
-      // Ajouter l'utilisateur actuel comme premier joueur seulement si la liste est vide
       setPlayers([{
         id: user.id,
         name: user.display_name || user.username,
         color: colors[0],
-        isMainPlayer: true // Marquer le joueur principal
+        isMainPlayer: true
       }]);
     }
   }, [user]);
@@ -222,18 +217,15 @@ export default function TournamentView() {
         color: colors[players.length],
         isMainPlayer: false
       };
-      
+
       setPlayers(currentPlayers => {
-        // Garder le joueur principal en première position
         if (currentPlayers.length === 0) {
           return [playerToAdd];
         }
-        // Trouver le joueur principal
         const mainPlayerIndex = currentPlayers.findIndex(p => p.isMainPlayer);
         if (mainPlayerIndex === -1) {
           return [...currentPlayers, playerToAdd];
         }
-        // Insérer le nouveau joueur après le joueur principal
         const newPlayers = [...currentPlayers];
         newPlayers.splice(mainPlayerIndex + 1, 0, playerToAdd);
         return newPlayers;
@@ -247,7 +239,6 @@ export default function TournamentView() {
     }
 
     try {
-      // 1. Créer le tournoi en base de données
       const tournamentResponse = await apiClient.createTournament({
         name: `Tournoi de ${user?.display_name || user?.username}`,
         description: `Tournoi avec ${players.length} joueurs`,
@@ -261,49 +252,42 @@ export default function TournamentView() {
 
       const tournamentId = tournamentResponse.tournament.id;
 
-      // 2. Ajouter tous les participants (le créateur est déjà ajouté)
       for (const player of players) {
         if (player.id !== user?.id) {
           await apiClient.addTournamentParticipant(tournamentId, player.id);
         }
       }
 
-      // 3. Démarrer le tournoi (créer les matchs)
       const startResponse = await apiClient.startTournament(tournamentId);
 
-      // 4. Sauvegarder l'ID du tournoi et rediriger
       localStorage.setItem('current-tournament-id', tournamentId.toString());
       localStorage.setItem('tournament-players', JSON.stringify(players));
-      
+
       router.push("/tournament-bracket");
     } catch (error) {
       console.error('Erreur lors du démarrage du tournoi:', error);
-      // Optionnel: afficher une notification d'erreur à l'utilisateur
     }
   };
 
   const removePlayer = (id: number) => {
-    if (id !== user?.id) { // Ne pas permettre la suppression du joueur actuel
+    if (id !== user?.id) {
       setPlayers(prev => prev.filter(p => p.id !== id));
     }
   };
 
 
 
-  // Créer un tableau de 4 slots
 
 
   return (
     <GradientBackground>
       <div className="min-h-screen flex flex-col items-center justify-center p-8 relative">
-        {/* Titre */}
         <div className="mb-16">
           <h1 className="text-6xl font-bold text-white text-center tracking-wider">
             TOURNAMENT
           </h1>
         </div>
 
-        {/* Grille 2x2 des joueurs */}
         <div className="grid grid-cols-2 gap-8 mb-16">
           {Array.from({ length: 4 }).map((_, index) => {
             const player = players[index];
@@ -340,7 +324,6 @@ export default function TournamentView() {
           })}
         </div>
 
-        {/* Bouton d'action */}
         <div>
           <button
             onClick={() => {
@@ -348,18 +331,16 @@ export default function TournamentView() {
                 handleStartTournament();
               }
             }}
-            className={`bg-transparent border-4 border-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:scale-105 ${
-              players.length >= 2
+            className={`bg-transparent border-4 border-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:scale-105 ${players.length >= 2
                 ? "text-yellow-400 hover:bg-yellow-400 hover:text-black"
                 : "text-yellow-400/50 border-yellow-400/50 cursor-not-allowed"
-            }`}
+              }`}
             disabled={players.length < 2}
           >
             START
           </button>
         </div>
 
-        {/* Modal de recherche de joueurs */}
         <SearchPlayerModal
           isOpen={showSearchModal}
           onClose={() => setShowSearchModal(false)}

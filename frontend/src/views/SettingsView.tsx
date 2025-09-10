@@ -12,34 +12,33 @@ export default function SettingsView() {
 
   return (
     <GradientBackground>
-      
-      {/* Version Desktop (xl et plus) - Layout original avec carré noir */}
+
       <div className="hidden xl:block min-h-screen flex items-center justify-center p-16">
         <div className="w-full h-[calc(100vh-8rem)] rounded-lg flex flex-col justify-center items-center">
           <div className="w-full max-w-lg space-y-6">
-            <button 
+            <button
               onClick={() => router.push("/play")}
               className="font-press-start w-full py-6 px-8 bg-transparent border-2 border-white text-white text-2xl font-bold rounded-lg transition-all duration-300 hover:bg-purple-600"
             >
               play
             </button>
-            
-            <button 
+
+            <button
               onClick={() => router.push("/friends")}
               className="w-full py-6 px-8 bg-transparent border-2 border-white text-white text-2xl font-bold rounded-lg transition-all duration-300 hover:bg-purple-600"
             >
               friends
             </button>
-            
-            <button 
+
+            <button
               onClick={() => router.push("/profile")}
               className="w-full py-6 px-8 bg-transparent border-2 border-white text-white text-2xl font-bold rounded-lg transition-all duration-300 hover:bg-purple-600"
             >
               profile
             </button>
-            
+
             <button
-              onClick={() => router.push("/trueSettings")} 
+              onClick={() => router.push("/trueSettings")}
               className="w-full py-6 px-8 bg-purple-600 border-2 border-white text-white text-2xl font-bold rounded-lg cursor-default"
             >
               setting
@@ -48,11 +47,9 @@ export default function SettingsView() {
         </div>
       </div>
 
-      {/* Version Mobile/Tablet (jusqu'à 1024px) - Sans carré noir, boutons stylisés */}
       <div className="flex xl:hidden w-full h-screen min-h-screen items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12">
         <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl space-y-6 sm:space-y-8 md:space-y-10 lg:space-y-12">
-          
-          {/* Titre Settings */}
+
           <div className="text-center mb-8 sm:mb-12 md:mb-16 lg:mb-20">
             <h1 className="text-white text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-wider uppercase mb-4 sm:mb-6 text-shadow-lg">
               SETTINGS
@@ -60,9 +57,8 @@ export default function SettingsView() {
             <div className="w-16 sm:w-20 md:w-24 lg:w-28 h-1 sm:h-1.5 md:h-2 bg-purple-500 mx-auto rounded-full"></div>
           </div>
 
-          {/* Menu Buttons - SANS le bouton play */}
           <div className="space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-10">
-            
+
             <div className="w-full">
               <button
                 onClick={() => router.push("/friends")}
@@ -71,7 +67,7 @@ export default function SettingsView() {
                 FRIENDS
               </button>
             </div>
-            
+
             <div className="w-full">
               <button
                 onClick={() => router.push("/profile")}
@@ -80,7 +76,7 @@ export default function SettingsView() {
                 PROFILE
               </button>
             </div>
-            
+
             <div className="w-full">
               <button
                 onClick={() => router.push("/trueSettings")}
@@ -91,7 +87,6 @@ export default function SettingsView() {
             </div>
           </div>
 
-          {/* Info section */}
           <div className="text-center mt-8 sm:mt-12 md:mt-16 lg:mt-20">
             <p className="text-white/70 text-xs sm:text-sm md:text-base lg:text-lg font-medium backdrop-blur-sm bg-black/30 rounded-full px-4 sm:px-6 md:px-8 lg:px-10 py-2 sm:py-3 md:py-4 lg:py-5 inline-block border border-white/20">
               Game available on desktop only
