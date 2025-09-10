@@ -211,6 +211,177 @@ async function userRoutes(fastify, options) {
   });
 
   // ========================================
+  // ROUTE DE RÉCUPÉRATION DU PROFIL PUBLIC D'UN UTILISATEUR
+  // ========================================
+  fastify.get('/profile/:userId', { preHandler: [authenticateToken] }, async (request, reply) => {
+    try {
+      const { userId } = request.params;
+      const requesterId = request.user.userId;
+
+      // Vérifier que l'utilisateur cible existe
+      const targetUser = db.prepare(`
+        SELECT 
+          u.id,
+          u.username,
+          u.display_name,
+          u.avatar_url,
+          u.status,
+          u.created_at,
+          u.last_login,
+          (SELECT COUNT(*) FROM friends f 
+           WHERE (f.user_id = u.id OR f.friend_id = u.id) 
+           AND f.status = 'accepted') as friends_count
+        FROM users u 
+        WHERE u.id = ?
+      `).get(userId);
+      
+      if (!targetUser) {
+        return reply.status(404).send({
+          error: 'Utilisateur non trouvé',
+          code: 'USER_NOT_FOUND'
+        });
+      }
+
+      // Vérifier si les utilisateurs sont amis (pour déterminer le niveau d'accès)
+      const friendship = db.prepare(`
+        SELECT status FROM friends 
+        WHERE ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))
+        AND status = 'accepted'
+      `).get(requesterId, userId, userId, requesterId);
+
+      const areWeFriends = !!friendship;
+
+      // Récupérer les statistiques publiques
+      const publicStats = db.prepare(`
+        SELECT 
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as games_played,
+          COUNT(CASE WHEN status = 'completed' AND winner_id = ? THEN 1 END) as games_won,
+          COUNT(CASE WHEN status = 'completed' AND winner_id != ? AND winner_id IS NOT NULL THEN 1 END) as games_lost,
+          COUNT(CASE WHEN status = 'completed' AND winner_id IS NULL THEN 1 END) as games_drawn,
+          COALESCE(AVG(CASE WHEN status = 'completed' THEN duration END), 0) as avg_duration,
+          COALESCE(MAX(CASE WHEN status = 'completed' AND player1_id = ? THEN score_player1 
+                            WHEN status = 'completed' AND player2_id = ? THEN score_player2 END), 0) as highest_score,
+          COUNT(CASE WHEN status = 'completed' AND ai_opponent = 1 THEN 1 END) as vs_ai_total,
+          COUNT(CASE WHEN status = 'completed' AND ai_opponent = 1 AND winner_id = ? THEN 1 END) as vs_ai_won,
+          COUNT(CASE WHEN status = 'completed' AND ai_opponent = 0 THEN 1 END) as vs_players_total,
+          COUNT(CASE WHEN status = 'completed' AND ai_opponent = 0 AND winner_id = ? THEN 1 END) as vs_players_won
+        FROM games 
+        WHERE (player1_id = ? OR player2_id = ?)
+      `).get(userId, userId, userId, userId, userId, userId, userId, userId);
+
+      // Récupérer les stats de tournoi
+      const tournamentStats = db.prepare(`
+        SELECT 
+          COUNT(DISTINCT t.id) as tournaments_joined,
+          COUNT(DISTINCT CASE WHEN t.winner_id = ? THEN t.id END) as tournaments_won
+        FROM tournaments t
+        JOIN tournament_participants tp ON t.id = tp.tournament_id
+        WHERE tp.user_id = ?
+      `).get(userId, userId);
+
+      // Avatar par défaut si nécessaire
+      if (!targetUser.avatar_url || targetUser.avatar_url === null || targetUser.avatar_url.trim() === '') {
+        targetUser.avatar_url = '/uploads/default/defaultavatar.jpg';
+      }
+
+      // Si les utilisateurs sont amis, on peut montrer plus de détails
+      let recentGames = [];
+      if (areWeFriends) {
+        recentGames = db.prepare(`
+          SELECT 
+            g.id,
+            g.score_player1,
+            g.score_player2,
+            g.game_mode,
+            g.duration,
+            g.created_at,
+            g.winner_id,
+            g.ai_opponent,
+            CASE 
+              WHEN g.winner_id = ? THEN 'win'
+              WHEN g.winner_id IS NULL AND g.status = 'completed' THEN 'draw'
+              WHEN g.status != 'completed' THEN 'pending'
+              ELSE 'loss'
+            END as result,
+            CASE 
+              WHEN g.player1_id = ? THEN g.score_player1
+              ELSE g.score_player2
+            END as user_score,
+            CASE 
+              WHEN g.player1_id = ? THEN g.score_player2
+              ELSE g.score_player1
+            END as opponent_score,
+            CASE 
+              WHEN g.ai_opponent = 1 THEN 'AI'
+              WHEN g.player1_id = ? THEN p2.username
+              ELSE p1.username
+            END as opponent_username,
+            CASE 
+              WHEN g.ai_opponent = 1 THEN 'AI'
+              WHEN g.player1_id = ? THEN p2.display_name
+              ELSE p1.display_name
+            END as opponent_display_name
+          FROM games g
+          LEFT JOIN users p1 ON g.player1_id = p1.id
+          LEFT JOIN users p2 ON g.player2_id = p2.id
+          WHERE (g.player1_id = ? OR g.player2_id = ?) 
+            AND g.status = 'completed'
+          ORDER BY g.created_at DESC
+          LIMIT 5
+        `).all(userId, userId, userId, userId, userId, userId, userId);
+      }
+
+      const responseData = {
+        id: targetUser.id,
+        username: targetUser.username,
+        display_name: targetUser.display_name,
+        avatar_url: targetUser.avatar_url,
+        status: targetUser.status,
+        created_at: targetUser.created_at,
+        last_login: targetUser.last_login,
+        isOwn: false, // Toujours false pour un profil visité
+        areWeFriends,
+        stats: {
+          friends: targetUser.friends_count,
+          gamesPlayed: publicStats.games_played || 0,
+          gamesWon: publicStats.games_won || 0,
+          gamesLost: publicStats.games_lost || 0,
+          gamesDrawn: publicStats.games_drawn || 0,
+          winrate: publicStats.games_played > 0 ? Math.round((publicStats.games_won / publicStats.games_played) * 100) : 0,
+          avgDuration: publicStats.avg_duration ? Math.round(publicStats.avg_duration) : 0,
+          highestScore: publicStats.highest_score || 0,
+          
+          // Win rates par type d'adversaire
+          winRates: {
+            vsAI: publicStats.vs_ai_total > 0 ? Math.round((publicStats.vs_ai_won / publicStats.vs_ai_total) * 100) : 0,
+            vsPlayers: publicStats.vs_players_total > 0 ? Math.round((publicStats.vs_players_won / publicStats.vs_players_total) * 100) : 0,
+            tournaments: tournamentStats.tournaments_won || 0
+          },
+          
+          // Détails par type
+          gamesByType: {
+            vsAI: publicStats.vs_ai_total || 0,
+            vsPlayers: publicStats.vs_players_total || 0,
+            tournaments: tournamentStats.tournaments_joined || 0
+          }
+        },
+        recentGames: areWeFriends ? recentGames : [] // Seuls les amis peuvent voir l'historique
+      };
+
+      fastify.log.info(`👤 Profil public consulté: ${targetUser.username} (ID: ${userId}) par ${request.user.username} (ID: ${requesterId}), amis: ${areWeFriends}`);
+      
+      return reply.send(responseData);
+
+    } catch (error) {
+      fastify.log.error('❌ Erreur lors de la récupération du profil public:', error);
+      return reply.status(500).send({
+        error: 'Erreur interne du serveur',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+  });
+
+  // ========================================
   // ROUTE D'HISTORIQUE DES JEUX AVEC PAGINATION
   // ========================================
   fastify.get('/games/history', { preHandler: [authenticateToken] }, async (request, reply) => {
@@ -745,9 +916,6 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE RÉCUPÉRATION DE LA LISTE D'AMIS
-  // ========================================
   // ========================================
   // ROUTE DE RÉCUPÉRATION DE LA LISTE D'AMIS
   // ========================================

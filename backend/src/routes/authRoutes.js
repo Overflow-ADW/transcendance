@@ -34,7 +34,7 @@ async function authRoutes(fastify, options) {
   // ========================================
   // ROUTE D'INSCRIPTION AVEC JWT AVANCÉ
   // ========================================
-  fastify.post('/register', async (request, reply) => {
+  fastify.post('/register', { preHandler: fastify.ensureNotAuthenticated }, async (request, reply) => {
     try {
       // Validation des données avec Joi
       const { error, value } = registerSchema.validate(request.body);
@@ -111,7 +111,7 @@ async function authRoutes(fastify, options) {
   // ========================================
   // ROUTE DE CONNEXION AVEC JWT AVANCÉ
   // ========================================
-  fastify.post('/login', async (request, reply) => {
+  fastify.post('/login', { preHandler: fastify.ensureNotAuthenticated }, async (request, reply) => {
     try {
       // Validation des données
       const { error, value } = loginSchema.validate(request.body);
@@ -285,10 +285,12 @@ async function authRoutes(fastify, options) {
   // ========================================
   fastify.post('/logout', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
+      fastify.log.info(`🔥 Route /logout appelée pour l'utilisateur: ${request.user.username} (ID: ${request.user.userId})`);
+      
       const userId = request.user.userId;
       const tokenId = request.user.jti;
 
-      // Mettre à jour le statut hors ligne
+      // Mettre à jour le statut hors ligne (status = 'offline' + last_logout)
       const updateStatus = db.prepare('UPDATE users SET status = ?, last_logout = datetime(\'now\') WHERE id = ?');
       updateStatus.run('offline', userId);
 
@@ -390,45 +392,62 @@ async function authRoutes(fastify, options) {
   });
 
   // ========================================
-  // ROUTE DE RÉVOCATION DE TOKEN
+  // ROUTE DE VÉRIFICATION DE MOT DE PASSE SANS CONNEXION
   // ========================================
-  fastify.post('/revoke', { preHandler: [authenticateToken] }, async (request, reply) => {
+  fastify.post('/verify-password', async (request, reply) => {
     try {
-      const { tokenId: targetTokenId } = request.body;
-      const currentTokenId = request.user.jti;
-      
-      // Si aucun tokenId spécifié, révoquer le token actuel
-      const tokenToRevoke = targetTokenId || currentTokenId;
-      
-      if (!tokenToRevoke) {
+      const { error, value } = Joi.object({
+        username: Joi.string().required(),
+        password: Joi.string().required()
+      }).validate(request.body);
+
+      if (error) {
         return reply.status(400).send({
-          error: 'Token ID requis',
-          details: 'Veuillez spécifier le token à révoquer',
-          code: 'MISSING_TOKEN_ID'
+          error: 'Données invalides',
+          details: error.details[0].message,
+          code: 'VALIDATION_ERROR'
         });
       }
 
-      // Invalider le token
-      const invalidationResult = invalidateToken(tokenToRevoke, db);
+      const { username, password } = value;
+
+      // Trouver l'utilisateur par nom d'utilisateur
+      const user = db.prepare(
+        'SELECT id, username, password, display_name, avatar_url FROM users WHERE username = ?'
+      ).get(username);
+
+      if (!user) {
+        return reply.status(401).send({
+          error: 'Nom d\'utilisateur ou mot de passe incorrect',
+          code: 'INVALID_CREDENTIALS'
+        });
+      }
+
+      // Vérifier le mot de passe
+      const passwordValid = await bcrypt.compare(password, user.password);
       
-      if (!invalidationResult.success) {
-        return reply.status(500).send({
-          error: 'Échec de la révocation',
-          details: invalidationResult.error.details,
-          code: invalidationResult.error.type
+      if (!passwordValid) {
+        return reply.status(401).send({
+          error: 'Nom d\'utilisateur ou mot de passe incorrect',
+          code: 'INVALID_CREDENTIALS'
         });
       }
 
-      fastify.log.info(`🚫 Token révoqué: ${tokenToRevoke} par ${request.user.username}`);
-
+      // Renvoyer les informations de l'utilisateur sans créer de token
       return reply.send({
-        message: 'Token révoqué avec succès',
-        revokedTokenId: tokenToRevoke,
-        code: 'TOKEN_REVOKED'
+        success: true,
+        message: 'Mot de passe vérifié',
+        user: {
+          id: user.id,
+          username: user.username,
+          display_name: user.display_name,
+          avatar_url: user.avatar_url
+        },
+        code: 'PASSWORD_VERIFIED'
       });
 
     } catch (error) {
-      fastify.log.error('❌ Erreur lors de la révocation:', error);
+      fastify.log.error('Erreur lors de la vérification du mot de passe:', error);
       return reply.status(500).send({
         error: 'Erreur interne du serveur',
         code: 'INTERNAL_ERROR'

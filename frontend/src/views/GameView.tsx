@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useRouter } from 'next/navigation';
 import Pong from "@/game/components/Pong";
+import { withProtectedRoute } from "@/lib_front/routeProtection";
 
 interface Player {
   id: number | string;
@@ -14,7 +15,7 @@ interface Player {
   isHost?: boolean;
 }
 
-export default function GameView() {
+function GameView() {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameMode, setGameMode] = useState<string>('');
@@ -28,9 +29,32 @@ export default function GameView() {
 
     switch (mode) {
       case 'tournament':
-        const tournamentPlayers = localStorage.getItem('tournament-players');
-        if (tournamentPlayers) {
-          loadedPlayers = JSON.parse(tournamentPlayers);
+        // Récupérer les données du match en cours pour obtenir les vrais pseudos
+        const currentMatch = localStorage.getItem('current-match');
+        if (currentMatch) {
+          const matchData = JSON.parse(currentMatch);
+          if (matchData.player1 && matchData.player2) {
+            loadedPlayers = [
+              { 
+                id: matchData.player1.id, 
+                name: matchData.player1.name || matchData.player1.username,
+                color: matchData.player1.color || "#8A00C4",
+                isMainPlayer: false
+              },
+              { 
+                id: matchData.player2.id, 
+                name: matchData.player2.name || matchData.player2.username,
+                color: matchData.player2.color || "#2323FF",
+                isMainPlayer: false
+              }
+            ];
+          }
+        } else {
+          // Fallback vers les données du tournoi
+          const tournamentPlayers = localStorage.getItem('tournament-players');
+          if (tournamentPlayers) {
+            loadedPlayers = JSON.parse(tournamentPlayers);
+          }
         }
         break;
         
@@ -217,3 +241,6 @@ export default function GameView() {
     </GradientBackground>
   );
 }
+
+// Exporter le composant avec la protection de route
+export default withProtectedRoute(GameView);

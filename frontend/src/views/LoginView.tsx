@@ -9,8 +9,9 @@ import { t } from "@/lib_front/i18n";
 import { useApp } from "@/lib_front/store";
 import { useAuth } from "@/lib_front/AuthContext";
 import { useRouter } from "next/navigation";
+import { withPublicRoute } from "@/lib_front/routeProtection";
 
-export default function LoginView() {
+function LoginView() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -334,3 +335,6 @@ function LoginViewContent() {
     </div>
   );
 }
+
+// Exporter le composant avec la protection de route
+export default withPublicRoute(LoginView);

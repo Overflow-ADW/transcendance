@@ -141,6 +141,7 @@ function initDatabase(fastify) {
         -- Game settings
         game_mode TEXT NOT NULL DEFAULT 'classic', -- classic, custom, multiplayer
         max_score INTEGER DEFAULT 5,
+        match_type TEXT DEFAULT 'regular', -- regular, semifinal, third_place, final
         
         -- Scores
         score_player1 INTEGER DEFAULT 0,
@@ -328,6 +329,22 @@ function initDatabase(fastify) {
 
     fastify.log.info('✅ Tables de la base de données créées/vérifiées avec succès');
     fastify.log.info(`📊 Base de données prête : ${db.name}`);
+    
+    // ========================================
+    // MIGRATIONS - Ajout de colonnes manquantes
+    // ========================================
+    try {
+      // Vérifier si la colonne match_type existe dans la table games
+      const columns = db.prepare("PRAGMA table_info(games)").all();
+      const hasMatchType = columns.some(col => col.name === 'match_type');
+      
+      if (!hasMatchType) {
+        fastify.log.info('🔄 Migration: Ajout de la colonne match_type à la table games');
+        db.exec(`ALTER TABLE games ADD COLUMN match_type TEXT DEFAULT 'regular'`);
+      }
+    } catch (err) {
+      fastify.log.error('⚠️ Erreur lors des migrations:', err);
+    }
     
     // Initialiser les données de seed en mode développement
     if (process.env.NODE_ENV !== 'production') {

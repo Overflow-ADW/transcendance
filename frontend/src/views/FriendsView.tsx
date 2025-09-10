@@ -115,6 +115,12 @@ export default function FriendsView() {
     );
   };
 
+  // Fonction pour naviguer vers le profil d'un ami
+  const handleVisitProfile = (friendId: number) => {
+    console.log('🔥 Navigation vers le profil de l\'ami ID:', friendId);
+    router.push(`/profile?userId=${friendId}`);
+  };
+
     // Fonctions pour les appels API
 const fetchFriends = async () => {
   try {
@@ -329,10 +335,15 @@ const handleRemoveFriend = async (id: number) => {
                 {onlineFriends.length > 0 ? (
                   onlineFriends.map((friend) => (
                     <div key={friend.user_id} className="flex items-center justify-between p-3 bg-green-400/10 border border-green-400/30 rounded-lg">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 flex-1">
                         {getAvatarDisplay(friend)}
-                        <div>
-                          <span className="text-white font-medium">{friend.display_name || friend.username}</span>
+                        <div className="flex-1">
+                          <button
+                            onClick={() => handleVisitProfile(friend.user_id)}
+                            className="text-white font-medium hover:text-green-400 transition-colors text-left w-full"
+                          >
+                            {friend.display_name || friend.username}
+                          </button>
                           <div className="flex items-center space-x-1">
                             <div className={`w-2 h-2 rounded-full ${
                               friend.online_status === 'online' ? 'bg-green-400' : 'bg-gray-400'
@@ -372,12 +383,17 @@ const handleRemoveFriend = async (id: number) => {
                 {offlineFriends.length > 0 ? (
                   offlineFriends.map((friend) => (
                     <div key={friend.user_id} className="flex items-center justify-between p-3 bg-gray-400/10 border border-gray-400/30 rounded-lg">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 flex-1">
                         <div className="opacity-50">
                           {getAvatarDisplay(friend)}
                         </div>
-                        <div>
-                          <span className="text-gray-300 font-medium">{friend.display_name || friend.username}</span>
+                        <div className="flex-1">
+                          <button
+                            onClick={() => handleVisitProfile(friend.user_id)}
+                            className="text-gray-300 font-medium hover:text-white transition-colors text-left w-full"
+                          >
+                            {friend.display_name || friend.username}
+                          </button>
                           <div className="flex items-center space-x-1">
                             <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
                             <span className="text-gray-500 text-xs">Offline</span>

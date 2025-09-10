@@ -18,14 +18,20 @@ RUN npm run build
 # Étape de production avec Nginx
 FROM nginx:alpine
 
-# Supprimer la configuration par défaut de Nginx
-RUN rm /etc/nginx/conf.d/default.conf
+# Créer un utilisateur non-root pour Nginx
+RUN adduser -D -u 1001 appuser
 
-# Copier les fichiers statiques générés par Next.js (dossier out/)
-COPY --from=build /app/out /usr/share/nginx/html
+# Copier les fichiers statiques
+COPY --from=build --chown=appuser:appuser /app/out /usr/share/nginx/html
 
-# Copier la configuration Nginx personnalisée
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copier la configuration Nginx
+COPY --chown=appuser:appuser nginx.conf /etc/nginx/nginx.conf
+
+# Ajuster les permissions
+RUN chown -R appuser:appuser /var/cache/nginx /var/run /var/log/nginx
+
+# Passer à l'utilisateur non-root
+USER appuser
 
 EXPOSE 8080
 
