@@ -540,12 +540,6 @@ export default function ProfileView() {
               {/* Boutons d'action */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button
-                  onClick={() => router.push("/play")}
-                  className="px-8 py-3 bg-transparent border-4 border-yellow-400 text-yellow-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-yellow-400 hover:text-black hover:scale-105"
-                >
-                  PLAY
-                </button>
-                <button
                   onClick={() => router.push("/trueSettings")}
                   className="px-8 py-3 bg-transparent border-4 border-purple-400 text-purple-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-purple-400 hover:text-white hover:scale-105"
                 >

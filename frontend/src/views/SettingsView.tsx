@@ -12,7 +12,6 @@ export default function SettingsView() {
 
   return (
     <GradientBackground>
-      <BackButton label={t(lang, "return")} />
       
       {/* Version Desktop (xl et plus) - Layout original avec carré noir */}
       <div className="hidden xl:block min-h-screen flex items-center justify-center p-16">
