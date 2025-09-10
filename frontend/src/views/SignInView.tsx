@@ -1,7 +1,7 @@
 // src/views/SignInView.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { MenuButton } from "@/components/ui/MenuButton";
 import { BackButton } from "@/components/ui/BackButton";
 import PongCanvas from "@/components/pongs/PongCanvas";
@@ -78,6 +78,14 @@ export default function SignInView() {
 }
 
 function SignInViewContent() {
+  // URL backend pour OAuth (adapté à l'env, côté client)
+  // Utilise la variable d'environnement Next.js injectée au build
+  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/+$/, "");
+  const handleOAuth = (provider: 'google' | 'github') => {
+    // Fallback sur l'origine si NEXT_PUBLIC_API_BASE_URL n'est pas défini
+    const base = API_BASE || (typeof window !== "undefined" ? window.location.origin : "");
+    window.location.href = `${base}/api/oauth/${provider}`;
+  };
   const router = useRouter();
   const { lang, addNotification } = useApp();
 
@@ -305,6 +313,7 @@ function SignInViewContent() {
                 )}
               </div>
 
+
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -312,6 +321,26 @@ function SignInViewContent() {
               >
                 {isSubmitting ? "Creating account..." : "Create Account"}
               </button>
+
+              {/* Boutons OAuth Desktop */}
+              <div className="flex flex-col gap-3 mt-4">
+                <button
+                  type="button"
+                  className="w-full py-3 bg-white text-black rounded-lg font-bold border border-gray-300 hover:bg-gray-100 flex items-center justify-center gap-2"
+                  onClick={() => handleOAuth('google')}
+                >
+                  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="w-6 h-6" />
+                  Continuer avec Google
+                </button>
+                <button
+                  type="button"
+                  className="w-full py-3 bg-black text-white rounded-lg font-bold border border-gray-700 hover:bg-gray-900 flex items-center justify-center gap-2"
+                  onClick={() => handleOAuth('github')}
+                >
+                  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub" className="w-6 h-6 bg-white rounded-full" />
+                  Continuer avec GitHub
+                </button>
+              </div>
 
               <div className="text-center mt-4">
                 <button
@@ -421,6 +450,26 @@ function SignInViewContent() {
                   className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 border-green-500 text-green-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-green-500/20 hover:scale-105 hover:border-green-400 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   {isSubmitting ? "CREATING..." : "CREATE ACCOUNT"}
+                </button>
+              </div>
+
+              {/* Boutons OAuth Mobile/Tablet */}
+              <div className="flex flex-col gap-3 mt-2">
+                <button
+                  type="button"
+                  className="w-full py-3 bg-white text-black rounded-lg font-bold border border-gray-300 hover:bg-gray-100 flex items-center justify-center gap-2"
+                  onClick={() => handleOAuth('google')}
+                >
+                  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="w-6 h-6" />
+                  Continuer avec Google
+                </button>
+                <button
+                  type="button"
+                  className="w-full py-3 bg-black text-white rounded-lg font-bold border border-gray-700 hover:bg-gray-900 flex items-center justify-center gap-2"
+                  onClick={() => handleOAuth('github')}
+                >
+                  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub" className="w-6 h-6 bg-white rounded-full" />
+                  Continuer avec GitHub
                 </button>
               </div>
             </form>

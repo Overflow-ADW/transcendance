@@ -72,9 +72,50 @@ fastify.register(require('@fastify/session'), {
 const { authenticateToken } = require('./middleware/auth');
 fastify.decorate('authenticate', authenticateToken);
 
+
+// IMPORTANT : enregistrer les plugins OAuth2 APRÈS cookie/session, AVANT les routes OAuth
+// Google OAuth2
+fastify.register(require('@fastify/oauth2'), {
+  name: 'googleOAuth2',
+  scope: ['profile', 'email'],
+  credentials: {
+    client: {
+      id: process.env.GOOGLE_CLIENT_ID,
+      secret: process.env.GOOGLE_CLIENT_SECRET
+    },
+    auth: {
+      authorizeHost: 'https://accounts.google.com',
+      authorizePath: '/o/oauth2/v2/auth',
+      tokenHost: 'https://www.googleapis.com',
+      tokenPath: '/oauth2/v4/token'
+    }
+  },
+  startRedirectPath: '/api/oauth/google',
+  callbackUri: `${process.env.BACKEND_URL}/api/oauth/google/callback`
+});
+
+// GitHub OAuth2
+fastify.register(require('@fastify/oauth2'), {
+  name: 'githubOAuth2',
+  scope: ['user:email'],
+  credentials: {
+    client: {
+      id: process.env.GITHUB_CLIENT_ID,
+      secret: process.env.GITHUB_CLIENT_SECRET
+    },
+    auth: {
+      authorizeHost: 'https://github.com',
+      authorizePath: '/login/oauth/authorize',
+      tokenHost: 'https://github.com',
+      tokenPath: '/login/oauth/access_token'
+    }
+  },
+  startRedirectPath: '/api/oauth/github',
+  callbackUri: `${process.env.BACKEND_URL}/api/oauth/github/callback`
+});
+
 // Routes API
 fastify.register(authRoutes, { prefix: '/api/auth' });
-
 // Routes OAuth de base et étendues
 fastify.register(oauthRoutes, { prefix: '/api/oauth' });
 const { registerAdditionalOAuthProviders } = require('./routes/oauthProvidersExtended');
@@ -163,7 +204,11 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   fastify.log.fatal('Unhandled rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  console.error('UNHANDLED PROMISE REJECTION:', reason);
+  // Optionnel : ne pas arrêter le serveur en dev
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
 });
 
 // Démarrer le serveur
