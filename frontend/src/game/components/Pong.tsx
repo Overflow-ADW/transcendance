@@ -20,8 +20,8 @@ export default function Pong({ msg }: PongProps) {
       const gameMode = localStorage.getItem('game-mode');
       
       if (gameMode === 'multiplayer') {
-        // Mode multijoueur 4 joueurs
-        console.log('Démarrage du mode multijoueur');
+        // Mode multijoueur avec paddle centrale
+        console.log('Démarrage du mode multijoueur avec paddle centrale');
         pongGameRef.current.setGameMode(GameType.MULTIPLAYER_PONG);
       } else if (gameMode === 'ai') {
         // Mode IA
@@ -92,15 +92,6 @@ export default function Pong({ msg }: PongProps) {
         className="w-full h-full"
         style={{ display: 'block' }}
       />
-      
-      {/* Bouton d'arrêt optionnel (peut être caché avec CSS si nécessaire) */}
-      <button
-        onClick={handleStopGame}
-        className="absolute top-4 right-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg z-10 opacity-75 hover:opacity-100 transition-opacity"
-        title="Arrêter le jeu (ou appuyez sur Escape)"
-      >
-        Quitter
-      </button>
     </div>
   );
 }

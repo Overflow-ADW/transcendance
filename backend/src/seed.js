@@ -21,6 +21,13 @@ const SEED_USERS = [
     status: 'offline'
   },
   {
+    username: 'test',
+    email: 'test@example.com', 
+    password: 'Test123!',
+    display_name: 'Test Master',
+    status: 'offline'
+  },
+  {
     username: 'charlie',
     password: 'Charlie456!', // Compte sans email
     display_name: 'Charlie Rookie',

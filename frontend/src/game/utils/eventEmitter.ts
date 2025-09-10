@@ -1,45 +1,61 @@
-type EventCallback = (...args: any[]) => void;
-
+/**
+ * Simple EventEmitter implementation for browser environment
+ */
 export class EventEmitter {
-    private events: { [key: string]: EventCallback[] } = {};
+    private events: { [key: string]: Function[] } = {};
 
-    public on(event: string, callback: EventCallback): this {
+    /**
+     * Subscribe to an event
+     * @param event Event name
+     * @param listener Callback function
+     */
+    on(event: string, listener: Function): void {
         if (!this.events[event]) {
             this.events[event] = [];
         }
-        this.events[event].push(callback);
-        return this;
+        this.events[event].push(listener);
     }
 
-    public off(event: string, callback: EventCallback): this {
-        if (this.events[event]) {
-            this.events[event] = this.events[event].filter(cb => cb !== callback);
+    /**
+     * Unsubscribe from an event
+     * @param event Event name
+     * @param listener Callback function to remove
+     */
+    off(event: string, listener: Function): void {
+        if (!this.events[event]) return;
+        
+        const index = this.events[event].indexOf(listener);
+        if (index > -1) {
+            this.events[event].splice(index, 1);
         }
-        return this;
     }
 
-    public emit(event: string, ...args: any[]): boolean {
-        if (this.events[event]) {
-            this.events[event].forEach(callback => callback(...args));
-            return true;
-        }
-        return false;
+    /**
+     * Emit an event
+     * @param event Event name
+     * @param args Arguments to pass to listeners
+     */
+    emit(event: string, ...args: any[]): void {
+        if (!this.events[event]) return;
+        
+        this.events[event].forEach(listener => {
+            try {
+                listener(...args);
+            } catch (error) {
+                console.error(`Error in event listener for ${event}:`, error);
+            }
+        });
     }
 
-    public once(event: string, callback: EventCallback): this {
-        const onceCallback = (...args: any[]) => {
-            this.off(event, onceCallback);
-            callback(...args);
-        };
-        return this.on(event, onceCallback);
-    }
-
-    public removeAllListeners(event?: string): this {
+    /**
+     * Remove all listeners for an event or all events
+     * @param event Optional event name. If not provided, all events are cleared
+     */
+    removeAllListeners(event?: string): void {
         if (event) {
-            this.events[event] = [];
+            delete this.events[event];
         } else {
             this.events = {};
         }
-        return this;
     }
 }

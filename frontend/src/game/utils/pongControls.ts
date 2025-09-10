@@ -32,6 +32,13 @@ export class PongControls {
     public ai: PongAI | null = null; // CORRECTION: Rendre public pour permettre l'accès depuis pongGame
     private ballMesh: Mesh | null = null;
     private keySimulator: KeyboardSimulator | null = null;
+    
+    // NOUVEAU : Système de glissement pour Player2 - VERSION TRÈS LOURDE
+    private player2Velocity = 0; // Vélocité actuelle de Player2
+    private readonly player2MaxSpeed = 2.5; // Vitesse maximale TRÈS RÉDUITE (était 4)
+    private readonly player2Acceleration = 0.3; // Accélération TRÈS RÉDUITE (était 0.6)
+    private readonly player2Friction = 0.995; // Friction TRÈS RÉDUITE pour glissement extrême (était 0.98)
+    private readonly player2BounceForce = 1.0; // Force de rebond COMPLÈTE
 
     constructor(
         scene: Scene, 
@@ -60,7 +67,14 @@ export class PongControls {
      */
     public setBallReference(ball: Mesh): void {
         this.ballMesh = ball;
-        console.log("Référence balle définie pour l'IA:", ball.name);
+        
+        // NOUVEAU : Désactiver les collisions automatiques pour la balle dès qu'elle est référencée
+        if (this.ballMesh) {
+            this.ballMesh.checkCollisions = false;
+            this.ballMesh.isPickable = false;
+            this.ballMesh.doNotSyncBoundingInfo = true;
+            console.log("Référence balle définie pour l'IA et collisions désactivées:", ball.name);
+        }
     }
 
     private setupKeyboardControls(): void {
@@ -275,15 +289,7 @@ export class PongControls {
 
         // Player 2 movement (paddle verte au centre) - seulement si disponible
         if (this.player2) {
-            const player2UpPressed = this.isAnyKeyPressed(this.player2UpKeys);
-            const player2DownPressed = this.isAnyKeyPressed(this.player2DownKeys);
-            
-            if (player2UpPressed) {
-                this.movePlayer(this.player2, PlayerKeys.UP);
-            }
-            if (player2DownPressed) {
-                this.movePlayer(this.player2, PlayerKeys.DOWN);
-            }
+            this.updatePlayer2Movement();
         }
     }
 
@@ -354,5 +360,101 @@ export class PongControls {
     //Vérifier si player2 est disponible
     public hasPlayer2(): boolean {
         return this.player2 !== null;
+    }
+
+    // NOUVELLE MÉTHODE : Système de glissement pour Player2
+    private updatePlayer2Movement(): void {
+        if (!this.player2) return;
+
+        const player2UpPressed = this.isAnyKeyPressed(this.player2UpKeys);
+        const player2DownPressed = this.isAnyKeyPressed(this.player2DownKeys);
+        
+        // Appliquer l'accélération basée sur les touches pressées
+        if (player2UpPressed && !player2DownPressed) {
+            // Accélérer vers le haut
+            this.player2Velocity = Math.min(this.player2Velocity + this.player2Acceleration, this.player2MaxSpeed);
+        } else if (player2DownPressed && !player2UpPressed) {
+            // Accélérer vers le bas
+            this.player2Velocity = Math.max(this.player2Velocity - this.player2Acceleration, -this.player2MaxSpeed);
+        } else {
+            // Aucune touche pressée ou les deux : appliquer la friction
+            this.player2Velocity *= this.player2Friction;
+            
+            // Arrêter complètement si la vitesse est très faible - SEUIL RÉDUIT
+            if (Math.abs(this.player2Velocity) < 0.05) { // Réduit de 0.1 à 0.05
+                this.player2Velocity = 0;
+            }
+        }
+        
+        // Calculer la nouvelle position
+        const currentZ = this.player2.position.z;
+        let newZ = currentZ + this.player2Velocity;
+        
+        // Vérifier les collisions avec les limites et rebondir
+        let bounced = false;
+        
+        if (newZ > this.movement.maxZ) {
+            // Collision avec le haut : rebondir COMPLÈTEMENT
+            newZ = this.movement.maxZ;
+            this.player2Velocity = -Math.abs(this.player2Velocity) * this.player2BounceForce; // Force complète
+            bounced = true;
+            console.log(`🏓 Player2 rebondit sur limite HAUTE ! Nouvelle vitesse: ${this.player2Velocity.toFixed(2)}`);
+        } else if (newZ < this.movement.minZ) {
+            // Collision avec le bas : rebondir COMPLÈTEMENT
+            newZ = this.movement.minZ;
+            this.player2Velocity = Math.abs(this.player2Velocity) * this.player2BounceForce; // Force complète
+            bounced = true;
+            console.log(`🏓 Player2 rebondit sur limite BASSE ! Nouvelle vitesse: ${this.player2Velocity.toFixed(2)}`);
+        }
+        
+        // Appliquer la nouvelle position
+        this.player2.position = new Vector3(
+            this.player2.position.x,
+            this.player2.position.y,
+            newZ
+        );
+        
+        // Debug occasionnel pour voir l'état du glissement
+        if (Math.random() < 0.005 && Math.abs(this.player2Velocity) > 0.05) { // Seuil ajusté
+            console.log(`🎮 Player2 - Pos: ${currentZ.toFixed(1)} -> ${newZ.toFixed(1)}, Vitesse: ${this.player2Velocity.toFixed(2)}${bounced ? ' [REBOND]' : ''}`);
+        }
+        
+        // NOUVEAU : Créer un effet visuel lors des rebonds
+        if (bounced) {
+            this.createPlayer2BounceEffect(newZ > 0);
+        }
+    }
+    
+    // NOUVELLE MÉTHODE : Effet visuel de rebond pour Player2 - CORRIGÉ
+    private createPlayer2BounceEffect(isTopBounce: boolean): void {
+        if (!this.player2) return;
+        
+        // CORRECTION : Préserver la couleur verte lors du flash
+        const material = this.player2.material as any;
+        if (material && material.emissiveColor) {
+            const originalEmissive = material.emissiveColor.clone();
+            
+            // Flash vert brillant au lieu de blanc pour préserver l'identité
+            const brightGreen = new Vector3(0, 2, 0); // Vert super brillant
+            material.emissiveColor = brightGreen;
+            
+            // Restaurer la couleur verte originale après 200ms (plus long)
+            setTimeout(() => {
+                material.emissiveColor = originalEmissive;
+            }, 200); // Augmenté de 150ms à 200ms
+        }
+        
+        console.log(`✨ Effet de rebond Player2 VERT - ${isTopBounce ? 'HAUT' : 'BAS'}`);
+    }
+    
+    // NOUVELLE MÉTHODE : Réinitialiser la vélocité de Player2
+    public resetPlayer2Velocity(): void {
+        this.player2Velocity = 0;
+        console.log("🔄 Vélocité Player2 réinitialisée");
+    }
+    
+    // NOUVELLE MÉTHODE : Obtenir la vélocité actuelle de Player2 (pour debug)
+    public getPlayer2Velocity(): number {
+        return this.player2Velocity;
     }
 }
