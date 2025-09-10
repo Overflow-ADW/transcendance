@@ -1,23 +1,11 @@
 const axios = require('axios');
 const crypto = require('crypto');
 
-/**
- * Utilitaires OAuth pour Google et GitHub
- */
 class OAuthUtils {
-  /**
-   * Génère un state sécurisé pour OAuth
-   * @returns {string} State aléatoire
-   */
   static generateState() {
     return crypto.randomBytes(32).toString('hex');
   }
 
-  /**
-   * Récupère les informations utilisateur depuis Google
-   * @param {string} accessToken - Token d'accès Google
-   * @returns {Object} Profil utilisateur Google
-   */
   static async getGoogleUserInfo(accessToken) {
     try {
       const response = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -48,14 +36,8 @@ class OAuthUtils {
     }
   }
 
-  /**
-   * Récupère les informations utilisateur depuis GitHub
-   * @param {string} accessToken - Token d'accès GitHub
-   * @returns {Object} Profil utilisateur GitHub
-   */
   static async getGitHubUserInfo(accessToken) {
     try {
-      // Récupérer profil principal
       const profileResponse = await axios.get('https://api.github.com/user', {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -65,7 +47,6 @@ class OAuthUtils {
         timeout: 10000
       });
 
-      // Récupérer emails (privé si nécessaire)
       let email = profileResponse.data.email;
       if (!email) {
         try {
@@ -81,7 +62,6 @@ class OAuthUtils {
           const primaryEmail = emailsResponse.data.find(e => e.primary && e.verified);
           email = primaryEmail ? primaryEmail.email : emailsResponse.data[0]?.email;
         } catch (emailError) {
-          // Si on ne peut pas récupérer l'email, utiliser un fallback
           console.warn('Impossible de récupérer l\'email GitHub:', emailError.message);
         }
       }
@@ -93,7 +73,7 @@ class OAuthUtils {
         name: profileResponse.data.name || profileResponse.data.login,
         username: profileResponse.data.login,
         avatar: profileResponse.data.avatar_url,
-        verified: true, // GitHub vérifie les comptes
+        verified: true,
         bio: profileResponse.data.bio,
         location: profileResponse.data.location
       };
@@ -102,11 +82,6 @@ class OAuthUtils {
     }
   }
 
-  /**
-   * Valide et normalise les données OAuth
-   * @param {Object} oauthData - Données du provider OAuth
-   * @returns {Object} Données normalisées
-   */
   static validateOAuthData(oauthData) {
     const { provider, providerId, email, name, username, avatar } = oauthData;
 
@@ -118,7 +93,6 @@ class OAuthUtils {
       throw new Error('Email requis pour l\'authentification OAuth');
     }
 
-    // Générer username unique si absent
     const finalUsername = username || this.generateUsernameFromEmail(email);
 
     return {
@@ -132,11 +106,6 @@ class OAuthUtils {
     };
   }
 
-  /**
-   * Génère un username à partir d'un email
-   * @param {string} email - Email utilisateur
-   * @returns {string} Username généré
-   */
   static generateUsernameFromEmail(email) {
     const localPart = email.split('@')[0];
     const cleanUsername = localPart.replace(/[^a-zA-Z0-9]/g, '');
@@ -144,13 +113,6 @@ class OAuthUtils {
     return `${cleanUsername}${timestamp}`.toLowerCase();
   }
 
-  /**
-   * Vérifie si un compte OAuth existe déjà
-   * @param {Object} db - Instance base de données
-   * @param {string} provider - Provider OAuth (google/github)
-   * @param {string} providerId - ID chez le provider
-   * @returns {Object|null} Utilisateur existant ou null
-   */
   static async findExistingOAuthUser(db, provider, providerId) {
     try {
       const stmt = db.prepare(`
@@ -167,12 +129,6 @@ class OAuthUtils {
     }
   }
 
-  /**
-   * Vérifie si un utilisateur avec cet email existe
-   * @param {Object} db - Instance base de données
-   * @param {string} email - Email à vérifier
-   * @returns {Object|null} Utilisateur existant ou null
-   */
   static async findUserByEmail(db, email) {
     try {
       const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
@@ -183,20 +139,12 @@ class OAuthUtils {
     }
   }
 
-  /**
-   * Lie un compte OAuth à un utilisateur existant
-   * @param {Object} db - Instance base de données  
-   * @param {number} userId - ID utilisateur
-   * @param {Object} oauthData - Données OAuth
-   * @returns {Object} Résultat de la liaison
-   */
   static async linkOAuthAccount(db, userId, oauthData) {
     const { provider, providerId, email } = oauthData;
 
     try {
       db.prepare('BEGIN').run();
 
-      // Vérifier que ce provider n'est pas déjà lié
       const existingLink = db.prepare(`
         SELECT id FROM oauth_providers 
         WHERE user_id = ? AND provider = ?
@@ -207,7 +155,6 @@ class OAuthUtils {
         throw new Error(`Compte ${provider} déjà lié à cet utilisateur`);
       }
 
-      // Vérifier que ce compte OAuth n'est pas lié à un autre utilisateur
       const existingOAuth = db.prepare(`
         SELECT user_id FROM oauth_providers 
         WHERE provider = ? AND provider_id = ?
@@ -218,7 +165,6 @@ class OAuthUtils {
         throw new Error(`Ce compte ${provider} est déjà lié à un autre utilisateur`);
       }
 
-      // Créer la liaison OAuth
       const linkStmt = db.prepare(`
         INSERT INTO oauth_providers (user_id, provider, provider_id, email, linked_at)
         VALUES (?, ?, ?, ?, datetime('now'))
@@ -226,7 +172,6 @@ class OAuthUtils {
       
       linkStmt.run(userId, provider, providerId, email);
 
-      // Mettre à jour la dernière connexion
       const updateStmt = db.prepare(`
         UPDATE users 
         SET last_login = datetime('now'), status = 'online'
@@ -250,12 +195,6 @@ class OAuthUtils {
     }
   }
 
-  /**
-   * Trouve un utilisateur OAuth existant ou en crée un nouveau
-   * @param {Object} oauthData - Données OAuth (provider, providerId, email, etc.)
-   * @param {Object} db - Instance base de données
-   * @returns {Object} Utilisateur trouvé ou créé
-   */
   static async findOrCreateOAuthUser(oauthData, db) {
     const { provider, providerId, email, username, name, avatar } = oauthData;
 
@@ -269,25 +208,19 @@ class OAuthUtils {
     });
 
     try {
-      // 1. Vérifier si ce compte OAuth existe déjà
       const existingOAuthUser = await this.findExistingOAuthUser(db, provider, providerId);
       if (existingOAuthUser) {
-        // Mettre à jour la dernière connexion
         db.prepare('UPDATE users SET last_login = datetime(\'now\') WHERE id = ?').run(existingOAuthUser.id);
         return existingOAuthUser;
       }
 
-      // 2. Vérifier si un utilisateur avec cet email existe
       const existingUserByEmail = await this.findUserByEmail(db, email);
       if (existingUserByEmail) {
-        // Lier ce provider à l'utilisateur existant
         await this.linkOAuthAccount(db, existingUserByEmail.id, { provider, providerId, email });
-        // Mettre à jour la dernière connexion
         db.prepare('UPDATE users SET last_login = datetime(\'now\') WHERE id = ?').run(existingUserByEmail.id);
         return existingUserByEmail;
       }
 
-      // 3. Créer un nouvel utilisateur
       return await this.createOAuthUser(db, {
         provider,
         providerId,
@@ -303,19 +236,12 @@ class OAuthUtils {
     }
   }
 
-  /**
-   * Crée un nouvel utilisateur avec OAuth
-   * @param {Object} db - Instance base de données
-   * @param {Object} oauthData - Données OAuth validées
-   * @returns {Object} Utilisateur créé
-   */
   static async createOAuthUser(db, oauthData) {
     const { provider, providerId, email, name, username } = oauthData;
 
     try {
       db.prepare('BEGIN').run();
 
-      // Vérifier que l'username n'existe pas déjà
       let finalUsername = username;
       let counter = 1;
       
@@ -324,7 +250,6 @@ class OAuthUtils {
         counter++;
       }
 
-      // Créer l'utilisateur
       const userStmt = db.prepare(`
         INSERT INTO users (username, email, password, oauth_provider, oauth_id, status, last_login)
         VALUES (?, ?, ?, ?, ?, 'online', datetime('now'))
@@ -333,14 +258,13 @@ class OAuthUtils {
       const result = userStmt.run(
         finalUsername,
         email, 
-        'oauth', // Pas de mot de passe pour OAuth
+        'oauth',
         provider,
         providerId
       );
 
       const userId = result.lastInsertRowid;
 
-      // Créer la liaison OAuth
       const oauthStmt = db.prepare(`
         INSERT INTO oauth_providers (user_id, provider, provider_id, email, linked_at)
         VALUES (?, ?, ?, ?, datetime('now'))
@@ -367,12 +291,6 @@ class OAuthUtils {
     }
   }
 
-  /**
-   * Récupère les comptes OAuth liés à un utilisateur
-   * @param {Object} db - Instance base de données
-   * @param {number} userId - ID utilisateur
-   * @returns {Array} Liste des comptes liés
-   */
   static getLinkedAccounts(db, userId) {
     try {
       const stmt = db.prepare(`
@@ -389,13 +307,6 @@ class OAuthUtils {
     }
   }
 
-  /**
-   * Supprime une liaison OAuth
-   * @param {Object} db - Instance base de données
-   * @param {number} userId - ID utilisateur
-   * @param {string} provider - Provider à délier
-   * @returns {boolean} Succès de la suppression
-   */
   static unlinkOAuthAccount(db, userId, provider) {
     try {
       const stmt = db.prepare(`
@@ -411,12 +322,6 @@ class OAuthUtils {
     }
   }
 
-  /**
-   * Vérifie si l'utilisateur peut délier un compte OAuth
-   * @param {Object} db - Instance base de données
-   * @param {number} userId - ID utilisateur
-   * @returns {boolean} Peut délier
-   */
   static canUnlinkAccount(db, userId) {
     try {
       const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId);
@@ -424,12 +329,10 @@ class OAuthUtils {
         SELECT COUNT(*) as count FROM oauth_providers WHERE user_id = ?
       `).get(userId);
 
-      // Si l'utilisateur a un mot de passe, il peut délier
       if (user && user.password && user.password !== 'oauth') {
         return true;
       }
 
-      // Sinon, il doit avoir plus d'un compte OAuth lié
       return linkedCount && linkedCount.count > 1;
     } catch (error) {
       console.error('Erreur vérification déliaison:', error);

@@ -4,7 +4,6 @@ const Joi = require('joi');
 const { authenticateToken, authenticateRefreshToken } = require('../middleware/auth');
 const { generateTokenPair, refreshAccessToken, invalidateToken, verifyToken } = require('../utils/jwtUtils');
 
-// Sécurité: JWT_SECRET depuis les variables d'environnement (OBLIGATOIRE)
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
@@ -13,10 +12,9 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-// Schémas de validation Joi
 const registerSchema = Joi.object({
   username: Joi.string().alphanum().min(3).max(30).required(),
-  email: Joi.string().email().optional(), // Email optionnel pour la création de compte local
+  email: Joi.string().email().optional(),
   password: Joi.string().min(8).pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])')).required()
     .messages({
       'string.pattern.base': 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'
@@ -31,12 +29,8 @@ const loginSchema = Joi.object({
 async function authRoutes(fastify, options) {
   const db = fastify.db;
 
-  // ========================================
-  // ROUTE D'INSCRIPTION AVEC JWT AVANCÉ
-  // ========================================
   fastify.post('/register', { preHandler: fastify.ensureNotAuthenticated }, async (request, reply) => {
     try {
-      // Validation des données avec Joi
       const { error, value } = registerSchema.validate(request.body);
       if (error) {
         return reply.status(400).send({
@@ -48,7 +42,6 @@ async function authRoutes(fastify, options) {
 
       const { username, email, password } = value;
 
-      // Vérifier si l'utilisateur existe déjà (par nom d'utilisateur et email si fourni)
       let existingUser;
       if (email) {
         existingUser = db.prepare('SELECT id, username, email FROM users WHERE username = ? OR email = ?').get(username, email);
@@ -65,11 +58,9 @@ async function authRoutes(fastify, options) {
         });
       }
 
-      // Hachage sécurisé du mot de passe
       const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-      // Insertion en base avec transaction (email peut être NULL)
       const insertUser = db.prepare(`
         INSERT INTO users (username, email, password, created_at)
         VALUES (?, ?, ?, datetime('now'))
@@ -77,7 +68,6 @@ async function authRoutes(fastify, options) {
 
       const result = insertUser.run(username, email || null, hashedPassword);
 
-      // Génération des tokens JWT (access + refresh)
       const tokenPair = generateTokenPair({
         userId: result.lastInsertRowid,
         username: username
@@ -108,12 +98,8 @@ async function authRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE CONNEXION AVEC JWT AVANCÉ
-  // ========================================
   fastify.post('/login', { preHandler: fastify.ensureNotAuthenticated }, async (request, reply) => {
     try {
-      // Validation des données
       const { error, value } = loginSchema.validate(request.body);
       if (error) {
         return reply.status(400).send({
@@ -125,7 +111,6 @@ async function authRoutes(fastify, options) {
 
       const { username, password } = value;
 
-      // Récupérer l'utilisateur par nom d'utilisateur ou email
       const user = db.prepare(`
         SELECT id, username, email, password, display_name, avatar_url, 
                status, is_admin, two_factor_enabled, created_at 
@@ -134,7 +119,6 @@ async function authRoutes(fastify, options) {
       `).get(username, username);
       
       if (!user) {
-        // Délai constant pour éviter les attaques par timing
         await new Promise(resolve => setTimeout(resolve, 100));
         return reply.status(401).send({
           error: 'Identifiants invalides',
@@ -143,7 +127,6 @@ async function authRoutes(fastify, options) {
         });
       }
 
-      // Vérifier le mot de passe
       const passwordMatch = await bcrypt.compare(password, user.password);
       
       if (!passwordMatch) {
@@ -155,9 +138,6 @@ async function authRoutes(fastify, options) {
         });
       }
 
-      // ========================================
-      // GESTION 2FA - ÉTAPE INTERMÉDIAIRE
-      // ========================================
       if (user.two_factor_enabled) {
         fastify.log.info(`🔐 2FA requis pour utilisateur: ${user.username} (ID: ${user.id})`);
         
@@ -172,15 +152,9 @@ async function authRoutes(fastify, options) {
         });
       }
 
-      // ========================================
-      // CONNEXION STANDARD (SANS 2FA)
-      // ========================================
-
-      // Mettre à jour le statut en ligne
       const updateStatus = db.prepare('UPDATE users SET status = ?, last_login = datetime(\'now\') WHERE id = ?');
       updateStatus.run('online', user.id);
 
-      // Créer les tokens JWT sécurisés (access + refresh)
       const tokenPair = generateTokenPair({
         userId: user.id,
         username: user.username
@@ -217,14 +191,10 @@ async function authRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE REFRESH TOKEN
-  // ========================================
   fastify.post('/refresh', { preHandler: [authenticateRefreshToken] }, async (request, reply) => {
     try {
       const { refreshToken } = request.body;
       
-      // Utiliser notre utilitaire pour refresher les tokens
       const refreshResult = refreshAccessToken(refreshToken, db);
       
       if (!refreshResult.success) {
@@ -270,9 +240,6 @@ async function authRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE DÉCONNEXION AVEC INVALIDATION
-  // ========================================
   fastify.post('/logout', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       fastify.log.info(`🔥 Route /logout appelée pour l'utilisateur: ${request.user.username} (ID: ${request.user.userId})`);
@@ -280,11 +247,9 @@ async function authRoutes(fastify, options) {
       const userId = request.user.userId;
       const tokenId = request.user.jti;
 
-      // Mettre à jour le statut hors ligne (status = 'offline' + last_logout)
       const updateStatus = db.prepare('UPDATE users SET status = ?, last_logout = datetime(\'now\') WHERE id = ?');
       updateStatus.run('offline', userId);
 
-      // Invalider le token dans la blacklist
       if (tokenId) {
         const invalidationResult = invalidateToken(tokenId, db);
         
@@ -309,9 +274,6 @@ async function authRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE VÉRIFICATION DE TOKEN AMÉLIORÉE
-  // ========================================
   fastify.post('/verify', async (request, reply) => {
     try {
       const { token } = request.body;
@@ -324,7 +286,6 @@ async function authRoutes(fastify, options) {
         });
       }
 
-      // Vérifier le token avec notre utilitaire avancé
       const verification = verifyToken(token, 'access');
       
       if (!verification.success) {
@@ -339,7 +300,6 @@ async function authRoutes(fastify, options) {
 
       const decoded = verification.payload;
       
-      // Récupérer les informations utilisateur actualisées
       const user = db.prepare('SELECT id, username, email, status, created_at FROM users WHERE id = ?').get(decoded.userId);
       
       if (!user) {
@@ -350,7 +310,6 @@ async function authRoutes(fastify, options) {
         });
       }
 
-      // Vérifier si le token est blacklisté
       const isBlacklisted = require('../utils/jwtUtils').isTokenBlacklisted(decoded.jti, db);
       if (isBlacklisted) {
         return reply.status(401).send({
@@ -381,9 +340,6 @@ async function authRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE VÉRIFICATION DE MOT DE PASSE SANS CONNEXION
-  // ========================================
   fastify.post('/verify-password', async (request, reply) => {
     try {
       const { error, value } = Joi.object({
@@ -401,7 +357,6 @@ async function authRoutes(fastify, options) {
 
       const { username, password } = value;
 
-      // Trouver l'utilisateur par nom d'utilisateur
       const user = db.prepare(
         'SELECT id, username, password, display_name, avatar_url FROM users WHERE username = ?'
       ).get(username);
@@ -413,7 +368,6 @@ async function authRoutes(fastify, options) {
         });
       }
 
-      // Vérifier le mot de passe
       const passwordValid = await bcrypt.compare(password, user.password);
       
       if (!passwordValid) {
@@ -423,7 +377,6 @@ async function authRoutes(fastify, options) {
         });
       }
 
-      // Renvoyer les informations de l'utilisateur sans créer de token
       return reply.send({
         success: true,
         message: 'Mot de passe vérifié',

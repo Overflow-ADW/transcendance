@@ -1,28 +1,17 @@
 const OAuthUtils = require('../utils/oauthUtils');
 const jwtUtils = require('../utils/jwtUtils');
 
-/**
- * Plugin Fastify pour les routes OAuth (callbacks uniquement)
- * Les routes de redirection /api/oauth/google et /api/oauth/github 
- * sont créées automatiquement par les plugins avec startRedirectPath
- */
 async function oauthRoutes(fastify, options) {
   const { db } = fastify;
 
-  /**
-   * GET /api/oauth/google/callback  
-   * Callback après autorisation Google
-   */
   fastify.get('/google/callback', async (request, reply) => {
     try {
       const { token } = await fastify.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(request);
       
       fastify.log.info('✅ Token Google OAuth reçu');
       
-      // Récupérer les informations utilisateur depuis Google
       const userProfile = await OAuthUtils.getGoogleUserProfile(token.access_token);
       
-      // Vérifier/créer l'utilisateur
       const user = await OAuthUtils.findOrCreateOAuthUser({
         provider: 'google',
         providerId: userProfile.id,
@@ -32,14 +21,12 @@ async function oauthRoutes(fastify, options) {
         avatar: userProfile.picture
       }, db);
 
-      // Générer les tokens JWT
       const { accessToken, refreshToken } = jwtUtils.generateTokenPair({
         userId: user.id,
         username: user.username,
         isAdmin: user.is_admin || false
       });
 
-      // Redirection vers le frontend avec succès
       return reply.redirect(
         `${process.env.FRONTEND_URL}/oauth/success?token=${accessToken}&refresh=${refreshToken}&provider=google`
       );
@@ -52,20 +39,14 @@ async function oauthRoutes(fastify, options) {
     }
   });
 
-  /**
-   * GET /api/oauth/github/callback
-   * Callback après autorisation GitHub  
-   */
   fastify.get('/github/callback', async (request, reply) => {
     try {
       const { token } = await fastify.githubOAuth2.getAccessTokenFromAuthorizationCodeFlow(request);
       
       fastify.log.info('✅ Token GitHub OAuth reçu');
       
-      // Récupérer les informations utilisateur depuis GitHub
       const userProfile = await OAuthUtils.getGitHubUserProfile(token.access_token);
       
-      // Vérifier/créer l'utilisateur
       const user = await OAuthUtils.findOrCreateOAuthUser({
         provider: 'github',
         providerId: userProfile.id,
@@ -75,14 +56,12 @@ async function oauthRoutes(fastify, options) {
         avatar: userProfile.avatar_url
       }, db);
 
-      // Générer les tokens JWT
       const { accessToken, refreshToken } = jwtUtils.generateTokenPair({
         userId: user.id,
         username: user.username,
         isAdmin: user.is_admin || false
       });
 
-      // Redirection vers le frontend avec succès
       return reply.redirect(
         `${process.env.FRONTEND_URL}/oauth/success?token=${accessToken}&refresh=${refreshToken}&provider=github`
       );

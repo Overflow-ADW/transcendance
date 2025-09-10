@@ -1,8 +1,6 @@
-// src/routes/tournamentRoutes.js
 const { authenticateToken } = require('../middleware/auth');
 const Joi = require('joi');
 
-// Schémas de validation adaptés à la structure existante
 const createTournamentSchema = Joi.object({
   name: Joi.string().min(3).max(50).required(),
   description: Joi.string().max(200).optional(),
@@ -17,9 +15,6 @@ const addParticipantSchema = Joi.object({
 async function tournamentRoutes(fastify, options) {
   const db = fastify.db;
 
-  // ========================================
-  // ROUTE DE CRÉATION DE TOURNOI
-  // ========================================
   fastify.post('/', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const { error, value } = createTournamentSchema.validate(request.body);
@@ -34,7 +29,6 @@ async function tournamentRoutes(fastify, options) {
       const { name, description, maxPlayers, format } = value;
       const creatorId = request.user.userId;
 
-      // Créer le tournoi avec la structure existante
       const result = db.prepare(`
         INSERT INTO tournaments (
           name, 
@@ -50,7 +44,6 @@ async function tournamentRoutes(fastify, options) {
 
       const tournamentId = result.lastInsertRowid;
 
-      // Ajouter automatiquement le créateur comme participant
       db.prepare(`
         INSERT INTO tournament_participants (
           tournament_id, 
@@ -58,7 +51,6 @@ async function tournamentRoutes(fastify, options) {
         ) VALUES (?, ?)
       `).run(tournamentId, creatorId);
 
-      // Récupérer les détails complets du tournoi
       const tournament = db.prepare(`
         SELECT 
           t.*, 
@@ -84,9 +76,6 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE RÉCUPÉRATION DES TOURNOIS
-  // ========================================
   fastify.get('/', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const { status = 'all' } = request.query;
@@ -129,9 +118,6 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE RÉCUPÉRATION D'UN TOURNOI SPÉCIFIQUE
-  // ========================================
   fastify.get('/:id', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const tournamentId = parseInt(request.params.id);
@@ -164,7 +150,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Récupérer les participants
       const participants = db.prepare(`
         SELECT 
           tp.tournament_id,
@@ -180,7 +165,6 @@ async function tournamentRoutes(fastify, options) {
         ORDER BY tp.id ASC
       `).all(tournamentId);
       
-      // Récupérer les matchs du tournoi
       const matches = db.prepare(`
         SELECT 
           g.*,
@@ -212,9 +196,6 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE POUR REJOINDRE UN TOURNOI
-  // ========================================
   fastify.post('/:id/join', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const tournamentId = parseInt(request.params.id);
@@ -227,7 +208,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Vérifier si le tournoi existe et peut accepter de nouveaux participants
       const tournament = db.prepare(`
         SELECT * FROM tournaments WHERE id = ?
       `).get(tournamentId);
@@ -253,7 +233,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Vérifier si l'utilisateur est déjà inscrit
       const existingParticipant = db.prepare(`
         SELECT * FROM tournament_participants
         WHERE tournament_id = ? AND user_id = ?
@@ -266,7 +245,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Transaction pour ajouter le participant et mettre à jour le compteur
       const updateTournament = db.prepare(`
         UPDATE tournaments 
         SET current_players = current_players + 1
@@ -278,7 +256,6 @@ async function tournamentRoutes(fastify, options) {
         VALUES (?, ?)
       `);
       
-      // Exécuter la transaction
       const transaction = db.transaction(() => {
         addParticipant.run(tournamentId, userId);
         updateTournament.run(tournamentId);
@@ -300,9 +277,6 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE POUR AJOUTER UN PARTICIPANT (créateur seulement)
-  // ========================================
   fastify.post('/:id/participants', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const tournamentId = parseInt(request.params.id);
@@ -325,7 +299,6 @@ async function tournamentRoutes(fastify, options) {
       
       const { userId } = value;
       
-      // Vérifier si le tournoi existe et appartient à l'utilisateur
       const tournament = db.prepare(`
         SELECT * FROM tournaments 
         WHERE id = ? AND created_by = ?
@@ -352,7 +325,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Vérifier si l'utilisateur à ajouter existe
       const userToAdd = db.prepare('SELECT id, username FROM users WHERE id = ?').get(userId);
       
       if (!userToAdd) {
@@ -362,7 +334,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Vérifier si l'utilisateur est déjà inscrit
       const existingParticipant = db.prepare(`
         SELECT * FROM tournament_participants
         WHERE tournament_id = ? AND user_id = ?
@@ -375,7 +346,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Transaction pour ajouter le participant et mettre à jour le compteur
       const updateTournament = db.prepare(`
         UPDATE tournaments 
         SET current_players = current_players + 1
@@ -387,7 +357,6 @@ async function tournamentRoutes(fastify, options) {
         VALUES (?, ?)
       `);
       
-      // Exécuter la transaction
       const transaction = db.transaction(() => {
         addParticipant.run(tournamentId, userId);
         updateTournament.run(tournamentId);
@@ -409,9 +378,6 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE POUR DÉMARRER UN TOURNOI
-  // ========================================
   fastify.post('/:id/start', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const tournamentId = parseInt(request.params.id);
@@ -423,7 +389,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Vérifier si le tournoi existe et appartient à l'utilisateur
       const tournament = db.prepare(`
         SELECT * FROM tournaments 
         WHERE id = ? AND created_by = ?
@@ -450,7 +415,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
 
-      // Récupérer tous les participants
       const participants = db.prepare(`
         SELECT tp.user_id, u.username, u.display_name 
         FROM tournament_participants tp
@@ -459,20 +423,16 @@ async function tournamentRoutes(fastify, options) {
         ORDER BY tp.id ASC
       `).all(tournamentId);
 
-      // Débuter une transaction pour créer les matchs
       const createMatches = db.transaction(() => {
-        // Mettre à jour le statut du tournoi
         db.prepare(`
           UPDATE tournaments 
           SET status = 'active', started_at = datetime('now')
           WHERE id = ?
         `).run(tournamentId);
 
-        // Créer les matchs selon le format
         if (tournament.format === 'elimination') {
           createEliminationMatches(db, tournamentId, participants);
         } else {
-          // Pour l'instant, on ne gère que l'élimination
           throw new Error('Format non supporté pour l\'instant');
         }
       });
@@ -495,13 +455,8 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // FONCTION UTILITAIRE : CRÉER LES MATCHS D'ÉLIMINATION
-  // ========================================
   function createEliminationMatches(db, tournamentId, participants) {
-    // Pour un tournoi à élimination directe avec 2-4 joueurs
     if (participants.length === 2) {
-      // Finale directe
       db.prepare(`
         INSERT INTO games (
           tournament_id, player1_id, player2_id, 
@@ -510,8 +465,6 @@ async function tournamentRoutes(fastify, options) {
       `).run(tournamentId, participants[0].user_id, participants[1].user_id);
       
     } else if (participants.length === 3) {
-      // 1 demi-finale + 1 finale (pas de petite finale avec 3 joueurs)
-      // Demi-finale : participant 0 vs participant 1
       db.prepare(`
         INSERT INTO games (
           tournament_id, player1_id, player2_id, 
@@ -520,8 +473,6 @@ async function tournamentRoutes(fastify, options) {
       `).run(tournamentId, participants[0].user_id, participants[1].user_id);
       
     } else if (participants.length === 4) {
-      // 2 demi-finales + 1 petite finale + 1 finale
-      // Demi-finale 1 : participant 0 vs participant 1
       db.prepare(`
         INSERT INTO games (
           tournament_id, player1_id, player2_id, 
@@ -529,7 +480,6 @@ async function tournamentRoutes(fastify, options) {
         ) VALUES (?, ?, ?, 'tournament', 'waiting', datetime('now'), 'semifinal', 0)
       `).run(tournamentId, participants[0].user_id, participants[1].user_id);
       
-      // Demi-finale 2 : participant 2 vs participant 3
       db.prepare(`
         INSERT INTO games (
           tournament_id, player1_id, player2_id, 
@@ -537,13 +487,9 @@ async function tournamentRoutes(fastify, options) {
         ) VALUES (?, ?, ?, 'tournament', 'waiting', datetime('now'), 'semifinal', 0)
       `).run(tournamentId, participants[2].user_id, participants[3].user_id);
       
-      // La petite finale et la finale seront créées après les demi-finales
     }
   }
 
-  // ========================================
-  // FONCTION UTILITAIRE : OBTENIR LA STRUCTURE DES MATCHS
-  // ========================================
   function getEliminationMatches(participants) {
     const matches = {
       semifinals: [],
@@ -561,7 +507,7 @@ async function tournamentRoutes(fastify, options) {
         player2: participants[1]
       }];
       matches.final = {
-        player1: null, // Gagnant de la demi
+        player1: null,
         player2: participants[2]
       };
     } else if (participants.length === 4) {
@@ -576,17 +522,14 @@ async function tournamentRoutes(fastify, options) {
         }
       ];
       matches.final = {
-        player1: null, // Gagnant demi 1
-        player2: null  // Gagnant demi 2
+        player1: null,
+        player2: null
       };
     }
 
     return matches;
   }
 
-  // ========================================
-  // ROUTE POUR RÉCUPÉRER LES MATCHS D'UN TOURNOI
-  // ========================================
   fastify.get('/:id/matches', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const tournamentId = parseInt(request.params.id);
@@ -598,7 +541,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Récupérer les matchs du tournoi
       const matches = db.prepare(`
         SELECT 
           g.*,
@@ -629,9 +571,6 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE POUR JOUER/TERMINER UN MATCH
-  // ========================================
   fastify.post('/match/:matchId/complete', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const matchId = parseInt(request.params.matchId);
@@ -644,7 +583,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
 
-      // Récupérer le match
       const match = db.prepare(`
         SELECT * FROM games 
         WHERE id = ? AND game_mode = 'tournament'
@@ -664,7 +602,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
 
-      // Mettre à jour le match avec toutes les informations nécessaires
       const updateResult = db.prepare(`
         UPDATE games 
         SET 
@@ -690,7 +627,6 @@ async function tournamentRoutes(fastify, options) {
         changes: updateResult.changes
       });
 
-      // Vérifier si on doit créer les prochains matchs
       await createNextMatches(db, match.tournament_id);
       
       return reply.send({
@@ -707,14 +643,9 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // FONCTION : CRÉER LES MATCHS SUIVANTS
-  // ========================================
   async function createNextMatches(db, tournamentId) {
-    // Récupérer le tournoi
     const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(tournamentId);
     
-    // Récupérer tous les matchs du tournoi
     const allMatches = db.prepare(`
       SELECT * FROM games 
       WHERE tournament_id = ?
@@ -724,13 +655,10 @@ async function tournamentRoutes(fastify, options) {
     const completedMatches = allMatches.filter(m => m.status === 'completed');
     const totalParticipants = tournament.current_players;
 
-    // Logique pour 4 joueurs : 2 demi-finales → petite finale → grande finale
     if (totalParticipants === 4 && completedMatches.length === 2) {
-      // Les 2 demi-finales sont terminées
-      const semifinal1 = completedMatches[0]; // Premier match
-      const semifinal2 = completedMatches[1]; // Deuxième match
+      const semifinal1 = completedMatches[0];
+      const semifinal2 = completedMatches[1];
 
-      // Identifier les perdants et gagnants de chaque demi-finale
       const loser1 = semifinal1.player1_id === semifinal1.winner_id 
         ? semifinal1.player2_id : semifinal1.player1_id;
       const winner1 = semifinal1.winner_id;
@@ -739,8 +667,6 @@ async function tournamentRoutes(fastify, options) {
         ? semifinal2.player2_id : semifinal2.player1_id;
       const winner2 = semifinal2.winner_id;
       
-      // Créer la petite finale (3ème place) - perdants des demi-finales
-      // Elle se joue AVANT la grande finale
       db.prepare(`
         INSERT INTO games (
           tournament_id, player1_id, player2_id, 
@@ -748,8 +674,6 @@ async function tournamentRoutes(fastify, options) {
         ) VALUES (?, ?, ?, 'tournament', 'waiting', datetime('now'), 'third_place', 0)
       `).run(tournamentId, loser1, loser2);
       
-      // Créer la grande finale - gagnants des demi-finales
-      // Elle se joue APRÈS la petite finale
       db.prepare(`
         INSERT INTO games (
           tournament_id, player1_id, player2_id, 
@@ -758,10 +682,8 @@ async function tournamentRoutes(fastify, options) {
       `).run(tournamentId, winner1, winner2);
       
     } else if (totalParticipants === 3 && completedMatches.length === 1) {
-      // Pour 3 joueurs : 1 demi-finale → finale directe avec le 3ème
       const winner1 = completedMatches[0].winner_id;
       
-      // Trouver le 3ème participant (celui qui n'a pas joué la demi)
       const participants = db.prepare(`
         SELECT user_id FROM tournament_participants WHERE tournament_id = ?
       `).all(tournamentId);
@@ -781,48 +703,36 @@ async function tournamentRoutes(fastify, options) {
       }
 
     } else if (totalParticipants === 2) {
-      // Pour 2 joueurs : finale directe (déjà créée au début)
-      // Pas d'action nécessaire
     }
 
-    // Vérifier si le tournoi est terminé (tous les matchs joués)
     const totalMatches = db.prepare(`
       SELECT COUNT(*) as count FROM games WHERE tournament_id = ?
     `).get(tournamentId).count;
     
     const completedMatchesCount = completedMatches.length;
 
-    // Si tous les matchs sont terminés, calculer le classement final
     if (totalMatches === completedMatchesCount) {
       await calculateFinalRanking(db, tournamentId);
     }
   }
 
-  // ========================================
-  // FONCTION : CALCULER LE CLASSEMENT FINAL
-  // ========================================
   async function calculateFinalRanking(db, tournamentId) {
     try {
-      // Récupérer tous les matchs terminés du tournoi
       const matches = db.prepare(`
         SELECT * FROM games 
         WHERE tournament_id = ? AND status = 'completed'
         ORDER BY created_at ASC
       `).all(tournamentId);
 
-      // Trouver les matchs par type
       const semifinal1 = matches.find((m, index) => m.match_type === 'semifinal' && index === 0);
       const semifinal2 = matches.find((m, index) => m.match_type === 'semifinal' && index === 1);
       const thirdPlaceMatch = matches.find(m => m.match_type === 'third_place');
       const finalMatch = matches.find(m => m.match_type === 'final');
 
       if (finalMatch) {
-        // 1ère place : gagnant de la grande finale
         const firstPlace = finalMatch.winner_id;
-        // 2ème place : perdant de la grande finale
         const secondPlace = finalMatch.player1_id === firstPlace ? finalMatch.player2_id : finalMatch.player1_id;
         
-        // Mettre à jour les positions
         db.prepare(`
           UPDATE tournament_participants 
           SET position = 1 
@@ -835,7 +745,6 @@ async function tournamentRoutes(fastify, options) {
           WHERE tournament_id = ? AND user_id = ?
         `).run(tournamentId, secondPlace);
 
-        // 3ème et 4ème place selon la petite finale
         if (thirdPlaceMatch) {
           const thirdPlace = thirdPlaceMatch.winner_id;
           const fourthPlace = thirdPlaceMatch.player1_id === thirdPlace ? thirdPlaceMatch.player2_id : thirdPlaceMatch.player1_id;
@@ -852,7 +761,6 @@ async function tournamentRoutes(fastify, options) {
             WHERE tournament_id = ? AND user_id = ?
           `).run(tournamentId, fourthPlace);
         } else {
-          // Pour un tournoi à 3 joueurs, le perdant de la demi-finale est 3ème
           const semifinalMatch = matches.find(m => m.match_type === 'semifinal');
           if (semifinalMatch) {
             const thirdPlace = semifinalMatch.player1_id === semifinalMatch.winner_id 
@@ -866,7 +774,6 @@ async function tournamentRoutes(fastify, options) {
           }
         }
 
-        // Finaliser le tournoi
         db.prepare(`
           UPDATE tournaments 
           SET status = 'completed', winner_id = ?, ended_at = datetime('now')
@@ -888,7 +795,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Vérifier si le tournoi existe
       const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(tournamentId);
       
       if (!tournament) {
@@ -898,7 +804,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Récupérer les participants
       const participants = db.prepare(`
         SELECT 
           tp.tournament_id,
@@ -937,9 +842,6 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE POUR QUITTER UN TOURNOI
-  // ========================================
   fastify.delete('/:id/leave', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const tournamentId = parseInt(request.params.id);
@@ -952,7 +854,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Vérifier si le tournoi existe
       const tournament = db.prepare(`SELECT * FROM tournaments WHERE id = ?`).get(tournamentId);
       
       if (!tournament) {
@@ -962,7 +863,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Ne pas permettre de quitter si le tournoi a démarré
       if (tournament.status !== 'waiting') {
         return reply.status(400).send({
           error: 'Impossible de quitter un tournoi qui a déjà démarré',
@@ -970,7 +870,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Ne pas permettre au créateur de quitter son propre tournoi
       if (tournament.created_by === userId) {
         return reply.status(400).send({
           error: 'Le créateur ne peut pas quitter son propre tournoi',
@@ -978,7 +877,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Vérifier si l'utilisateur participe au tournoi
       const participant = db.prepare(`
         SELECT * FROM tournament_participants
         WHERE tournament_id = ? AND user_id = ?
@@ -991,7 +889,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Transaction pour supprimer le participant et mettre à jour le compteur
       const updateTournament = db.prepare(`
         UPDATE tournaments 
         SET current_players = current_players - 1
@@ -1003,7 +900,6 @@ async function tournamentRoutes(fastify, options) {
         WHERE tournament_id = ? AND user_id = ?
       `);
       
-      // Exécuter la transaction
       const transaction = db.transaction(() => {
         removeParticipant.run(tournamentId, userId);
         updateTournament.run(tournamentId);
@@ -1025,9 +921,6 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE POUR RÉCUPÉRER LE CLASSEMENT FINAL D'UN TOURNOI
-  // ========================================
   fastify.get('/:id/ranking', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const tournamentId = parseInt(request.params.id);
@@ -1039,7 +932,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Récupérer le tournoi
       const tournament = db.prepare(`
         SELECT * FROM tournaments WHERE id = ?
       `).get(tournamentId);
@@ -1051,7 +943,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
 
-      // Récupérer le classement final
       const ranking = db.prepare(`
         SELECT 
           tp.position,
@@ -1096,9 +987,6 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE POUR RÉCUPÉRER LE RÉSUMÉ COMPLET D'UN TOURNOI
-  // ========================================
   fastify.get('/:id/summary', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const tournamentId = parseInt(request.params.id);
@@ -1110,7 +998,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
       
-      // Récupérer le tournoi
       const tournament = db.prepare(`
         SELECT * FROM tournaments WHERE id = ?
       `).get(tournamentId);
@@ -1122,7 +1009,6 @@ async function tournamentRoutes(fastify, options) {
         });
       }
 
-      // Récupérer tous les matchs avec détails complets
       const matches = db.prepare(`
         SELECT 
           g.*,
@@ -1142,7 +1028,6 @@ async function tournamentRoutes(fastify, options) {
         ORDER BY g.created_at ASC
       `).all(tournamentId);
 
-      // Récupérer le classement final
       const ranking = db.prepare(`
         SELECT 
           tp.position,
@@ -1165,7 +1050,6 @@ async function tournamentRoutes(fastify, options) {
         ORDER BY tp.position ASC NULLS LAST, tp.id ASC
       `).all(tournamentId, tournamentId, tournamentId);
 
-      // Organiser les matchs par type pour la lisibilité
       const matchesByType = {
         semifinals: matches.filter(m => m.match_type === 'semifinal'),
         third_place: matches.find(m => m.match_type === 'third_place') || null,

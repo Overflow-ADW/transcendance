@@ -6,7 +6,6 @@ const { seedDatabase } = require('./seed');
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '..', 'database', 'database.sqlite');
 const dbDir = path.dirname(dbPath);
 
-// Créer le répertoire de base de données s'il n'existe pas
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
@@ -15,7 +14,6 @@ const db = new Database(dbPath, {
   verbose: process.env.NODE_ENV === 'development' ? console.log : null 
 });
 
-// Configuration SQLite pour la performance et la sécurité
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 db.pragma('synchronous = NORMAL');
@@ -283,7 +281,6 @@ function initDatabase(fastify) {
       END;
     `);
 
-    // Trigger pour mettre à jour les stats utilisateur
     db.exec(`
       CREATE TRIGGER IF NOT EXISTS update_user_stats_on_game_complete
       AFTER UPDATE OF status ON games
@@ -305,7 +302,6 @@ function initDatabase(fastify) {
       END;
     `);
 
-    // Trigger pour mettre à jour les stats utilisateur lors d'INSERT direct
     db.exec(`
       CREATE TRIGGER IF NOT EXISTS update_user_stats_on_game_insert
       AFTER INSERT ON games
@@ -334,7 +330,6 @@ function initDatabase(fastify) {
     // MIGRATIONS - Ajout de colonnes manquantes
     // ========================================
     try {
-      // Vérifier si la colonne match_type existe dans la table games
       const columns = db.prepare("PRAGMA table_info(games)").all();
       const hasMatchType = columns.some(col => col.name === 'match_type');
       
@@ -346,7 +341,6 @@ function initDatabase(fastify) {
       fastify.log.error('⚠️ Erreur lors des migrations:', err);
     }
     
-    // Initialiser les données de seed en mode développement
     if (process.env.NODE_ENV !== 'production') {
       seedDatabase(db, fastify.log).catch(err => {
         fastify.log.error('Erreur lors du seed:', err);
@@ -362,7 +356,6 @@ function initDatabase(fastify) {
   }
 }
 
-// Fonction pour fermer proprement la base de données
 function closeDatabase() {
   if (db) {
     db.close();

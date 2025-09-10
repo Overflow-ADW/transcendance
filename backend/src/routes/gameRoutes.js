@@ -3,7 +3,6 @@ const { authenticateToken } = require('../middleware/auth');
 async function gameRoutes(fastify, options) {
   const db = fastify.db;
   
-  // S'assurer que toutes les routes de jeu nécessitent une authentification
   fastify.addHook('onRequest', fastify.ensureAuthenticated);
 
   fastify.post('/start', { preHandler: [authenticateToken] }, async (request, reply) => {
@@ -11,11 +10,10 @@ async function gameRoutes(fastify, options) {
       const { opponentId, gameMode } = request.body;
       const player1Id = request.user.userId;
 
-      // matchmaking, lancement de game, stockage,..
 
       return reply.status(201).send({
         message: 'Partie démarrée avec succès',
-        gameId: 123 // db
+        gameId: 123
       });
     } catch (error) {
       fastify.log.error('Erreur lors du démarrage de la partie:', error);
@@ -25,9 +23,6 @@ async function gameRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE POUR SAUVEGARDER UNE PARTIE TERMINÉE
-  // ========================================
   fastify.post('/complete', {
     preHandler: [authenticateToken],
     schema: {
@@ -41,7 +36,7 @@ async function gameRoutes(fastify, options) {
           score_player1: { type: 'number', minimum: 0 },
           score_player2: { type: 'number', minimum: 0 },
           winner_id: { type: ['number', 'null'] },
-          duration: { type: 'number', minimum: 0 }, // en secondes
+          duration: { type: 'number', minimum: 0 },
           game_mode: { type: 'string', default: 'classic' },
           tournament_id: { type: ['number', 'null'] }
         }
@@ -60,7 +55,6 @@ async function gameRoutes(fastify, options) {
         game_mode: gameData.game_mode
       });
 
-      // Insérer la partie dans la DB
       const result = db.prepare(`
         INSERT INTO games (
           player1_id, player2_id, ai_opponent, ai_level,
@@ -72,20 +66,19 @@ async function gameRoutes(fastify, options) {
                   datetime('now'), 
                   datetime('now'))
       `).run(
-        userId,                               // player1_id (toujours le joueur connecté)
-        gameData.player2_id || null,          // player2_id (null si IA)
-        gameData.ai_opponent ? 1 : 0,         // ai_opponent (boolean -> integer)
-        gameData.ai_level || null,            // ai_level
-        gameData.score_player1,               // score_player1
-        gameData.score_player2,               // score_player2
-        gameData.winner_id || null,           // winner_id
-        gameData.duration,                    // duration
-        gameData.game_mode || 'classic',      // game_mode
-        gameData.tournament_id || null,       // tournament_id
-        gameData.duration                     // pour calculer start_time
+        userId,                              
+        gameData.player2_id || null,          
+        gameData.ai_opponent ? 1 : 0,         
+        gameData.ai_level || null,           
+        gameData.score_player1,               
+        gameData.score_player2,               
+        gameData.winner_id || null,           
+        gameData.duration,                            
+        gameData.game_mode || 'classic',      
+        gameData.tournament_id || null,       
+        gameData.duration                           
       );
 
-      // Les stats utilisateur seront mises à jour automatiquement par les triggers DB
       
       fastify.log.info(`✅ Partie sauvegardée avec succès: ID ${result.lastInsertRowid}`);
       

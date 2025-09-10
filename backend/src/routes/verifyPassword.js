@@ -5,7 +5,6 @@ async function verifyPasswordRoute(fastify, options) {
     const { username, password } = request.body;
 
     try {
-      // Récupérer l'utilisateur de la base de données
       const user = fastify.db.prepare('SELECT id, username, password FROM users WHERE username = ?')
         .get(username);
 
@@ -16,7 +15,6 @@ async function verifyPasswordRoute(fastify, options) {
         });
       }
 
-      // Vérifier le mot de passe
       const isValid = await bcrypt.compare(password, user.password);
 
       if (!isValid) {
@@ -26,7 +24,6 @@ async function verifyPasswordRoute(fastify, options) {
         });
       }
 
-      // Mot de passe vérifié avec succès
       return reply.send({
         success: true,
         userId: user.id
