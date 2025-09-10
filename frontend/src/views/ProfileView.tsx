@@ -69,6 +69,28 @@ function ProfileView() {
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
+  // Function to navigate to a user's profile by searching their username
+  const navigateToUserProfile = async (username: string) => {
+    try {
+      if (username === 'IA' || username === 'AI') return; // Don't navigate for AI opponents
+      
+      // First search for the user to get their ID
+      const searchResponse = await apiClient.searchUsers(username, 1);
+      if (searchResponse.results.length > 0) {
+        const foundUser = searchResponse.results.find(user => 
+          user.username.toLowerCase() === username.toLowerCase() || 
+          user.display_name?.toLowerCase() === username.toLowerCase()
+        );
+        
+        if (foundUser) {
+          router.push(`/profile?userId=${foundUser.id}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error navigating to user profile:', error);
+    }
+  };
+
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/login');
@@ -420,8 +442,18 @@ function ProfileView() {
                         key={match.id}
                         className="grid grid-cols-4 gap-2 p-3 bg-gray-800/80 border border-gray-600/50 rounded-lg hover:bg-gray-700/80 transition-colors shadow-lg"
                       >
-                        <div className="text-center text-white font-medium text-sm truncate">
-                          {match.opponent}
+                        <div className="text-center font-medium text-sm truncate">
+                          {match.opponent === 'IA' || match.opponent === 'AI' ? (
+                            <span className="text-white">{match.opponent}</span>
+                          ) : (
+                            <button
+                              onClick={() => navigateToUserProfile(match.opponent)}
+                              className="text-blue-300 hover:text-blue-100 hover:underline transition-colors cursor-pointer bg-transparent border-none p-0 font-medium text-sm"
+                              title={`Voir le profil de ${match.opponent}`}
+                            >
+                              {match.opponent}
+                            </button>
+                          )}
                         </div>
                         <div className="text-center text-gray-200 text-sm font-mono font-bold">
                           {match.score || '-'}

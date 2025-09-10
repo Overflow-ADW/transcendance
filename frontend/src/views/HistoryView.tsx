@@ -18,6 +18,28 @@ export default function HistoryView() {
   const [gameModeFilter, setGameModeFilter] = useState('all');
   const [error, setError] = useState<string | null>(null);
 
+  // Function to navigate to a user's profile by searching their username
+  const navigateToUserProfile = async (username: string) => {
+    try {
+      if (username === 'IA' || username === 'AI') return; // Don't navigate for AI opponents
+      
+      // First search for the user to get their ID
+      const searchResponse = await apiClient.searchUsers(username, 1);
+      if (searchResponse.results.length > 0) {
+        const foundUser = searchResponse.results.find(user => 
+          user.username.toLowerCase() === username.toLowerCase() || 
+          user.display_name?.toLowerCase() === username.toLowerCase()
+        );
+        
+        if (foundUser) {
+          router.push(`/profile?userId=${foundUser.id}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error navigating to user profile:', error);
+    }
+  };
+
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/login');
@@ -209,9 +231,21 @@ export default function HistoryView() {
                               {game.user_score} - {game.opponent_score}
                             </span>
                             <span className="text-gray-300">vs</span>
-                            <span className="text-white">
-                              {game.opponent_display_name || game.opponent_username || 'IA'}
-                            </span>
+                            {(game.opponent_display_name || game.opponent_username) && 
+                             (game.opponent_display_name || game.opponent_username) !== 'IA' && 
+                             (game.opponent_display_name || game.opponent_username) !== 'AI' ? (
+                              <button
+                                onClick={() => navigateToUserProfile(game.opponent_display_name || game.opponent_username || '')}
+                                className="text-blue-300 hover:text-blue-100 hover:underline transition-colors cursor-pointer bg-transparent border-none p-0 font-medium"
+                                title={`Voir le profil de ${game.opponent_display_name || game.opponent_username}`}
+                              >
+                                {game.opponent_display_name || game.opponent_username}
+                              </button>
+                            ) : (
+                              <span className="text-white">
+                                {game.opponent_display_name || game.opponent_username || 'IA'}
+                              </span>
+                            )}
                           </div>
                           <div className="text-sm text-gray-400 mt-1">
                             {game.game_mode} • {formatDuration(game.duration)} • {formatDate(game.created_at)}
