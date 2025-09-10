@@ -1,6 +1,5 @@
 // src/views/SignInView.tsx
 "use client";
-
 import React, { useEffect, useState } from "react";
 import { MenuButton } from "@/components/ui/MenuButton";
 import { BackButton } from "@/components/ui/BackButton";
@@ -26,11 +25,9 @@ const REGISTER_ENDPOINT = `${API_BASE}/api/auth/register`;
 
 export default function SignInView() {
   const [mounted, setMounted] = useState(false);
-
   useEffect(() => {
     setMounted(true);
   }, []);
-
   if (!mounted) {
     return (
       <div className="w-screen h-screen overflow-hidden relative">
@@ -56,11 +53,6 @@ export default function SignInView() {
                     login
                   </button>
                 </li>
-                <li>
-                  <button className="w-full py-6 px-8 text-2xl font-bold rounded-lg border-2 bg-black border-white text-white">
-                    settings
-                  </button>
-                </li>
               </ul>
             </div>
           </aside>
@@ -71,39 +63,33 @@ export default function SignInView() {
       </div>
     );
   }
-
   return <SignInViewContent />;
 }
 
 function SignInViewContent() {
   const router = useRouter();
   const { lang, addNotification } = useApp();
-
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-  const handleOAuth = (provider: 'google' | 'github') => {
+
+  const handleOAuth = (provider: 'google') => {
     if (!API_BASE) {
       setFormError(`Configuration OAuth manquante (NEXT_PUBLIC_API_BASE_URL)`);
       return;
     }
-
     const oauthUrl = `${API_BASE}/api/oauth/${provider}`;
-
     sessionStorage.setItem('oauth_provider', provider);
-
     window.location.href = oauthUrl;
   };
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   const validate = () => {
     const errors: Record<string, string[]> = {};
-
     if (!username || username.trim().length < 3) {
       errors.username = ["Username must be at least 3 characters"];
     }
@@ -113,7 +99,6 @@ function SignInViewContent() {
     if (confirm !== password) {
       errors.confirm = ["Passwords do not match"];
     }
-
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -121,11 +106,9 @@ function SignInViewContent() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-
     if (!validate()) {
       return;
     }
-
     setIsSubmitting(true);
     try {
       const res = await fetch(REGISTER_ENDPOINT, {
@@ -133,14 +116,12 @@ function SignInViewContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-
       let data: SignInSuccessBody | SignInErrorBody | null = null;
       try {
         data = (await res.json()) as SignInSuccessBody | SignInErrorBody;
       } catch {
         data = null;
       }
-
       if (!res.ok) {
         if (res.status === 400 || res.status === 401 || res.status === 422 || res.status === 409) {
           const message =
@@ -157,21 +138,17 @@ function SignInViewContent() {
         }
         return;
       }
-
       const { accessToken, refreshToken } = (data || {}) as SignInSuccessBody;
-
       if (!accessToken) {
         setFormError(
           "Sign up succeeded but no token received. Please contact support."
         );
         return;
       }
-
       localStorage.setItem("accessToken", accessToken);
       if (refreshToken) {
         localStorage.setItem("refreshToken", refreshToken);
       }
-
       addNotification && addNotification({
         type: "success",
         message: "Compte créé avec succès ! Connecte-toi pour continuer.",
@@ -189,11 +166,8 @@ function SignInViewContent() {
       <div className="absolute inset-0 w-full h-full">
         <PongCanvas />
       </div>
-
       <div className="absolute inset-0 bg-black/40 xl:bg-transparent"></div>
-
       <main className="relative z-10 w-full h-full flex">
-
         <div className="hidden xl:flex w-screen h-screen">
           <aside className="w-1/2 h-screen bg-black flex flex-shrink-0">
             <div className="m-auto w-full max-w-[520px] px-8">
@@ -206,7 +180,6 @@ function SignInViewContent() {
                   {t(lang, "welcome")}
                 </button>
               </div>
-
               <ul className="space-y-10 list-none">
                 <li>
                   <MenuButton
@@ -223,17 +196,9 @@ function SignInViewContent() {
                     variant="holographic"
                   />
                 </li>
-                <li>
-                  <MenuButton
-                    label={t(lang, "settings")}
-                    onClick={() => router.push("/settings")}
-                    variant="default"
-                  />
-                </li>
               </ul>
             </div>
           </aside>
-
           <section className="w-1/2 h-screen bg-blue-600 flex items-center justify-center p-8 flex-shrink-0">
             <form
               className="w-full max-w-md space-y-6 bg-black/80 backdrop-blur-sm p-8 rounded-lg border border-white/20"
@@ -243,13 +208,11 @@ function SignInViewContent() {
               <h1 className="text-white text-3xl font-bold text-center mb-8">
                 Create Account
               </h1>
-
               {formError && (
                 <div className="p-3 rounded-md border border-red-500/50 bg-red-500/10 text-red-300 text-sm">
                   {formError}
                 </div>
               )}
-
               <div>
                 <input
                   type="text"
@@ -269,7 +232,6 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-
               <div>
                 <input
                   type="password"
@@ -285,7 +247,6 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-
               <div>
                 <input
                   type="password"
@@ -301,8 +262,6 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-
-
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -310,8 +269,6 @@ function SignInViewContent() {
               >
                 {isSubmitting ? "Creating account..." : "Create Account"}
               </button>
-
-              {/* Boutons OAuth Desktop */}
               <div className="flex flex-col gap-3 mt-4">
                 <button
                   type="button"
@@ -321,16 +278,7 @@ function SignInViewContent() {
                   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="w-6 h-6" />
                   Continuer avec Google
                 </button>
-                <button
-                  type="button"
-                  className="w-full py-3 bg-black text-white rounded-lg font-bold border border-gray-700 hover:bg-gray-900 flex items-center justify-center gap-2"
-                  onClick={() => handleOAuth('github')}
-                >
-                  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub" className="w-6 h-6 bg-white rounded-full" />
-                  Continuer avec GitHub
-                </button>
               </div>
-
               <div className="text-center mt-4">
                 <button
                   type="button"
@@ -343,10 +291,8 @@ function SignInViewContent() {
             </form>
           </section>
         </div>
-
         <div className="flex xl:hidden w-full h-full min-h-screen items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12">
           <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl space-y-6 sm:space-y-8 md:space-y-10 lg:space-y-12">
-
             <div className="text-center mb-8 sm:mb-12 md:mb-16 lg:mb-20">
               <button
                 type="button"
@@ -356,7 +302,6 @@ function SignInViewContent() {
                 SIGN IN
               </button>
             </div>
-
             <form
               className="space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-10"
               onSubmit={onSubmit}
@@ -367,7 +312,6 @@ function SignInViewContent() {
                   {formError}
                 </div>
               )}
-
               <div className="w-full">
                 <input
                   type="text"
@@ -389,7 +333,6 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-
               <div className="w-full">
                 <input
                   type="password"
@@ -407,7 +350,6 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-
               <div className="w-full">
                 <input
                   type="password"
@@ -425,7 +367,6 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-
               <div className="w-full">
                 <button
                   type="submit"
@@ -435,7 +376,6 @@ function SignInViewContent() {
                   {isSubmitting ? "CREATING..." : "CREATE ACCOUNT"}
                 </button>
               </div>
-
               <div className="flex flex-col gap-3 mt-2">
                 <button
                   type="button"
@@ -445,17 +385,8 @@ function SignInViewContent() {
                   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="w-6 h-6" />
                   Continuer avec Google
                 </button>
-                <button
-                  type="button"
-                  className="w-full py-3 bg-black text-white rounded-lg font-bold border border-gray-700 hover:bg-gray-900 flex items-center justify-center gap-2"
-                  onClick={() => handleOAuth('github')}
-                >
-                  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub" className="w-6 h-6 bg-white rounded-full" />
-                  Continuer avec GitHub
-                </button>
               </div>
             </form>
-
             <div className="text-center space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-10">
               <button
                 type="button"
@@ -464,7 +395,6 @@ function SignInViewContent() {
               >
                 Already have an account? Login
               </button>
-
               <p className="text-white/60 text-xs sm:text-sm md:text-base lg:text-lg font-medium backdrop-blur-sm bg-black/40 rounded-full px-3 sm:px-4 md:px-6 lg:px-8 py-1 sm:py-2 md:py-3 lg:py-4 inline-block">
                 PONG ULTIMATE
               </p>
