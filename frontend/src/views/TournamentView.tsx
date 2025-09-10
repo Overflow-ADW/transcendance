@@ -13,6 +13,7 @@ type TournamentPlayer = {
   id: number;
   name: string;
   color: string;
+  isMainPlayer?: boolean;
 };
 
 type EmptySlot = {
@@ -30,10 +31,11 @@ interface LoginModalProps {
   onLogin: (username: string, password: string) => void;
 }
 
-const SearchPlayerModal = ({ isOpen, onClose, onSelect }: {
+const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (player: any) => void;
+  currentPlayers: TournamentPlayer[];
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -49,7 +51,11 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect }: {
         try {
           setIsSearching(true);
           const response = await apiClient.searchUsers(searchQuery);
-          setSearchResults(response.results);
+          // Filtrer les joueurs qui sont déjà dans la liste
+          const filteredResults = response.users.filter((result: { id: number }) => 
+            !currentPlayers.some(player => player.id === result.id)
+          );
+          setSearchResults(filteredResults);
         } catch (error) {
           console.error('Error searching users:', error);
         } finally {
@@ -62,7 +68,7 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect }: {
     } else {
       setSearchResults([]);
     }
-  }, [searchQuery]);
+  }, [searchQuery, currentPlayers]);
 
   if (!isOpen) return null;
 
@@ -105,54 +111,59 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect }: {
         
         {selectedUser && (
           <div className="mt-4 border-t pt-4">
-            <h3 className="text-lg font-semibold text-black mb-2">Verify {selectedUser.username}</h3>
-            <div className="space-y-4">
-              <div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password to verify"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
-                />
+            <div className="mb-4">
+              <div className="font-semibold text-black mb-2">Selected Player:</div>
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <div className="font-semibold">{selectedUser.display_name || selectedUser.username}</div>
+                <div className="text-sm text-gray-500">@{selectedUser.username}</div>
               </div>
-              {error && (
-                <div className="text-red-500 text-sm">{error}</div>
-              )}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedUser(null);
-                    setPassword("");
-                    setError(null);
-                  }}
-                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      const result = await login({
-                        username: selectedUser.username,
-                        password: password
-                      });
-                      if (result.success) {
-                        onSelect(selectedUser);
-                        onClose();
-                      } else {
-                        setError('Invalid password');
-                      }
-                    } catch (err) {
-                      setError('Failed to verify password');
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Verify Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
+                placeholder="Enter password to verify"
+              />
+              {error && <div className="text-red-500 text-sm mt-1">{error}</div>}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setSelectedUser(null);
+                  setPassword("");
+                  setError(null);
+                }}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const result = await login({
+                      username: selectedUser.username,
+                      password: password
+                    });
+                    if (result.success) {
+                      onSelect(selectedUser);
+                      onClose();
+                    } else {
+                      setError('Invalid password');
                     }
-                  }}
-                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  disabled={!password}
-                >
-                  Verify
-                </button>
-              </div>
+                  } catch (err) {
+                    setError('Failed to verify password');
+                  }
+                }}
+                disabled={!password}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Verify & Add
+              </button>
             </div>
           </div>
         )}
@@ -186,20 +197,37 @@ export default function TournamentView() {
       // Ajouter l'utilisateur actuel comme premier joueur seulement si la liste est vide
       setPlayers([{
         id: user.id,
-        name: user.username,
-        color: colors[0]
+        name: user.display_name || user.username,
+        color: colors[0],
+        isMainPlayer: true // Marquer le joueur principal
       }]);
     }
-  }, [user, players.length]);
+  }, [user]);
 
   const handleAddPlayer = (newPlayer: any) => {
     if (players.length < 4 && !players.find(p => p.id === newPlayer.id)) {
       const playerToAdd = {
         id: newPlayer.id,
-        name: newPlayer.username,
-        color: colors[players.length]
+        name: newPlayer.display_name || newPlayer.username,
+        color: colors[players.length],
+        isMainPlayer: false
       };
-      setPlayers(prev => [...prev, playerToAdd]);
+      
+      setPlayers(currentPlayers => {
+        // Garder le joueur principal en première position
+        if (currentPlayers.length === 0) {
+          return [playerToAdd];
+        }
+        // Trouver le joueur principal
+        const mainPlayerIndex = currentPlayers.findIndex(p => p.isMainPlayer);
+        if (mainPlayerIndex === -1) {
+          return [...currentPlayers, playerToAdd];
+        }
+        // Insérer le nouveau joueur après le joueur principal
+        const newPlayers = [...currentPlayers];
+        newPlayers.splice(mainPlayerIndex + 1, 0, playerToAdd);
+        return newPlayers;
+      });
     }
   };
 
@@ -238,7 +266,7 @@ export default function TournamentView() {
                     >
                       {player.name}
                     </button>
-                    {player.id !== user?.id && (
+                    {index !== 0 && (
                       <button
                         onClick={() => removePlayer(player.id)}
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 transition-colors"
@@ -261,29 +289,22 @@ export default function TournamentView() {
           })}
         </div>
 
-        {/* Boutons d'action */}
-        <div className="flex gap-8">
+        {/* Bouton d'action */}
+        <div>
           <button
             onClick={() => {
-              if (players.length >= 2) {
+              if (players.length === 4) {
                 router.push("/tournament-bracket");
               }
             }}
             className={`bg-transparent border-4 border-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:scale-105 ${
-              players.length >= 2
+              players.length === 4
                 ? "text-yellow-400 hover:bg-yellow-400 hover:text-black"
                 : "text-yellow-400/50 border-yellow-400/50 cursor-not-allowed"
             }`}
-            disabled={players.length < 2}
+            disabled={players.length < 4}
           >
             START
-          </button>
-          
-          <button
-            onClick={() => router.push("/play")}
-            className="bg-transparent border-4 border-yellow-400 text-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:bg-yellow-400 hover:text-black hover:scale-105"
-          >
-            RETURN
           </button>
         </div>
 
@@ -292,6 +313,7 @@ export default function TournamentView() {
           isOpen={showSearchModal}
           onClose={() => setShowSearchModal(false)}
           onSelect={handleAddPlayer}
+          currentPlayers={players}
         />
       </div>
     </GradientBackground>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useRouter } from 'next/navigation';
+import { apiClient } from "@/lib_front/api";
 
 type Language = 'fr' | 'en' | 'nl';
 
@@ -12,11 +13,146 @@ interface LanguageOption {
   flag: string;
 }
 
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (data: any) => void;
+  title: string;
+}
+
 interface LogoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
 }
+
+const ChangeUsernameModal = ({ isOpen, onClose, onConfirm, title }: ModalProps) => {
+  const [newUsername, setNewUsername] = useState("");
+  const [error, setError] = useState("");
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-8 w-96 max-w-md mx-4">
+        <h2 className="text-2xl font-bold text-black mb-6 text-center">{title}</h2>
+        <div className="mb-4">
+          <input
+            type="text"
+            value={newUsername}
+            onChange={(e) => {
+              setNewUsername(e.target.value);
+              setError("");
+            }}
+            placeholder="New username"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
+          />
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        </div>
+        <div className="flex gap-4">
+          <button
+            onClick={onClose}
+            className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (newUsername.length < 3) {
+                setError("Username must be at least 3 characters long");
+                return;
+              }
+              onConfirm(newUsername);
+            }}
+            className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Change
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ChangePasswordModal = ({ isOpen, onClose, onConfirm, title }: ModalProps) => {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-8 w-96 max-w-md mx-4">
+        <h2 className="text-2xl font-bold text-black mb-6 text-center">{title}</h2>
+        <div className="space-y-4">
+          <div>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => {
+                setCurrentPassword(e.target.value);
+                setError("");
+              }}
+              placeholder="Current password"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => {
+                setNewPassword(e.target.value);
+                setError("");
+              }}
+              placeholder="New password"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setError("");
+              }}
+              placeholder="Confirm new password"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+        </div>
+        <div className="flex gap-4 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (newPassword !== confirmPassword) {
+                setError("Passwords do not match");
+                return;
+              }
+              if (newPassword.length < 6) {
+                setError("Password must be at least 6 characters long");
+                return;
+              }
+              onConfirm({ currentPassword, newPassword });
+            }}
+            className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Change
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const LogoutModal = ({ isOpen, onClose, onConfirm }: LogoutModalProps) => {
   if (!isOpen) return null;
@@ -51,8 +187,12 @@ export default function TrueSettingsView() {
   const router = useRouter();
   const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSavingLanguage, setIsSavingLanguage] = useState(false);
+  const [isChangingUsername, setIsChangingUsername] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const languages: LanguageOption[] = [
     { code: 'en', name: 'English', flag: '🇬🇧' },
@@ -114,6 +254,36 @@ export default function TrueSettingsView() {
       alert('Failed to update language settings');
     } finally {
       setIsSavingLanguage(false);
+    }
+  };
+
+  const handleChangeUsername = async (newUsername: string) => {
+    setIsChangingUsername(true);
+    try {
+      const response = await apiClient.changeUsername(newUsername);
+      alert('Username changed successfully!');
+      setShowUsernameModal(false);
+      
+      // Update local storage user data
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...userData, username: newUsername }));
+    } catch (error: any) {
+      alert(error.message || 'Failed to change username');
+    } finally {
+      setIsChangingUsername(false);
+    }
+  };
+
+  const handleChangePassword = async (data: { currentPassword: string; newPassword: string }) => {
+    setIsChangingPassword(true);
+    try {
+      await apiClient.changePassword(data);
+      alert('Password changed successfully!');
+      setShowPasswordModal(false);
+    } catch (error: any) {
+      alert(error.message || 'Failed to change password');
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -249,6 +419,24 @@ export default function TrueSettingsView() {
                 </h2>
                 
                 <div className="space-y-4">
+                  {/* Change Username Button */}
+                  <button
+                    onClick={() => setShowUsernameModal(true)}
+                    disabled={isChangingUsername}
+                    className="w-full p-4 bg-purple-600/20 border-2 border-purple-400 text-purple-400 rounded-lg font-bold text-lg transition-all duration-300 hover:bg-purple-600 hover:text-white hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isChangingUsername ? 'CHANGING USERNAME...' : 'CHANGE USERNAME'}
+                  </button>
+
+                  {/* Change Password Button */}
+                  <button
+                    onClick={() => setShowPasswordModal(true)}
+                    disabled={isChangingPassword}
+                    className="w-full p-4 bg-blue-600/20 border-2 border-blue-400 text-blue-400 rounded-lg font-bold text-lg transition-all duration-300 hover:bg-blue-600 hover:text-white hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isChangingPassword ? 'CHANGING PASSWORD...' : 'CHANGE PASSWORD'}
+                  </button>
+
                   {/* Logout Button */}
                   <button
                     onClick={() => setShowLogoutModal(true)}
@@ -257,40 +445,10 @@ export default function TrueSettingsView() {
                   >
                     {isLoading ? 'LOGGING OUT...' : 'LOGOUT'}
                   </button>
-
-                  {/* Clear Game Data */}
-                  <button
-                    onClick={clearGameData}
-                    className="w-full p-4 bg-yellow-600/20 border-2 border-yellow-400 text-yellow-400 rounded-lg font-bold text-lg transition-all duration-300 hover:bg-yellow-600 hover:text-white hover:scale-105"
-                  >
-                    CLEAR GAME DATA
-                  </button>
-
-                  {/* Info Text */}
-                  <div className="mt-6 p-4 bg-white/5 border border-white/20 rounded-lg">
-                    <h3 className="text-white font-bold mb-2">Account Information</h3>
-                    <ul className="text-white/70 text-sm space-y-1">
-                      <li>• Logout will end your current session</li>
-                      <li>• Clear data removes local game preferences</li>
-                      <li>• Your profile and stats are safely stored</li>
-                    </ul>
-                  </div>
                 </div>
               </div>
 
-              {/* App Info */}
-              <div className="bg-black border-4 border-gray-400 rounded-lg p-6 flex-shrink-0">
-                <h2 className="text-xl font-bold text-gray-400 text-center mb-4">
-                  APP INFO
-                </h2>
-                <div className="text-center text-white/70 space-y-2">
-                  <p>Version: 1.0.0</p>
-                  <p>Build: 2024.09.07</p>
-                  <p className="text-xs text-white/50 mt-4">
-                    Pong Game © 2024
-                  </p>
-                </div>
-              </div>
+
             </div>
           </div>
 
@@ -319,11 +477,23 @@ export default function TrueSettingsView() {
           </div>
         </div>
 
-        {/* Logout Confirmation Modal */}
+        {/* Modals */}
         <LogoutModal
           isOpen={showLogoutModal}
           onClose={() => setShowLogoutModal(false)}
           onConfirm={handleLogout}
+        />
+        <ChangeUsernameModal
+          isOpen={showUsernameModal}
+          onClose={() => setShowUsernameModal(false)}
+          onConfirm={handleChangeUsername}
+          title="Change Username"
+        />
+        <ChangePasswordModal
+          isOpen={showPasswordModal}
+          onClose={() => setShowPasswordModal(false)}
+          onConfirm={handleChangePassword}
+          title="Change Password"
         />
       </div>
     </GradientBackground>

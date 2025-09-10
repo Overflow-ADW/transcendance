@@ -126,3 +126,55 @@ export type MatchItem = {
   result: "win" | "loose";
   mode: "1 vs 1" | "tournament" | "vs ia";
 };
+
+// ============ TYPES AMIS/FRIENDS ============
+
+export interface Friend {
+  id: number; // ID de la relation d'amitié (friendship_id)
+  user_id: number;
+  username: string;
+  display_name?: string;
+  avatar_url?: string;
+  friendship_status: 'accepted';
+  online_status: 'online' | 'offline';
+}
+
+export interface PendingInvitation {
+  friendship_id: number;
+  id: number;
+  username: string;
+  display_name?: string;
+  avatar_url?: string;
+  request_type: 'incoming' | 'outgoing';
+  requested_at: string;
+  requester_username?: string;
+  target_username?: string;
+}
+
+export interface FriendsResponse {
+  friends: Friend[];
+  pendingRequests: PendingInvitation[];
+  stats: {
+    totalFriends: number;
+    onlineFriends: number;
+    pendingIncoming: number;
+    pendingOutgoing: number;
+  };
+}
+
+export interface UserSearchResult {
+  id: number;
+  username: string;
+  display_name?: string;
+  avatar_url?: string;
+  friendship_status?: 'none' | 'pending_sent' | 'pending_received' | 'friends' | 'blocked';
+  mutual_friends?: number;
+}
+
+export interface SearchUsersResponse {
+  users: UserSearchResult[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}

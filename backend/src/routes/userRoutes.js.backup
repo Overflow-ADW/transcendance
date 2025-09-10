@@ -659,7 +659,7 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      fastify.log.info(`️ Avatar supprimé pour: ${request.user.username}`);
+      fastify.log.info(`�️ Avatar supprimé pour: ${request.user.username}`);
 
       return reply.send({
         message: 'Avatar supprimé avec succès',
@@ -745,35 +745,16 @@ async function userRoutes(fastify, options) {
   // ========================================
   // ROUTE DE RÉCUPÉRATION DE LA LISTE D'AMIS
   // ========================================
-  // ========================================
-  // ROUTE DE RÉCUPÉRATION DE LA LISTE D'AMIS
-  // ========================================
   fastify.get('/friends', { preHandler: [authenticateToken] }, async (request, reply) => {
-    try {
-      const userId = request.user.userId;
-      fastify.log.info(`�� Récupération des amis pour l'utilisateur ${userId}`);
-
-      // Récupérer les amis acceptés (relations bidirectionnelles) 
-      const friendships = db.prepare(`
-        SELECT DISTINCT
-          CASE 
-            WHEN f.user_id = ? THEN f.friend_id
-            ELSE f.user_id 
-          END as friend_user_id,
-          MIN(f.id) as friendship_id,
-          MIN(f.created_at) as friends_since,
-          'accepted' as friendship_status
-        FROM friends f
-        WHERE f.status = 'accepted'
-          AND (f.user_id = ? OR f.friend_id = ?)
-        GROUP BY 
-          CASE 
-            WHEN f.user_id = ? THEN f.friend_id
-            ELSE f.user_id 
-          END
-      `).all(userId, userId, userId, userId);
-
-      fastify.log.info(`📊 Trouvé ${friendships.length} relations d'amitié`);
+    // 🚨 TEST DE CASSAGE VOLONTAIRE
+    fastify.log.error("�🔥🔥 ENDPOINT FRIENDS APPELÉ - SI VOUS VOYEZ CA, LE CODE MARCHE 🔥🔥🔥");
+    
+    return reply.send({
+      message: "ENDPOINT DE TEST - TABLE FRIENDS VIDE",
+      friends: [],
+      pendingRequests: [],
+      stats: { totalFriends: 0, onlineFriends: 0, pendingIncoming: 0, pendingOutgoing: 0 }
+    });
 
       // Récupérer les informations des amis
       const friends = [];
@@ -786,7 +767,11 @@ async function userRoutes(fastify, options) {
             avatar_url,
             status,
             last_login,
-            status as online_status
+            CASE 
+              WHEN status = 'online' AND datetime('now', '-5 minutes') <= datetime(last_login) THEN 'online'
+              WHEN datetime('now', '-1 day') <= datetime(last_login) THEN 'away'
+              ELSE 'offline'
+            END as online_status
           FROM users 
           WHERE id = ?
         `).get(friendship.friend_user_id);
@@ -809,9 +794,9 @@ async function userRoutes(fastify, options) {
 
       // Trier les amis par statut en ligne
       friends.sort((a, b) => {
-        const statusOrder = { 'online': 1, 'offline': 2 };
-        const statusA = statusOrder[a.online_status] || 2;
-        const statusB = statusOrder[b.online_status] || 2;
+        const statusOrder = { 'online': 1, 'away': 2, 'offline': 3 };
+        const statusA = statusOrder[a.online_status] || 3;
+        const statusB = statusOrder[b.online_status] || 3;
         
         if (statusA !== statusB) return statusA - statusB;
         return a.username.localeCompare(b.username);
@@ -865,7 +850,6 @@ async function userRoutes(fastify, options) {
       });
     }
   });
-
 
   // ========================================
   // ROUTE D'AJOUT D'AMI
@@ -1069,9 +1053,9 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Récupérer les informations de la relation pour identifier les utilisateurs
+      // Vérifier que la relation existe
       const friendship = db.prepare(`
-        SELECT f.id, f.user_id, f.friend_id, u.username as friend_username
+        SELECT f.id, u.username as friend_username
         FROM friends f
         JOIN users u ON (
           CASE 
@@ -1090,15 +1074,8 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Identifier les deux utilisateurs de la relation
-      const user1Id = friendship.user_id;
-      const user2Id = friendship.friend_id;
-
-      // Supprimer TOUTES les relations entre ces deux utilisateurs (bidirectionnelles)
-      const result = db.prepare(`
-        DELETE FROM friends 
-        WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)
-      `).run(user1Id, user2Id, user2Id, user1Id);
+      // Supprimer la relation
+      const result = db.prepare('DELETE FROM friends WHERE id = ?').run(friendId);
 
       if (result.changes === 0) {
         return reply.status(500).send({
