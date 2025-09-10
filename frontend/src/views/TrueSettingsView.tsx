@@ -62,6 +62,15 @@ const ChangeUsernameModal = ({ isOpen, onClose, onConfirm, title }: ModalProps) 
                 setError("Username must be at least 3 characters long");
                 return;
               }
+              if (newUsername.length > 20) {
+                setError("Username must be at most 20 characters long");
+                return;
+              }
+              // Vérifier que le nom d'utilisateur ne contient que des caractères valides
+              if (!/^[a-zA-Z0-9_]+$/.test(newUsername)) {
+                setError("Username can only contain letters, numbers, and underscores");
+                return;
+              }
               onConfirm(newUsername);
             }}
             className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
@@ -138,8 +147,13 @@ const ChangePasswordModal = ({ isOpen, onClose, onConfirm, title }: ModalProps) 
                 setError("Passwords do not match");
                 return;
               }
-              if (newPassword.length < 6) {
-                setError("Password must be at least 6 characters long");
+              if (newPassword.length < 8) {
+                setError("Password must be at least 8 characters long");
+                return;
+              }
+              // Vérifier si le mot de passe contient au moins une majuscule, une minuscule, un chiffre et un caractère spécial
+              if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/.test(newPassword)) {
+                setError("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)");
                 return;
               }
               onConfirm({ currentPassword, newPassword });
@@ -267,8 +281,20 @@ export default function TrueSettingsView() {
       // Update local storage user data
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       localStorage.setItem('user', JSON.stringify({ ...userData, username: newUsername }));
+      
+      // Recommander à l'utilisateur de se reconnecter
+      alert('Please log out and log back in to see the changes in all parts of the application.');
     } catch (error: any) {
-      alert(error.message || 'Failed to change username');
+      console.error('Username change error:', error);
+      
+      // Afficher un message d'erreur plus détaillé
+      if (error.message && error.message.includes('Username already taken')) {
+        alert('This username is already taken. Please choose another one.');
+      } else if (error.message && error.message.includes('VALIDATION_ERROR')) {
+        alert('Username does not meet requirements. Username should be between 3 and 20 characters.');
+      } else {
+        alert(error.message || 'Failed to change username');
+      }
     } finally {
       setIsChangingUsername(false);
     }
@@ -277,11 +303,23 @@ export default function TrueSettingsView() {
   const handleChangePassword = async (data: { currentPassword: string; newPassword: string }) => {
     setIsChangingPassword(true);
     try {
-      await apiClient.changePassword(data);
+      const response = await apiClient.changePassword(data);
       alert('Password changed successfully!');
       setShowPasswordModal(false);
+      
+      // Recommander à l'utilisateur de se reconnecter avec le nouveau mot de passe
+      alert('Please log out and log back in with your new password.');
     } catch (error: any) {
-      alert(error.message || 'Failed to change password');
+      console.error('Password change error:', error);
+      
+      // Afficher un message d'erreur plus détaillé
+      if (error.message && error.message.includes('Mot de passe actuel incorrect')) {
+        alert('Current password is incorrect. Please try again.');
+      } else if (error.message && error.message.includes('VALIDATION_ERROR')) {
+        alert('Password does not meet requirements: Must be at least 8 characters with uppercase, lowercase letters, numbers, and at least one special character (!@#$%^&*).');
+      } else {
+        alert(error.message || 'Failed to change password');
+      }
     } finally {
       setIsChangingPassword(false);
     }
