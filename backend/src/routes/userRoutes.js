@@ -14,7 +14,10 @@ const updateProfileSchema = Joi.object({
 
 const changePasswordSchema = Joi.object({
   currentPassword: Joi.string().required(),
-  newPassword: Joi.string().min(8).pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)')).required()
+  newPassword: Joi.string().min(8).pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#\\$%\\^&\\*])')).required()
+    .messages({
+      'string.pattern.base': 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'
+    })
 });
 
 const addFriendSchema = Joi.object({

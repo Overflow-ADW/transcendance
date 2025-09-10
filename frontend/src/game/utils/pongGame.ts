@@ -1,7 +1,7 @@
 import { Scene, Tools, Mesh, Vector3, PBRMaterial, Color3, GlowLayer, Animation, EasingFunction, CircleEase, StandardMaterial, ParticleSystem, Texture, Color4, MeshBuilder, Quaternion } from "@babylonjs/core";
 import { GameState, GameEvents } from "@/game/utils/pongData";
 import { BALL_CONFIG, PLAYER_CONFIG, MAIN_COLORS, CAMERA_CONFIG, GAME_CONFIG } from "@/game/utils/pongValues";
-import { PongData } from "@/game/utils/pongData";
+import { PongData, GameType } from "@/game/utils/pongData";
 import { PongControls } from "@/game/utils/pongControls";
 
 export interface BallOptions {
@@ -31,9 +31,10 @@ export class PongBall {
     protected bottomWall: Mesh;
     private wallCollisionThreshold = BALL_CONFIG.COLLISION_THRESHOLD;
     protected gameData: PongData; // Changé de private à protected
-    private lastScoredPlayer = -1; // -1: initial, 0: player0 scored, 1: player1 scored
-    private ballMaterial: PBRMaterial;
-    private isResetting = false;
+    protected lastScoredPlayer = -1; // Changé de private à protected pour MultiplayerPongBall
+    protected ballMaterial: PBRMaterial;
+    protected isResetting = false;
+    protected velocityAlreadySet = false; // NOUVEAU : Flag pour éviter les appels multiples
     private goalDelayMs = 1000; // 1 second delay after a goal
     private wallGlowAnimationDuration = 300; // en millisecondes
     private isTopWallGlowing = false;
@@ -41,21 +42,21 @@ export class PongBall {
     private topWallPlane: Mesh | null = null;
     private bottomWallPlane: Mesh | null = null;
     private spawnParticleSystem: ParticleSystem | null = null;
-    private ballGlowLayer?: GlowLayer;
-    private topWallGlowLayer?: GlowLayer;
-    private bottomWallGlowLayer?: GlowLayer;
+    protected ballGlowLayer?: GlowLayer;
+    protected topWallGlowLayer?: GlowLayer;
+    protected bottomWallGlowLayer?: GlowLayer;
     private gameOverDelayMs = 3000; // 3 secondes de délai avant reset
-    private player0GlowLayer?: GlowLayer;
-    private player1GlowLayer?: GlowLayer;
+    protected player0GlowLayer?: GlowLayer;
+    protected player1GlowLayer?: GlowLayer;
     private isPlayer0Glowing = false;
     private isPlayer1Glowing = false;
     private playerGlowAnimationDuration = 300; // même durée que pour les murs
-    private controls: PongControls | null = null;
+    protected controls: PongControls | null = null;
     private particleReductionFactor = GAME_CONFIG.OPTIMIZATION.PARTICLE_REDUCTION_FACTOR;
     protected pongInstance?: any; // Changé de private à protected
 
     constructor(
-        private scene: Scene,
+        protected scene: Scene,
         ball: Mesh,
         player0: Mesh,
         player1: Mesh,
@@ -126,27 +127,27 @@ export class PongBall {
         let initialStartDone = false;
         
         // Réagir aux changements d'état du jeu
-        this.gameData.on(GameEvents.GAME_STATE_CHANGED, (state) => {
+        this.gameData.on(GameEvents.GAME_STATE_CHANGED, (state: GameState) => {
             if (state === GameState.PLAYING) {
-                // Initialisation seulement au premier passage à PLAYING
-                if (!initialStartDone) {
-                    initialStartDone = true;
-                    console.log("Premier démarrage du jeu - initialisation");
-                    
-                    // Attendre un court délai pour s'assurer que tout est prêt
-                    setTimeout(() => {
-                        this.resetBallWithAnimation();
-                    }, 500);
-                }
-                // Réinitialisation après un game over
-                else if (this.isResetting) {
-                    console.log("Réinitialisation après game over");
-                    
-                    // Délai plus long pour s'assurer que le message a disparu
-                    setTimeout(() => {
-                        this.resetBallWithAnimation();
-                    }, 1500);
-                }
+            // Initialisation seulement au premier passage à PLAYING
+            if (!initialStartDone) {
+                initialStartDone = true;
+                console.log("Premier démarrage du jeu - initialisation");
+                
+                // Attendre un court délai pour s'assurer que tout est prêt
+                setTimeout(() => {
+                this.resetBallWithAnimation();
+                }, 500);
+            }
+            // Réinitialisation après un game over
+            else if (this.isResetting) {
+                console.log("Réinitialisation après game over");
+                
+                // Délai plus long pour s'assurer que le message a disparu
+                setTimeout(() => {
+                this.resetBallWithAnimation();
+                }, 1500);
+            }
             }
         });
     }
@@ -228,10 +229,14 @@ export class PongBall {
             return;
         }
         
-        console.log("Réinitialisation de la balle - isGoal:", isGoal);
+        // CORRECTION : Supprimer la condition qui bloque les goals - permettre toujours la réinitialisation
+        console.log("Réinitialisation de la balle - isGoal:", isGoal, "isResetting:", this.isResetting);
         
         // Pause ball movement during reset
         this.isResetting = true;
+        
+        // NOUVEAU : Réinitialiser le flag de vélocité pour permettre un nouvel appel de setInitialVelocity
+        this.velocityAlreadySet = false;
         
         // Verrouiller les contrôles pendant le reset
         if (this.controls) {
@@ -263,7 +268,13 @@ export class PongBall {
             setTimeout(() => {
                 this.createTronSpawnEffect();
                 setTimeout(() => {
-                    this.setInitialVelocity();
+                    // CORRECTION : S'assurer qu'on n'appelle setInitialVelocity qu'une seule fois
+                    if (!this.velocityAlreadySet) {
+                        this.setInitialVelocity();
+                        this.velocityAlreadySet = true; // Marquer après l'appel
+                    } else {
+                        console.log("⚠️ setInitialVelocity ignoré - déjà défini par une classe héritée");
+                    }
                     this.isResetting = false;
                     
                     // Déverrouiller les contrôles
@@ -277,7 +288,13 @@ export class PongBall {
             setTimeout(() => {
                 this.createTronSpawnEffect();
                 setTimeout(() => {
-                    this.setInitialVelocity();
+                    // CORRECTION : S'assurer qu'on n'appelle setInitialVelocity qu'une seule fois
+                    if (!this.velocityAlreadySet) {
+                        this.setInitialVelocity();
+                        this.velocityAlreadySet = true; // Marquer après l'appel
+                    } else {
+                        console.log("⚠️ setInitialVelocity ignoré - déjà défini par une classe héritée");
+                    }
                     this.isResetting = false;
                     
                     // Déverrouiller les contrôles
@@ -621,7 +638,7 @@ export class PongBall {
         }, 100);
     }
 
-    private createTronSpawnEffect(): void {
+    protected createTronSpawnEffect(): void {
         // Effet d'apparition style Tron/Néon
         
         // Réinitialiser immédiatement les couleurs de la balle
@@ -639,53 +656,11 @@ export class PongBall {
         this.ball.scaling = new Vector3(0.01, 0.01, 0.01);
         this.ball.isVisible = true;
         
-        // Animation de ligne lumineuse verticale
-        const verticalLine = MeshBuilder.CreateBox("verticalLine", {
-            width: 0.5,
-            height: 200,
-            depth: 0.5
-        }, this.scene);
+        // CORRECTION MAJEURE : Créer l'effet sans ligne verticale pour éviter les collisions fantômes
+        // Remplacer par un effet de particules plus spectaculaire
+        this.createSpawnLightEffect();
         
-        verticalLine.position = new Vector3(
-            this.ball.position.x,
-            this.ball.position.y,
-            this.ball.position.z
-        );
-        
-        // Matériau néon pour la ligne
-        const lineMaterial = new StandardMaterial("lineMaterial", this.scene);
-        lineMaterial.emissiveColor = new Color3(0, 0.8, 1); // Cyan néon
-        lineMaterial.disableLighting = true;
-        verticalLine.material = lineMaterial;
-        
-        // Ajouter au ballGlowLayer
-        if (this.ballGlowLayer) {
-            this.ballGlowLayer.addIncludedOnlyMesh(verticalLine);
-            this.ballGlowLayer.intensity = 2.0;
-        }
-        
-        // Animation de la ligne qui disparaît
-        const lineAnimation = new Animation(
-            "lineAnimation",
-            "scaling.y",
-            60,
-            Animation.ANIMATIONTYPE_FLOAT,
-            Animation.ANIMATIONLOOPMODE_CONSTANT
-        );
-        
-        lineAnimation.setKeys([
-            { frame: 0, value: 1 },
-            { frame: 20, value: 0.1 }
-        ]);
-        
-        const easingFunction = new CircleEase();
-        easingFunction.setEasingMode(EasingFunction.EASINGMODE_EASEIN);
-        lineAnimation.setEasingFunction(easingFunction);
-        
-        verticalLine.animations = [];
-        verticalLine.animations.push(lineAnimation);
-        
-        // Animation de la balle qui grandit
+        // Animation de la balle qui grandit (sans ligne verticale)
         const ballScaleAnimation = new Animation(
             "ballScale",
             "scaling",
@@ -716,12 +691,7 @@ export class PongBall {
                 this.spawnParticleSystem.manualEmitCount = Math.floor(300 * this.particleReductionFactor);
             }
             
-            // Démarrer les animations
-            this.scene.beginAnimation(verticalLine, 0, 20, false, 1.5, () => {
-                // Supprimer la ligne une fois l'animation terminée
-                verticalLine.dispose();
-            });
-            
+            // Démarrer l'animation de la balle (pas de ligne verticale à animer)
             this.scene.beginAnimation(this.ball, 0, 30, false);
             
             // Restaurer l'intensité du glow après l'animation
@@ -738,7 +708,67 @@ export class PongBall {
         }, 100);
     }
     
-    private setInitialVelocity(): void {
+    // NOUVELLE MÉTHODE : Effet lumineux de spawn sans objets mesh
+    private createSpawnLightEffect(): void {
+        // Créer un effet lumineux avec des particules seulement
+        const lightParticles = new ParticleSystem("spawnLightEffect", 150, this.scene);
+        
+        // Texture des particules
+        const particleTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
+        lightParticles.particleTexture = particleTexture;
+        
+        // Position à la balle
+        lightParticles.emitter = this.ball.position.clone();
+        
+        // CRITIQUE : Marquer comme temporaire et désactiver toutes les collisions
+        lightParticles.metadata = { isTemporary: true };
+        
+        // Zone d'émission verticale pour simuler la ligne
+        lightParticles.minEmitBox = new Vector3(-0.5, -100, -0.5);
+        lightParticles.maxEmitBox = new Vector3(0.5, 100, 0.5);
+        
+        // Couleurs cyan brillant
+        lightParticles.color1 = new Color4(0, 0.8, 1, 1.0);
+        lightParticles.color2 = new Color4(0.5, 1, 1, 1.0);
+        lightParticles.colorDead = new Color4(0, 0.8, 1, 0);
+        
+        // Configuration
+        lightParticles.minSize = 0.8;
+        lightParticles.maxSize = 2.0;
+        lightParticles.minLifeTime = 0.3;
+        lightParticles.maxLifeTime = 0.8;
+        lightParticles.blendMode = ParticleSystem.BLENDMODE_ADD;
+        
+        // Émission verticale concentrée
+        lightParticles.direction1 = new Vector3(0, 1, 0);
+        lightParticles.direction2 = new Vector3(0, -1, 0);
+        lightParticles.minEmitPower = 2;
+        lightParticles.maxEmitPower = 8;
+        lightParticles.gravity = new Vector3(0, 0, 0);
+        
+        // Émission brève mais intense
+        lightParticles.emitRate = 0;
+        lightParticles.manualEmitCount = 100;
+        
+        // Augmenter temporairement l'intensité du glow
+        if (this.ballGlowLayer) {
+            this.ballGlowLayer.intensity = 2.5;
+        }
+        
+        // Démarrer l'effet
+        lightParticles.start();
+        
+        // Nettoyage rapide et sûr
+        setTimeout(() => {
+            lightParticles.stop();
+            setTimeout(() => {
+                lightParticles.dispose();
+                console.log("🧹 Effet lumineux de spawn nettoyé (sans mesh)");
+            }, 500);
+        }, 200);
+    }
+    
+    protected setInitialVelocity(): void { // Changé de private à protected
         // Set direction based on who scored last
         let directionX = Math.random() > 0.5 ? 1 : -1;
         if (this.lastScoredPlayer === 0) {
@@ -775,7 +805,7 @@ export class PongBall {
         }
     }
 
-    private updateBallColor(): void {
+    protected updateBallColor(): void {
         const currentSpeed = this.velocity.length();
         const maxSpeed = this.options.maxSpeed;
         const initialSpeed = this.options.initialSpeed;
@@ -822,22 +852,22 @@ export class PongBall {
         }
     }
 
-    private update(): void {
-        // Skip update if game is not active or ball is resetting
-        if (this.gameData.gameState !== GameState.PLAYING || this.isResetting) {
-            return;
-        }
+    protected update(): void { // Changé de private à protected
+        if (this.isResetting) return;
         
         // Move ball
         this.ball.position.addInPlace(this.velocity);
         
+        // Update ball color based on speed
+        this.updateBallColor();
+        
+        // Check collisions
         this.handleWallCollisions();
         this.handlePlayerCollisions();
         this.checkScoring();
-        this.updateBallColor();
     }
 
-    private handleWallCollisions(): void {
+    protected handleWallCollisions(): void { // Changé de private à protected
         const topWallZ = this.topWall.position.z;
         const bottomWallZ = this.bottomWall.position.z;
         const ballRadius = this.ball.getBoundingInfo().boundingSphere.radius;
@@ -929,55 +959,118 @@ export class PongBall {
         // Ajouter une variable pour éviter les déclenchements multiples
         if (this.isResetting) return;
         
-        // Player 0 scores
+        // NOUVEAU : Vérifier si on est en mode multijoueur
+        const isMultiplayerMode = this.gameData.gameType === GameType.MULTIPLAYER_PONG;
+        
+        // Player 0 scores (balle sort à droite)
         if (this.ball.position.x > BALL_CONFIG.OUT_OF_BOUNDS_X) {
             // Marquer immédiatement comme en cours de réinitialisation pour éviter les déclenchements multiples
             this.isResetting = true;
             
-            // Créer l'effet de désintégration de la balle (version optimisée)
-            this.createBallDisintegrationEffect(0); // Player 0 a marqué
+            console.log(`🎯 BALLE SORTIE À DROITE ! Position: ${this.ball.position.x.toFixed(2)}`);
             
-            // Créer l'effet de désintégration de la raquette via l'instance Pong
-            if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
-                this.pongInstance.createPaddleDisintegrationEffect(0);
+            if (isMultiplayerMode) {
+                // MODE MULTIJOUEUR : Player 2 (paddle centrale) gagne quand la balle sort
+                console.log("🎯 MODE MULTIJOUEUR - Player 2 (paddle centrale) gagne ! La Team a échoué");
+                
+                // Créer l'effet de désintégration de la balle
+                this.createBallDisintegrationEffect(0); // Effet visuel côté droit
+                
+                // Créer l'effet de désintégration de la raquette via l'instance Pong
+                if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
+                    this.pongInstance.createPaddleDisintegrationEffect(0);
+                } else {
+                    // Fallback: créer l'effet directement dans cette classe
+                    this.createPaddleDisintegrationEffect(0);
+                }
+                
+                // CORRECTION CRITIQUE : Player 2 marque (utiliser scorePlayer1)
+                setTimeout(() => {
+                    this.gameData.scorePlayer1(); // Player 2 = scorePlayer1 en mode multijoueur
+                    this.lastScoredPlayer = 2; // Player 2 a "marqué"
+                    console.log("Player 2 a marqué! Score mis à jour");
+                    this.resetBallWithAnimation(true);
+                }, 300);
+                
             } else {
-                // Fallback: créer l'effet directement dans cette classe
-                this.createPaddleDisintegrationEffect(0);
+                // MODE CLASSIQUE : Player 0 marque normalement
+                console.log("🎯 MODE CLASSIQUE - Player 0 marque");
+                
+                // Créer l'effet de désintégration de la balle
+                this.createBallDisintegrationEffect(0); // Player 0 a marqué
+                
+                // Créer l'effet de désintégration de la raquette via l'instance Pong
+                if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
+                    this.pongInstance.createPaddleDisintegrationEffect(0);
+                } else {
+                    // Fallback: créer l'effet directement dans cette classe
+                    this.createPaddleDisintegrationEffect(0);
+                }
+                
+                // Mettre à jour le score une seule fois avec un petit délai pour voir les effets
+                setTimeout(() => {
+                    this.gameData.scorePlayer0();
+                    this.lastScoredPlayer = 0;
+                    this.resetBallWithAnimation(true);
+                }, 300); // Délai réduit mais suffisant pour voir l'animation
             }
-            
-            // Mettre à jour le score une seule fois avec un petit délai pour voir les effets
-            setTimeout(() => {
-                this.gameData.scorePlayer0();
-                this.lastScoredPlayer = 0;
-                this.resetBallWithAnimation(true);
-            }, 300); // Délai réduit mais suffisant pour voir l'animation
         } 
-        // Player 1 scores
+        // Player 1 scores (balle sort à gauche)
         else if (this.ball.position.x < -BALL_CONFIG.OUT_OF_BOUNDS_X) {
             // Marquer immédiatement comme en cours de réinitialisation pour éviter les déclenchements multiples
             this.isResetting = true;
             
-            // Créer l'effet de désintégration de la balle (version optimisée)
-            this.createBallDisintegrationEffect(1); // Player 1 a marqué
+            console.log(`🎯 BALLE SORTIE À GAUCHE ! Position: ${this.ball.position.x.toFixed(2)}`);
             
-            // Créer l'effet de désintégration de la raquette via l'instance Pong
-            if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
-                this.pongInstance.createPaddleDisintegrationEffect(1);
+            if (isMultiplayerMode) {
+                // MODE MULTIJOUEUR : Player 2 (paddle centrale) gagne quand la balle sort
+                console.log("🎯 MODE MULTIJOUEUR - Player 2 (paddle centrale) gagne ! La Team a échoué");
+                
+                // Créer l'effet de désintégration de la balle
+                this.createBallDisintegrationEffect(1); // Effet visuel côté gauche
+                
+                // Créer l'effet de désintégration de la raquette via l'instance Pong
+                if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
+                    this.pongInstance.createPaddleDisintegrationEffect(1);
+                } else {
+                    // Fallback: créer l'effet directement dans cette classe
+                    this.createPaddleDisintegrationEffect(1);
+                }
+                
+                // CORRECTION CRITIQUE : Player 2 marque (utiliser scorePlayer1)
+                setTimeout(() => {
+                    this.gameData.scorePlayer1(); // Player 2 = scorePlayer1 en mode multijoueur
+                    this.lastScoredPlayer = 2; // Player 2 a "marqué"
+                    console.log("Player 2 a marqué! Score mis à jour");
+                    this.resetBallWithAnimation(true);
+                }, 300);
+                
             } else {
-                // Fallback: créer l'effet directement dans cette classe
-                this.createPaddleDisintegrationEffect(1);
+                // MODE CLASSIQUE : Player 1 marque normalement
+                console.log("🎯 MODE CLASSIQUE - Player 1 marque");
+                
+                // Créer l'effet de désintégration de la balle
+                this.createBallDisintegrationEffect(1); // Player 1 a marqué
+                
+                // Créer l'effet de désintégration de la raquette via l'instance Pong
+                if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
+                    this.pongInstance.createPaddleDisintegrationEffect(1);
+                } else {
+                    // Fallback: créer l'effet directement dans cette classe
+                    this.createPaddleDisintegrationEffect(1);
+                }
+                
+                // Mettre à jour le score une seule fois avec un petit délai pour voir les effets
+                setTimeout(() => {
+                    this.gameData.scorePlayer1();
+                    this.lastScoredPlayer = 1;
+                    this.resetBallWithAnimation(true);
+                }, 300); // Délai réduit mais suffisant pour voir l'animation
             }
-            
-            // Mettre à jour le score une seule fois avec un petit délai pour voir les effets
-            setTimeout(() => {
-                this.gameData.scorePlayer1();
-                this.lastScoredPlayer = 1;
-                this.resetBallWithAnimation(true);
-            }, 300); // Délai réduit mais suffisant pour voir l'animation
         }
     }
 
-    private increaseVelocity(): void {
+    protected increaseVelocity(): void { // Changé de private à protected
         const currentSpeed = this.velocity.length();
         if (currentSpeed < this.options.maxSpeed) {
             const speedFactor = (currentSpeed + this.options.speedIncrement) / currentSpeed;
@@ -1235,7 +1328,7 @@ export class PongBall {
         }, 100);
     }
 
-    private createBallDisintegrationEffect(playerScored: number): void {
+    protected createBallDisintegrationEffect(playerScored: number): void {
         console.log(`Création de l'effet de désintégration pour le joueur ${playerScored} (optimisé)`);
         
         // Obtenir la position actuelle de la balle

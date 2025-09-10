@@ -302,10 +302,16 @@ class ApiClient {
   }
 
   async changeUsername(username: string) {
-    const response = await this.request('/api/users/username', {
+    const response = await this.request('/api/users/profile', {
       method: 'PUT',
       body: JSON.stringify({ username })
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || 'Failed to change username');
+    }
+    
     return response.json();
   }
 
@@ -394,6 +400,12 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(passwordData)
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || 'Failed to change password');
+    }
+    
     return response.json();
   }
 
