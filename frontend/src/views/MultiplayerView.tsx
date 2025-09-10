@@ -92,29 +92,37 @@ export default function MultiplayerView() {
   // Charger les joueurs sauvegardés au démarrage
   useEffect(() => {
     const savedPlayers = localStorage.getItem('multiplayer-players');
+    console.log("🎮 DEBUG - Joueurs sauvegardés:", savedPlayers);
+    
     if (savedPlayers) {
-      setPlayers(JSON.parse(savedPlayers));
+        const players = JSON.parse(savedPlayers);
+        console.log("🎮 DEBUG - Joueurs parsés:", players);
+        setPlayers(players);
     } else {
-      // NOUVEAU : Récupérer l'utilisateur connecté et l'utiliser comme joueur par défaut
-      let currentUser = null;
-      try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          currentUser = JSON.parse(storedUser);
+        // NOUVEAU : Récupérer l'utilisateur connecté et l'utiliser comme joueur par défaut
+        let currentUser = null;
+        try {
+            const storedUser = localStorage.getItem('user');
+            console.log("🎮 DEBUG - Utilisateur stocké:", storedUser);
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                console.log("🎮 DEBUG - Utilisateur parsé:", currentUser);
+            }
+        } catch (e) {
+            console.warn('Erreur lors de la récupération des données utilisateur:', e);
         }
-      } catch (e) {
-        console.warn('Erreur lors de la récupération des données utilisateur:', e);
-      }
 
-      // Utiliser le surnom de l'utilisateur connecté s'il existe
-      const hostName = currentUser?.display_name || currentUser?.username || "YOU";
-      
-      // Sauvegarder le joueur par défaut avec le vrai nom
-      const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
-      setPlayers(defaultPlayers);
-      localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
+        // Utiliser le surnom de l'utilisateur connecté s'il existe
+        const hostName = currentUser?.display_name || currentUser?.username || "YOU";
+        console.log("🎮 DEBUG - Nom d'hôte utilisé:", hostName);
+        
+        // Sauvegarder le joueur par défaut avec le vrai nom
+        const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
+        setPlayers(defaultPlayers);
+        localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
+        console.log("🎮 DEBUG - Joueurs par défaut sauvegardés:", defaultPlayers);
     }
-  }, []);
+}, []);
 
   const addPlayer = () => {
     if (players.length < 4) {

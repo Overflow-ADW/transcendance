@@ -1,7 +1,7 @@
 import { Scene, Tools, Mesh, Vector3, PBRMaterial, Color3, GlowLayer, Animation, EasingFunction, CircleEase, StandardMaterial, ParticleSystem, Texture, Color4, MeshBuilder, Quaternion } from "@babylonjs/core";
 import { GameState, GameEvents } from "@/game/utils/pongData";
 import { BALL_CONFIG, PLAYER_CONFIG, MAIN_COLORS, CAMERA_CONFIG, GAME_CONFIG } from "@/game/utils/pongValues";
-import { PongData } from "@/game/utils/pongData";
+import { PongData, GameType } from "@/game/utils/pongData";
 import { PongControls } from "@/game/utils/pongControls";
 
 export interface BallOptions {
@@ -867,7 +867,7 @@ export class PongBall {
         this.checkScoring();
     }
 
-    private handleWallCollisions(): void {
+    protected handleWallCollisions(): void { // Changé de private à protected
         const topWallZ = this.topWall.position.z;
         const bottomWallZ = this.bottomWall.position.z;
         const ballRadius = this.ball.getBoundingInfo().boundingSphere.radius;
@@ -959,55 +959,118 @@ export class PongBall {
         // Ajouter une variable pour éviter les déclenchements multiples
         if (this.isResetting) return;
         
-        // Player 0 scores
+        // NOUVEAU : Vérifier si on est en mode multijoueur
+        const isMultiplayerMode = this.gameData.gameType === GameType.MULTIPLAYER_PONG;
+        
+        // Player 0 scores (balle sort à droite)
         if (this.ball.position.x > BALL_CONFIG.OUT_OF_BOUNDS_X) {
             // Marquer immédiatement comme en cours de réinitialisation pour éviter les déclenchements multiples
             this.isResetting = true;
             
-            // Créer l'effet de désintégration de la balle (version optimisée)
-            this.createBallDisintegrationEffect(0); // Player 0 a marqué
+            console.log(`🎯 BALLE SORTIE À DROITE ! Position: ${this.ball.position.x.toFixed(2)}`);
             
-            // Créer l'effet de désintégration de la raquette via l'instance Pong
-            if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
-                this.pongInstance.createPaddleDisintegrationEffect(0);
+            if (isMultiplayerMode) {
+                // MODE MULTIJOUEUR : Player 2 (paddle centrale) gagne quand la balle sort
+                console.log("🎯 MODE MULTIJOUEUR - Player 2 (paddle centrale) gagne ! La Team a échoué");
+                
+                // Créer l'effet de désintégration de la balle
+                this.createBallDisintegrationEffect(0); // Effet visuel côté droit
+                
+                // Créer l'effet de désintégration de la raquette via l'instance Pong
+                if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
+                    this.pongInstance.createPaddleDisintegrationEffect(0);
+                } else {
+                    // Fallback: créer l'effet directement dans cette classe
+                    this.createPaddleDisintegrationEffect(0);
+                }
+                
+                // CORRECTION CRITIQUE : Player 2 marque (utiliser scorePlayer1)
+                setTimeout(() => {
+                    this.gameData.scorePlayer1(); // Player 2 = scorePlayer1 en mode multijoueur
+                    this.lastScoredPlayer = 2; // Player 2 a "marqué"
+                    console.log("Player 2 a marqué! Score mis à jour");
+                    this.resetBallWithAnimation(true);
+                }, 300);
+                
             } else {
-                // Fallback: créer l'effet directement dans cette classe
-                this.createPaddleDisintegrationEffect(0);
+                // MODE CLASSIQUE : Player 0 marque normalement
+                console.log("🎯 MODE CLASSIQUE - Player 0 marque");
+                
+                // Créer l'effet de désintégration de la balle
+                this.createBallDisintegrationEffect(0); // Player 0 a marqué
+                
+                // Créer l'effet de désintégration de la raquette via l'instance Pong
+                if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
+                    this.pongInstance.createPaddleDisintegrationEffect(0);
+                } else {
+                    // Fallback: créer l'effet directement dans cette classe
+                    this.createPaddleDisintegrationEffect(0);
+                }
+                
+                // Mettre à jour le score une seule fois avec un petit délai pour voir les effets
+                setTimeout(() => {
+                    this.gameData.scorePlayer0();
+                    this.lastScoredPlayer = 0;
+                    this.resetBallWithAnimation(true);
+                }, 300); // Délai réduit mais suffisant pour voir l'animation
             }
-            
-            // Mettre à jour le score une seule fois avec un petit délai pour voir les effets
-            setTimeout(() => {
-                this.gameData.scorePlayer0();
-                this.lastScoredPlayer = 0;
-                this.resetBallWithAnimation(true);
-            }, 300); // Délai réduit mais suffisant pour voir l'animation
         } 
-        // Player 1 scores
+        // Player 1 scores (balle sort à gauche)
         else if (this.ball.position.x < -BALL_CONFIG.OUT_OF_BOUNDS_X) {
             // Marquer immédiatement comme en cours de réinitialisation pour éviter les déclenchements multiples
             this.isResetting = true;
             
-            // Créer l'effet de désintégration de la balle (version optimisée)
-            this.createBallDisintegrationEffect(1); // Player 1 a marqué
+            console.log(`🎯 BALLE SORTIE À GAUCHE ! Position: ${this.ball.position.x.toFixed(2)}`);
             
-            // Créer l'effet de désintégration de la raquette via l'instance Pong
-            if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
-                this.pongInstance.createPaddleDisintegrationEffect(1);
+            if (isMultiplayerMode) {
+                // MODE MULTIJOUEUR : Player 2 (paddle centrale) gagne quand la balle sort
+                console.log("🎯 MODE MULTIJOUEUR - Player 2 (paddle centrale) gagne ! La Team a échoué");
+                
+                // Créer l'effet de désintégration de la balle
+                this.createBallDisintegrationEffect(1); // Effet visuel côté gauche
+                
+                // Créer l'effet de désintégration de la raquette via l'instance Pong
+                if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
+                    this.pongInstance.createPaddleDisintegrationEffect(1);
+                } else {
+                    // Fallback: créer l'effet directement dans cette classe
+                    this.createPaddleDisintegrationEffect(1);
+                }
+                
+                // CORRECTION CRITIQUE : Player 2 marque (utiliser scorePlayer1)
+                setTimeout(() => {
+                    this.gameData.scorePlayer1(); // Player 2 = scorePlayer1 en mode multijoueur
+                    this.lastScoredPlayer = 2; // Player 2 a "marqué"
+                    console.log("Player 2 a marqué! Score mis à jour");
+                    this.resetBallWithAnimation(true);
+                }, 300);
+                
             } else {
-                // Fallback: créer l'effet directement dans cette classe
-                this.createPaddleDisintegrationEffect(1);
+                // MODE CLASSIQUE : Player 1 marque normalement
+                console.log("🎯 MODE CLASSIQUE - Player 1 marque");
+                
+                // Créer l'effet de désintégration de la balle
+                this.createBallDisintegrationEffect(1); // Player 1 a marqué
+                
+                // Créer l'effet de désintégration de la raquette via l'instance Pong
+                if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
+                    this.pongInstance.createPaddleDisintegrationEffect(1);
+                } else {
+                    // Fallback: créer l'effet directement dans cette classe
+                    this.createPaddleDisintegrationEffect(1);
+                }
+                
+                // Mettre à jour le score une seule fois avec un petit délai pour voir les effets
+                setTimeout(() => {
+                    this.gameData.scorePlayer1();
+                    this.lastScoredPlayer = 1;
+                    this.resetBallWithAnimation(true);
+                }, 300); // Délai réduit mais suffisant pour voir l'animation
             }
-            
-            // Mettre à jour le score une seule fois avec un petit délai pour voir les effets
-            setTimeout(() => {
-                this.gameData.scorePlayer1();
-                this.lastScoredPlayer = 1;
-                this.resetBallWithAnimation(true);
-            }, 300); // Délai réduit mais suffisant pour voir l'animation
         }
     }
 
-    private increaseVelocity(): void {
+    protected increaseVelocity(): void { // Changé de private à protected
         const currentSpeed = this.velocity.length();
         if (currentSpeed < this.options.maxSpeed) {
             const speedFactor = (currentSpeed + this.options.speedIncrement) / currentSpeed;

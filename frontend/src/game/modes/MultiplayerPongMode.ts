@@ -3,7 +3,7 @@ import { IPongGameMode } from "./DefaultPongMode";
 import { GameType, GameState, GameEvents } from "@/game/utils/pongData";
 import { PongData } from "@/game/utils/pongData";
 import { PongControls } from "@/game/utils/pongControls";
-import { getGameModeConfig, PLAYER_CONFIG, MAIN_COLORS, BALL_CONFIG } from "@/game/utils/pongValues";
+import { getGameModeConfig, PLAYER_CONFIG, MAIN_COLORS, BALL_CONFIG, WALL_CONFIG } from "@/game/utils/pongValues";
 import { PongBall, BallOptions, GlowLayerOptions } from "@/game/utils/pongGame";
 
 /**
@@ -45,59 +45,38 @@ export class MultiplayerPongMode implements IPongGameMode {
         this.controls = controls;
         this.pongInstance = parent;
 
-        // MODIFICATION : Score maximum de 1 pour que la partie se termine au premier point
         gameData.setMaxScore(1);
         console.log("🏆 Score maximum défini à 1 - premier point gagne");
 
-        // NOUVEAU : Récupérer et définir les vrais noms des joueurs multijoueur
         try {
             const multiplayerPlayers = localStorage.getItem('multiplayer-players');
             if (multiplayerPlayers) {
                 const players = JSON.parse(multiplayerPlayers);
                 
-                // Récupérer aussi l'utilisateur connecté pour le Host
-                let currentUser = null;
-                try {
-                    const storedUser = localStorage.getItem('user');
-                    if (storedUser) {
-                        currentUser = JSON.parse(storedUser);
-                    }
-                } catch (e) {
-                    console.warn('Erreur lors de la récupération de l\'utilisateur connecté:', e);
+                if (players.length >= 2) {
+                    const teamName = `${players[0].name} & ${players[1].name}`;
+                    const player2Name = players.length >= 3 ? players[2].name : "Player 2";
+                    
+                    gameData.setPlayerNames(teamName, player2Name);
+                    console.log(`🏷️ Noms définis - Team: "${teamName}", Player 2: "${player2Name}"`);
+                } else {
+                    gameData.setPlayerNames("Team (Player 0 & Player 1)", "Player 2");
                 }
-                
-                // Player 0 = Host (utilisateur connecté), Player 1 = deuxième joueur, Player 2 = troisième joueur (paddle centrale)
-                const hostName = currentUser?.display_name || currentUser?.username || players[0]?.name || "Player 0";
-                const player1Name = players[1]?.name || "Player 1"; 
-                const player2Name = players[2]?.name || "Player 2";
-                
-                // Définir les noms dans gameData
-                // En mode multijoueur : Player0 et Player1 forment une équipe, Player2 est seul
-                // gameData.player0Name = nom affiché pour la TEAM
-                // gameData.player1Name = nom affiché pour PLAYER 2 (paddle centrale)
-                gameData.setPlayerNames(
-                    `${hostName} & ${player1Name}`, // Team composée du Host et du deuxième joueur
-                    player2Name // Le troisième joueur (paddle centrale)
-                );
-                
-                console.log(`🎯 Noms des joueurs définis: TEAM="${hostName} & ${player1Name}", PLAYER 2="${player2Name}"`);
+            } else {
+                console.warn("Aucun joueur multijoueur trouvé dans localStorage");
+                gameData.setPlayerNames("Team (Player 0 & Player 1)", "Player 2");
             }
         } catch (e) {
-            console.warn('Erreur lors de la récupération des joueurs multijoueur dans MultiplayerPongMode:', e);
-            // Utiliser les noms par défaut si erreur
-            gameData.setPlayerNames("Player 0 & Player 1", "Player 2");
+            console.warn('Erreur lors de la récupération des joueurs multijoueur:', e);
+            gameData.setPlayerNames("Team (Player 0 & Player 1)", "Player 2");
         }
 
-        // Créer la paddle verte au centre
         this.createCenterPaddle(scene);
 
-        // Créer un glow layer séparé pour la paddle centrale
         this.createCenterPaddleGlow(scene);
 
-        // Obtenir la configuration pour ce mode de jeu
         const modeConfig = getGameModeConfig(GameType.MULTIPLAYER_PONG);
         
-        // Créer le gestionnaire de balle HÉRITANT de PongBall
         this.ballManager = new MultiplayerPongBall(
             scene,
             ball,
@@ -119,24 +98,18 @@ export class MultiplayerPongMode implements IPongGameMode {
             this.centerPaddle || undefined
         );
 
-        // Ajouter les contrôles pour la paddle du centre
         if (this.centerPaddle) {
             controls.setPlayer2(this.centerPaddle);
-            console.log("🎯 Contrôles Player2 (I/K) configurés pour la paddle centrale");
         }
 
-        // NOUVEAU : Forcer la mise à jour correcte des scores
         setTimeout(() => {
             if (parent && parent.scorePlayer0Mesh && parent.scorePlayer1Mesh) {
                 parent.positionScoresForGameMode();
-                // Forcer une mise à jour de l'affichage avec les scores actuels
                 const currentScores = { player0: gameData.scorePlayer0, player1: gameData.scorePlayer1 };
                 gameData.emit('SCORE_CHANGED', currentScores);
-                console.log("🎯 Affichage des scores forcé pour le mode multijoueur");
             }
         }, 100);
 
-        console.log("✅ Mode multijoueur initialisé - Jeu à 3 joueurs");
     }
 
     cleanup(): void {
@@ -156,32 +129,28 @@ export class MultiplayerPongMode implements IPongGameMode {
     }
 
     private createCenterPaddle(scene: Scene): void {
-        // Créer la paddle verte au centre
         this.centerPaddle = MeshBuilder.CreateBox("centerPaddle", {
             width: PLAYER_CONFIG.WIDTH,
             height: PLAYER_CONFIG.HEIGHT,
             depth: PLAYER_CONFIG.DEPTH
         }, scene);
 
-        // Matériau vert
         const centerMaterial = new StandardMaterial("centerPaddleMat", scene);
         centerMaterial.diffuseColor = MAIN_COLORS.RGB_GREEN;
         centerMaterial.emissiveColor = MAIN_COLORS.RGB_GREEN.scale(0.5);
         centerMaterial.specularColor = new Color3(0.2, 0.2, 0.2);
         this.centerPaddle.material = centerMaterial;
 
-        // Position au centre
         this.centerPaddle.position = new Vector3(
-            0, // Au centre horizontalement
+            0,
             PLAYER_CONFIG.POSITION_Y,
             PLAYER_CONFIG.INITIAL_POSITION_Z
         );
 
-        // CORRECTION MAJEURE : Désactiver TOUTES les collisions et interactions
         this.centerPaddle.isVisible = false;
         this.centerPaddle.checkCollisions = false;
-        this.centerPaddle.isPickable = false; // NOUVEAU : Empêcher les interactions
-        this.centerPaddle.doNotSyncBoundingInfo = true; // NOUVEAU : Pas de calcul de collision automatique
+        this.centerPaddle.isPickable = false;
+        this.centerPaddle.doNotSyncBoundingInfo = true;
 
         console.log("Paddle verte créée au centre (invisible, aucune collision automatique)");
     }
@@ -196,18 +165,13 @@ export class MultiplayerPongMode implements IPongGameMode {
     }
 }
 
-/**
- * Version corrigée pour un jeu à 3 joueurs
- * Player 0 + Player 1 = Team (score ensemble)
- * Player 2 = Paddle centrale (score séparé)
- */
 class MultiplayerPongBall extends PongBall {
     private centerPaddle: Mesh | null = null;
     private centerPaddleAppeared = false;
     private lastGoalTime = 0;
     private lastCollisionTime = 0;
-    private ballLaunchTime = 0; // Pour retarder l'apparition de la paddle
-    private centerPaddleHit = false; // Pour éviter les goals après hit
+    private ballLaunchTime = 0;
+    private centerPaddleHit = false;
     
     // NOUVEAU : Système de croissance de la paddle centrale
     private centerPaddleBaseDepth = PLAYER_CONFIG.DEPTH; // 90 de base
@@ -459,88 +423,82 @@ class MultiplayerPongBall extends PongBall {
     protected update(): void {
         if (this.isResetting) return;
         
-        // CORRECTION : Debug amélioré pour détecter les collisions fantômes
-        const initialPosition = this.ball.position.clone();
-        const initialVelocity = this.velocity.clone();
-        
         // NOUVEAU : S'assurer que ballLaunchTime est défini dès que la balle bouge
         if (this.ballLaunchTime === 0 && this.velocity.length() > 0.1 && this.ball.isVisible) {
             this.ballLaunchTime = performance.now();
             console.log("🎯 ballLaunchTime initialisé dans update() - balle en mouvement détectée");
         }
         
-        // Votre logique existante de paddle centrale
-        if (!this.isResetting && this.ball.isVisible && !this.centerPaddleHit) {
-            this.handleCenterPaddleCollision();
-        }
-
-        // CORRECTION MAJEURE : Ne JAMAIS appeler super.update() en mode multijoueur
-        // car cela déclenche checkScoring() de la classe parent qui a une logique différente
-        // À la place, copier seulement les parties nécessaires de PongBall.update()
+        // CORRECTION : Maintenant on peut appeler super.update() car checkScoring() gère le mode multijoueur
+        super.update();
         
-        // 1. Mouvement de la balle (copié de PongBall.update())
-        if (!this.isResetting && this.ball.isVisible) {
-            this.ball.position.addInPlace(this.velocity.scale(this.scene.getAnimationRatio() / 60));
-        }
+        // Ajouter SEULEMENT la logique spécifique au multijoueur :
         
-        // 2. Vérifications des collisions avec les murs (copié de PongBall.update())
-        if (!this.isResetting && this.ball.isVisible) {
-            this.handleWallCollisions();
-        }
-        
-        // 3. Vérifications des collisions avec les joueurs (override)
-        if (!this.isResetting && this.ball.isVisible && !this.centerPaddleHit) {
-            this.handlePlayerCollisions();
-        }
-        
-        // 4. NOTRE logique de scoring (au lieu de celle de la classe parent)
-        if (!this.isResetting && this.ball.isVisible) {
-            this.checkScoring();
-        }
-
-        // Logique de la paddle centrale
+        // 6. Logique de la paddle centrale
         if (!this.isResetting && this.ball.isVisible) {
             this.handleCenterPaddleLogic();
         }
         
-        // CORRECTION : Vérifier les collisions inattendues APRÈS les mouvements
-        const finalPosition = this.ball.position;
-        const finalVelocity = this.velocity;
-        
-        const positionChange = Vector3.Distance(initialPosition, finalPosition);
-        const velocityChange = finalVelocity.subtract(initialVelocity).length();
-        
-        // Détecter les changements anormaux qui indiquent une collision non gérée
-        if (velocityChange > 100 || positionChange > 20) {
-            console.error("🚨 COLLISION FANTÔME DÉTECTÉE !");
-            console.log(`   Position: ${initialPosition.x.toFixed(2)}, ${initialPosition.z.toFixed(2)} -> ${finalPosition.x.toFixed(2)}, ${finalPosition.z.toFixed(2)}`);
-            console.log(`   Vélocité: ${initialVelocity.x.toFixed(2)}, ${initialVelocity.z.toFixed(2)} -> ${finalVelocity.x.toFixed(2)}, ${finalVelocity.z.toFixed(2)}`);
-            console.log(`   Changements: Pos=${positionChange.toFixed(2)}, Vel=${velocityChange.toFixed(2)}`);
-            
-            // Vérifier les meshes proches
-            this.debugNearbyMeshes();
+        // 7. Logique de collision avec la paddle centrale
+        if (!this.isResetting && this.ball.isVisible && !this.centerPaddleHit) {
+            this.handleCenterPaddleCollision();
         }
     }
 
-    // Override handlePlayerCollisions pour inclure la paddle centrale ET gérer la croissance
-    protected handlePlayerCollisions(): void {
+    // NOUVELLE MÉTHODE : Collision des joueurs SANS le scoring du parent
+    private handlePlayerCollisionsWithoutScoring(): void {
         // Ne pas traiter les collisions si la paddle centrale a été touchée
         if (this.centerPaddleHit) return;
         
-        // Stocker les positions avant d'appeler la logique parent
-        const ballPositionBefore = this.ball.position.clone();
-        const velocityBefore = this.velocity.clone();
+        const ballRadius = this.ball.getBoundingInfo().boundingSphere.radius;
+        const ballPos = this.ball.position;
         
-        // Appeler la logique parent pour Player0 et Player1
-        super.handlePlayerCollisions();
+        // Copier la logique de collision du parent MAIS SANS LE SCORING
+        const player0Pos = this.player0.position;
+        const player1Pos = this.player1.position;
         
-        // Vérifier si une collision s'est produite en comparant les vélocités
-        const velocityAfter = this.velocity.clone();
-        const velocityChanged = !velocityBefore.equals(velocityAfter);
+        const paddleHalfWidth = PLAYER_CONFIG.WIDTH / 2;
+        const paddleHalfHeight = PLAYER_CONFIG.HEIGHT / 2;
+        const paddleHalfDepth = PLAYER_CONFIG.DEPTH / 2;
         
-        // Si une collision s'est produite avec Player0 ou Player1, faire grandir la paddle centrale
-        if (velocityChanged && this.centerPaddle && this.centerPaddleAppeared) {
-            this.growCenterPaddle();
+        // Collision Player 0
+        if (Math.abs(ballPos.x - player0Pos.x) <= paddleHalfWidth + ballRadius &&
+            Math.abs(ballPos.y - player0Pos.y) <= paddleHalfHeight + ballRadius &&
+            Math.abs(ballPos.z - player0Pos.z) <= paddleHalfDepth + ballRadius &&
+            this.velocity.x < 0) { // Ball moving towards player 0
+            
+            console.log("🔵 Collision avec Player 0 en mode multiplayer");
+            
+            // Réflexion de la balle
+            this.velocity.x = Math.abs(this.velocity.x);
+            
+            // Ajuster la position pour éviter les collisions multiples
+            this.ball.position.x = player0Pos.x + paddleHalfWidth + ballRadius + 1;
+            
+            // Faire grandir la paddle centrale si elle est visible
+            if (this.centerPaddle && this.centerPaddleAppeared) {
+                this.growCenterPaddle();
+            }
+        }
+        
+        // Collision Player 1
+        if (Math.abs(ballPos.x - player1Pos.x) <= paddleHalfWidth + ballRadius &&
+            Math.abs(ballPos.y - player1Pos.y) <= paddleHalfHeight + ballRadius &&
+            Math.abs(ballPos.z - player1Pos.z) <= paddleHalfDepth + ballRadius &&
+            this.velocity.x > 0) { // Ball moving towards player 1
+            
+            console.log("🟣 Collision avec Player 1 en mode multiplayer");
+            
+            // Réflexion de la balle
+            this.velocity.x = -Math.abs(this.velocity.x);
+            
+            // Ajuster la position pour éviter les collisions multiples
+            this.ball.position.x = player1Pos.x - paddleHalfWidth - ballRadius - 1;
+            
+            // Faire grandir la paddle centrale si elle est visible
+            if (this.centerPaddle && this.centerPaddleAppeared) {
+                this.growCenterPaddle();
+            }
         }
     }
 
@@ -677,49 +635,6 @@ class MultiplayerPongBall extends PongBall {
         }, 150);
     }
 
-    // Override checkScoring : Player 2 marque quand la balle sort des limites et la partie s'arrête
-    protected checkScoring(): void {
-        if (this.isResetting) return;
-        
-        // Ne pas compter les goals si la paddle centrale a été touchée
-        if (this.centerPaddleHit) return;
-        
-        // CORRECTION CRITIQUE : Logique corrigée pour le mode multijoueur
-        // - Si la balle sort des limites à DROITE (X > 510) = Player 2 (paddle centrale) gagne
-        // - Si la balle sort des limites à GAUCHE (X < -510) = Player 2 (paddle centrale) gagne  
-        // - Dans TOUS les cas où la balle sort = Player 2 gagne (car la Team n'a pas réussi à la garder en jeu)
-        if (this.ball.position.x > BALL_CONFIG.OUT_OF_BOUNDS_X || 
-            this.ball.position.x < -BALL_CONFIG.OUT_OF_BOUNDS_X) {
-            
-            this.isResetting = true;
-            
-            console.log("🎯 BALLE SORTIE DES LIMITES ! Player 2 (paddle centrale) gagne la partie immédiatement !");
-            console.log(`   Balle sortie en X=${this.ball.position.x.toFixed(1)} (limite: ±${BALL_CONFIG.OUT_OF_BOUNDS_X})`);
-            console.log("   LOGIQUE: Quand la balle sort des limites = échec de la Team = victoire de Player 2");
-            
-            // Créer les effets visuels - côté qui a "encaissé" le goal pour les effets
-            const sideScored = this.ball.position.x > 0 ? 0 : 1;
-            this.createBallDisintegrationEffect(sideScored);
-            
-            if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
-                this.pongInstance.createPaddleDisintegrationEffect(sideScored);
-            }
-            
-            setTimeout(() => {
-                // CORRECTION CRITIQUE : Player 2 gagne TOUJOURS quand la balle sort des limites
-                // gameData.scorePlayer1() = Score de PLAYER 2 (paddle centrale)
-                this.gameData.scorePlayer1(); // Player 2 marque et gagne
-                this.lastScoredPlayer = 1; // Player 2 a marqué
-                
-                console.log("📊 Score mis à jour : Player 2 (paddle centrale) marque !");
-                console.log("🏆 PLAYER 2 REMPORTE LA PARTIE !");
-                
-                // La partie va automatiquement passer en GAME_OVER grâce au maxScore = 1
-                this.resetBallWithAnimation(true);
-            }, 300);
-        }
-    }
-
     // CORRECTION 2: Nouvelle méthode pour réinitialiser tous les glows
     private resetAllGlows(): void {
         // Reset player glows
@@ -833,39 +748,32 @@ class MultiplayerPongBall extends PongBall {
             Math.abs(this.ball.position.z - centerPos.z) <= paddleHalfDepth + ballRadius &&
             Math.abs(this.ball.position.y - centerPos.y) <= paddleHalfHeight + ballRadius) {
             
-            console.log(`💥 PADDLE CENTRALE TOUCHÉE ! La Team gagne la partie immédiatement !`);
-            console.log(`   Profondeur paddle: ${this.centerPaddleCurrentDepth}`);
+            console.log("💥 COLLISION AVEC PADDLE CENTRALE ! La Team gagne immédiatement !");
             
-            this.lastCollisionTime = currentTime;
-            this.isResetting = true;
             this.centerPaddleHit = true;
+            this.isResetting = true;
+            this.lastCollisionTime = currentTime;
             
-            // CORRECTION MAJEURE : Arrêter la balle IMMÉDIATEMENT et masquer
-            this.velocity = new Vector3(0, 0, 0);
-            this.ball.isVisible = false; // Masquer immédiatement
+            // CORRECTION : La Team (Player 0) marque quand elle touche la paddle centrale
+            this.gameData.scorePlayer0(); // Team = index 0
+            this.lastScoredPlayer = 0; // Team a marqué
             
-            // Créer un effet de hit sur la paddle
+            console.log("Team a marqué! Collision réussie avec Player 2");
+            
+            // Créer les effets visuels
             this.createCenterPaddleHitEffect();
             
-            // Créer l'effet de désintégration de la balle IMMÉDIATEMENT
-            this.createBallDisintegrationEffect(2);
+            // Inverser la vélocité de la balle pour l'effet visuel
+            this.velocity.x *= -1;
+            this.velocity.z *= -0.8;
             
-            // CORRECTION : Verrouiller les contrôles immédiatement
-            if (this.controls) {
-                this.controls.setControlsLocked(true);
+            if (this.pongInstance && this.pongInstance.createPaddleDisintegrationEffect) {
+                this.pongInstance.createPaddleDisintegrationEffect(2); // Effet sur la paddle centrale
             }
             
-            // CORRECTION CRITIQUE : La Team (Player0) marque et gagne immédiatement
             setTimeout(() => {
-                this.gameData.scorePlayer0(); // Team marque et gagne
-                this.lastScoredPlayer = 0;
-                
-                console.log("📊 Score final : Team : 1 - Player 2 (paddle centrale) : 0");
-                console.log("🏆 LA TEAM REMPORTE LA PARTIE !");
-                
-                // La partie va automatiquement passer en GAME_OVER grâce au maxScore = 1
                 this.resetBallWithAnimation(true);
-            }, 300);
+            }, 500);
         }
     }
 
@@ -1108,42 +1016,27 @@ class MultiplayerPongBall extends PongBall {
         }
     }
 
-    // NOUVELLE MÉTHODE : Copie de handleWallCollisions depuis PongBall
-    private handleWallCollisions(): void {
+    // AUSSI : Créer une version spécifique de handleWallCollisions pour éviter l'héritage
+    protected handleWallCollisions(): void {
+        const topWallZ = this.topWall.position.z;
+        const bottomWallZ = this.bottomWall.position.z;
         const ballRadius = this.ball.getBoundingInfo().boundingSphere.radius;
-        const topWallZ = this.topWall.position.z - (WALL_CONFIG.DEPTH / 2);
-        const bottomWallZ = this.bottomWall.position.z + (WALL_CONFIG.DEPTH / 2);
-
-        // Collision avec le mur du haut
-        if (this.ball.position.z + ballRadius >= topWallZ && this.velocity.z > 0) {
-            this.ball.position.z = topWallZ - ballRadius;
-            this.velocity.z = -Math.abs(this.velocity.z);
-            this.increaseVelocity();
-            
-            // Créer les effets visuels pour le mur du haut
-            if (this.pongInstance) {
-                this.pongInstance.animatePlayerGlow?.(2); // Index 2 pour TopWall
-            }
+        const wallCollisionThreshold = BALL_CONFIG.COLLISION_THRESHOLD;
+        
+        // Top wall collision
+        if (this.ball.position.z + ballRadius >= topWallZ - wallCollisionThreshold && this.velocity.z > 0) {
+            this.velocity.z = -this.velocity.z;
+            this.ball.position.z = topWallZ - ballRadius - wallCollisionThreshold;
+            console.log("🔵 Collision mur supérieur en mode multiplayer");
+            // Note: Pas d'animation de glow pour simplifier
         }
-        // Collision avec le mur du bas
-        else if (this.ball.position.z - ballRadius <= bottomWallZ && this.velocity.z < 0) {
-            this.ball.position.z = bottomWallZ + ballRadius;
-            this.velocity.z = Math.abs(this.velocity.z);
-            this.increaseVelocity();
-            
-            // Créer les effets visuels pour le mur du bas
-            if (this.pongInstance) {
-                this.pongInstance.animatePlayerGlow?.(3); // Index 3 pour BottomWall
-            }
-        }
-    }
-
-    // NOUVELLE MÉTHODE : Copie de increaseVelocity depuis PongBall
-    private increaseVelocity(): void {
-        const currentSpeed = this.velocity.length();
-        if (currentSpeed < this.options.maxSpeed) {
-            const newSpeed = Math.min(currentSpeed + this.options.speedIncrement, this.options.maxSpeed);
-            this.velocity.normalize().scaleInPlace(newSpeed);
+        
+        // Bottom wall collision
+        if (this.ball.position.z - ballRadius <= bottomWallZ + wallCollisionThreshold && this.velocity.z < 0) {
+            this.velocity.z = -this.velocity.z;
+            this.ball.position.z = bottomWallZ + ballRadius + wallCollisionThreshold;
+            console.log("🟣 Collision mur inférieur en mode multiplayer");
+            // Note: Pas d'animation de glow pour simplifier
         }
     }
 }

@@ -87,6 +87,9 @@ export class Pong {
         const gameMode = localStorage.getItem('game-mode');
         this.gameMode = gameMode || 'classic';
         
+        // NOUVEAU : Log pour vérifier le mode détecté
+        console.log("🎮 Mode de jeu détecté:", this.gameMode);
+        
         // NOUVEAU : Récupérer les vrais noms des joueurs connectés
         const getUserNames = () => {
             let currentUser = null;
@@ -1031,6 +1034,39 @@ export class Pong {
             }
             
             console.log(`🏆 Partie terminée - Gagnant: ${winnerName} (${winner})`);
+            
+            // NOUVEAU : Vérifier si c'est le mode multijoueur - ne pas envoyer au backend
+            if (this.gameMode === 'multiplayer') {
+                console.log("🎮 Mode multijoueur local - Aucune sauvegarde au backend");
+                
+                // Afficher le message de game over SEULEMENT
+                this.showGameOverMessage();
+                
+                // Cacher les scores pendant le game over UNIQUEMENT si le message est affiché
+                setTimeout(() => {
+                    if (this.gameOverMesh.isVisible) {
+                        this.scorePlayer0Mesh.isVisible = false;
+                        this.scorePlayer1Mesh.isVisible = false;
+                    }
+                }, 100);
+                
+                // Au lieu de redémarrer automatiquement, faire un retour en arrière après un délai
+                setTimeout(() => {
+                    // Cacher le message game over
+                    this.gameOverMesh.isVisible = false;
+                    
+                    // Arrêter le jeu et effectuer un retour en arrière
+                    setTimeout(() => {
+                        console.log("Fin de partie multijoueur - retour en arrière automatique");
+                        this.stopGame();
+                    }, 500); // Délai pour la transition visuelle
+                }, GAME_CONFIG.RESET_DELAY_MS);
+                
+                return; // IMPORTANT : Sortir immédiatement sans traitement backend
+            }
+            
+            // POUR LES AUTRES MODES SEULEMENT (duel, ai) - traitement backend normal
+            console.log("🎮 Mode avec backend - Préparation des données de sauvegarde");
             
             // Calculer la durée de la partie
             const gameEndTime = Date.now();
