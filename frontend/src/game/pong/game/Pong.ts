@@ -102,8 +102,32 @@ export class Pong {
                 console.warn('Erreur lors de la récupération des données utilisateur:', e);
             }
 
-            const gameMode = localStorage.getItem('game-mode');
-            
+            // NOUVEAU : Traitement spécial pour le mode tournament
+            if (gameMode === 'tournament') {
+                try {
+                    const currentMatchData = localStorage.getItem('current-match');
+                    if (currentMatchData) {
+                        const matchData = JSON.parse(currentMatchData);
+                        console.log("🏆 Données du match tournament récupérées:", matchData);
+                        
+                        // Utiliser les noms des joueurs du match
+                        const player0Name = matchData.player1?.name || matchData.player1?.display_name || matchData.player1?.username || "Player 0";
+                        const player1Name = matchData.player2?.name || matchData.player2?.display_name || matchData.player2?.username || "Player 1";
+                        
+                        console.log("🏆 Noms des joueurs tournament:", { player0Name, player1Name });
+                        return { player0Name, player1Name };
+                    }
+                } catch (e) {
+                    console.warn('Erreur lors de la récupération des données du match tournament:', e);
+                }
+                
+                // Fallback pour tournament sans données de match
+                return { 
+                    player0Name: currentUser?.display_name || currentUser?.username || "Player 0", 
+                    player1Name: "Player 1" 
+                };
+            }
+
             // Pour le mode duel, récupérer les vrais noms des 2 joueurs
             if (gameMode === 'duel') {
                 try {
@@ -157,16 +181,22 @@ export class Pong {
                     this.aiDifficultyName = 'EASY';
                     this.gameMode = 'ai-easy';
                     break;
+                case 'medium':
+                    this.aiLevel = 2;
+                    this.aiDifficultyName = 'MEDIUM';
+                    this.gameMode = 'ai-medium';
+                    break;
                 case 'hard':
                     this.aiLevel = 3;
                     this.aiDifficultyName = 'HARD';
                     this.gameMode = 'ai-hard';
                     break;
                 default:
-                    this.aiLevel = 2; // medium
+                    this.aiLevel = 2;
                     this.aiDifficultyName = 'MEDIUM';
                     this.gameMode = 'ai-medium';
             }
+            console.log(`🤖 Mode IA détecté - Niveau: ${this.aiDifficultyName}`);
         }
         
         this.gameData = new PongData({

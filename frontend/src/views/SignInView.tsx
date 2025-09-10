@@ -78,16 +78,26 @@ export default function SignInView() {
 }
 
 function SignInViewContent() {
-  // URL backend pour OAuth (adapté à l'env, côté client)
-  // Utilise la variable d'environnement Next.js injectée au build
-  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/+$/, "");
-  const handleOAuth = (provider: 'google' | 'github') => {
-    // Fallback sur l'origine si NEXT_PUBLIC_API_BASE_URL n'est pas défini
-    const base = API_BASE || (typeof window !== "undefined" ? window.location.origin : "");
-    window.location.href = `${base}/api/oauth/${provider}`;
-  };
   const router = useRouter();
   const { lang, addNotification } = useApp();
+
+  // URL backend pour OAuth (adapté à l'env, côté client)
+  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+  const handleOAuth = (provider: 'google' | 'github') => {
+    // Vérifier que l'API base est configurée
+    if (!API_BASE) {
+      setFormError(`Configuration OAuth manquante (NEXT_PUBLIC_API_BASE_URL)`);
+      return;
+    }
+    
+    const oauthUrl = `${API_BASE}/api/oauth/${provider}`;
+    console.log(`🔄 Redirection OAuth ${provider}:`, oauthUrl);
+    
+    // Stocker l'intention de connexion pour gérer le retour
+    sessionStorage.setItem('oauth_provider', provider);
+    
+    window.location.href = oauthUrl;
+  };
 
   // États du formulaire
   const [username, setUsername] = useState("");

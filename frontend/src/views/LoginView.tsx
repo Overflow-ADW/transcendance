@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { MenuButton } from "@/components/ui/MenuButton";
 import { BackButton } from "@/components/ui/BackButton";
+import { TwoFactorVerifyModal } from "@/components/ui/TwoFactorVerifyModal";
 import PongCanvas from "@/components/pongs/PongCanvas";
 import { t } from "@/lib_front/i18n";
 import { useApp } from "@/lib_front/store";
@@ -45,6 +46,51 @@ function LoginViewContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // États 2FA
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [tempUserId, setTempUserId] = useState<number | null>(null);
+  const [pendingLoginData, setPendingLoginData] = useState<any>(null);
+
+  // Gestion des erreurs OAuth depuis les query parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+    const provider = params.get('provider');
+    
+    if (error) {
+      let errorMessage = "Erreur d'authentification";
+      
+      switch (error) {
+        case 'oauth_denied':
+          errorMessage = `Connexion ${provider} annulée`;
+          break;
+        case 'oauth_failed':
+          errorMessage = `Erreur lors de la connexion ${provider}`;
+          break;
+        case 'missing_code':
+          errorMessage = `Code d'autorisation manquant pour ${provider}`;
+          break;
+        case 'invalid_state':
+          errorMessage = 'Erreur de sécurité OAuth (state invalide)';
+          break;
+        case 'oauth_setup_failed':
+          errorMessage = `Configuration OAuth ${provider} incorrecte`;
+          break;
+        default:
+          errorMessage = params.get('message') || errorMessage;
+      }
+      
+      setFormError(errorMessage);
+      addNotification && addNotification({
+        type: "error",
+        message: errorMessage,
+      });
+      
+      // Nettoyer l'URL
+      window.history.replaceState({}, document.title, '/login');
+    }
+  }, [addNotification]);
+
   // Rediriger si déjà connecté
   useEffect(() => {
     if (user) {
@@ -77,8 +123,10 @@ function LoginViewContent() {
         });
         router.push("/settings");
       } else if (result.requires2FA) {
-        // TODO: gérer la 2FA si besoin
-        setFormError("Two-factor authentication required.");
+        // L'utilisateur a la 2FA activée, afficher le modal de vérification
+        setTempUserId((result as any).tempUserId);
+        setPendingLoginData(result);
+        setShow2FAModal(true);
       } else {
         setFormError(result.error || "Login failed");
       }
@@ -89,10 +137,46 @@ function LoginViewContent() {
     }
   };
 
+  // Gérer la réussite de la vérification 2FA
+  const handle2FASuccess = (response: any) => {
+    if (response.success && response.accessToken) {
+      // Stocker les tokens et les infos utilisateur
+      localStorage.setItem('accessToken', response.accessToken);
+      if (response.refreshToken) {
+        localStorage.setItem('refreshToken', response.refreshToken);
+      }
+      if (response.user) {
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
+
+      addNotification && addNotification({
+        type: "success",
+        message: "Connexion 2FA réussie ! Bienvenue.",
+      });
+
+      setShow2FAModal(false);
+      router.push("/settings");
+    } else {
+      setFormError("2FA verification failed");
+    }
+  };
+
   // URL backend pour OAuth (adapté à l'env)
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
   const handleOAuth = (provider: 'google' | 'github') => {
-    window.location.href = `${API_BASE}/api/oauth/${provider}`;
+    // Vérifier que l'API base est configurée
+    if (!API_BASE) {
+      setFormError(`Configuration OAuth manquante (NEXT_PUBLIC_API_BASE_URL)`);
+      return;
+    }
+    
+    const oauthUrl = `${API_BASE}/api/oauth/${provider}`;
+    console.log(`🔄 Redirection OAuth ${provider}:`, oauthUrl);
+    
+    // Stocker l'intention de connexion pour gérer le retour
+    sessionStorage.setItem('oauth_provider', provider);
+    
+    window.location.href = oauthUrl;
   };
 
   return (
@@ -332,6 +416,21 @@ function LoginViewContent() {
           </div>
         </div>
       </main>
+      
+      {/* Modal 2FA */}
+      {show2FAModal && tempUserId && (
+        <TwoFactorVerifyModal
+          isOpen={show2FAModal}
+          onClose={() => {
+            setShow2FAModal(false);
+            setTempUserId(null);
+            setPendingLoginData(null);
+          }}
+          onSuccess={handle2FASuccess}
+          tempUserId={tempUserId}
+          username={username}
+        />
+      )}
     </div>
   );
 }

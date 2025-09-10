@@ -28,7 +28,9 @@ class OAuthUtils {
         timeout: 10000
       });
       
-      return {
+      console.log('🔍 DEBUG - Réponse brute de Google API:', response.data);
+      
+      const userInfo = {
         provider: 'google',
         providerId: response.data.id,
         email: response.data.email,
@@ -37,6 +39,10 @@ class OAuthUtils {
         verified: response.data.verified_email,
         locale: response.data.locale
       };
+      
+      console.log('🔍 DEBUG - UserInfo formaté:', userInfo);
+      
+      return userInfo;
     } catch (error) {
       throw new Error(`Erreur récupération profil Google: ${error.message}`);
     }
@@ -245,6 +251,59 @@ class OAuthUtils {
   }
 
   /**
+   * Trouve un utilisateur OAuth existant ou en crée un nouveau
+   * @param {Object} oauthData - Données OAuth (provider, providerId, email, etc.)
+   * @param {Object} db - Instance base de données
+   * @returns {Object} Utilisateur trouvé ou créé
+   */
+  static async findOrCreateOAuthUser(oauthData, db) {
+    const { provider, providerId, email, username, name, avatar } = oauthData;
+
+    console.log('🔍 DEBUG findOrCreateOAuthUser - Données reçues:', {
+      provider,
+      providerId,
+      email,
+      username,
+      name,
+      avatar
+    });
+
+    try {
+      // 1. Vérifier si ce compte OAuth existe déjà
+      const existingOAuthUser = await this.findExistingOAuthUser(db, provider, providerId);
+      if (existingOAuthUser) {
+        // Mettre à jour la dernière connexion
+        db.prepare('UPDATE users SET last_login = datetime(\'now\') WHERE id = ?').run(existingOAuthUser.id);
+        return existingOAuthUser;
+      }
+
+      // 2. Vérifier si un utilisateur avec cet email existe
+      const existingUserByEmail = await this.findUserByEmail(db, email);
+      if (existingUserByEmail) {
+        // Lier ce provider à l'utilisateur existant
+        await this.linkOAuthAccount(db, existingUserByEmail.id, { provider, providerId, email });
+        // Mettre à jour la dernière connexion
+        db.prepare('UPDATE users SET last_login = datetime(\'now\') WHERE id = ?').run(existingUserByEmail.id);
+        return existingUserByEmail;
+      }
+
+      // 3. Créer un nouvel utilisateur
+      return await this.createOAuthUser(db, {
+        provider,
+        providerId,
+        email,
+        username: username || name || email.split('@')[0],
+        name,
+        avatar
+      });
+
+    } catch (error) {
+      console.error('Erreur findOrCreateOAuthUser:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Crée un nouvel utilisateur avec OAuth
    * @param {Object} db - Instance base de données
    * @param {Object} oauthData - Données OAuth validées
@@ -267,15 +326,16 @@ class OAuthUtils {
 
       // Créer l'utilisateur
       const userStmt = db.prepare(`
-        INSERT INTO users (username, email, password_hash, oauth_provider, created_at, last_login, status)
-        VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), 'online')
+        INSERT INTO users (username, email, password, oauth_provider, oauth_id, status, last_login)
+        VALUES (?, ?, ?, ?, ?, 'online', datetime('now'))
       `);
       
       const result = userStmt.run(
         finalUsername,
         email, 
         'oauth', // Pas de mot de passe pour OAuth
-        provider
+        provider,
+        providerId
       );
 
       const userId = result.lastInsertRowid;
@@ -359,13 +419,13 @@ class OAuthUtils {
    */
   static canUnlinkAccount(db, userId) {
     try {
-      const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId);
+      const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId);
       const linkedCount = db.prepare(`
         SELECT COUNT(*) as count FROM oauth_providers WHERE user_id = ?
       `).get(userId);
 
       // Si l'utilisateur a un mot de passe, il peut délier
-      if (user && user.password_hash && user.password_hash !== 'oauth') {
+      if (user && user.password && user.password !== 'oauth') {
         return true;
       }
 

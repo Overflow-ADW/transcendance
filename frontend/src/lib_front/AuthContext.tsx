@@ -22,7 +22,13 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (credentials: { username: string; password: string; twoFactorToken?: string }) => Promise<{ success: boolean; error?: string; requires2FA?: boolean }>;
+  login: (credentials: { username: string; password: string; twoFactorToken?: string }) => Promise<{ 
+    success: boolean; 
+    error?: string; 
+    requires2FA?: boolean;
+    tempUserId?: number;
+    user?: any;
+  }>;
   register: (userData: { username: string; email: string; password: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
@@ -135,8 +141,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await apiClient.login(credentials);
       
-      if (data.requires2FA) {
-        return { success: false, requires2FA: true };
+      if (data.requires_2fa) {
+        return { 
+          success: false, 
+          requires2FA: true,
+          tempUserId: data.tempUserId,
+          user: data.user
+        };
       }
       
       if (data.accessToken) {

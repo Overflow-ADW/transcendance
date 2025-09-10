@@ -11,6 +11,7 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
+  
   webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
