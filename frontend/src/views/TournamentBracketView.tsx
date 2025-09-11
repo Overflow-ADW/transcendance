@@ -40,6 +40,7 @@ export default function TournamentBracketView() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [tournamentId, setTournamentId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [playingMatches, setPlayingMatches] = useState<Set<number>>(new Set());
 
   const colors = ["#8A00C4", "#2323FF", "#FF6B35", "#28A745"];
 
@@ -120,6 +121,17 @@ export default function TournamentBracketView() {
       }));
 
       setMatches(enrichedMatches);
+
+      setPlayingMatches(prev => {
+        const newPlayingMatches = new Set(prev);
+        enrichedMatches.forEach((match: any) => {
+          if (match.status === 'completed' && newPlayingMatches.has(match.id)) {
+            newPlayingMatches.delete(match.id);
+          }
+        });
+        return newPlayingMatches;
+      });
+
       setLoading(false);
     } catch (error) {
       setLoading(false);
@@ -148,11 +160,20 @@ export default function TournamentBracketView() {
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        reloadTournamentData();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
     window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [tournamentId]);
 
@@ -166,9 +187,11 @@ export default function TournamentBracketView() {
   };
 
   const handlePlayMatch = (match: Match) => {
-    if (match.status === 'completed') {
+    if (match.status === 'completed' || playingMatches.has(match.id)) {
       return;
     }
+
+    setPlayingMatches(prev => new Set([...prev, match.id]));
 
     const matchData = {
       id: match.id,
@@ -301,13 +324,18 @@ export default function TournamentBracketView() {
                   <div className="text-center mt-6">
                     <button
                       onClick={() => handlePlayMatch(final)}
-                      className={`font-press-start px-6 py-2 rounded border-2 text-sm ${final.status === 'completed'
+                      className={`font-press-start px-6 py-2 rounded border-2 text-sm ${final.status === 'completed' || playingMatches.has(final.id)
                         ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
                         : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
                         }`}
-                      disabled={final.status === 'completed'}
+                      disabled={final.status === 'completed' || playingMatches.has(final.id)}
                     >
-                      {final.status === 'completed' ? 'TERMINÉ' : 'JOUER'}
+                      {final.status === 'completed'
+                        ? 'TERMINÉ'
+                        : playingMatches.has(final.id)
+                          ? 'EN COURS...'
+                          : 'JOUER'
+                      }
                     </button>
                   </div>
                 </div>
@@ -376,13 +404,18 @@ export default function TournamentBracketView() {
                       <div className="text-center mt-4">
                         <button
                           onClick={() => handlePlayMatch(match)}
-                          className={`font-press-start px-4 py-1 rounded border-2 text-xs ${match.status === 'completed'
+                          className={`font-press-start px-4 py-1 rounded border-2 text-xs ${match.status === 'completed' || playingMatches.has(match.id)
                             ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
                             : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
                             }`}
-                          disabled={match.status === 'completed'}
+                          disabled={match.status === 'completed' || playingMatches.has(match.id)}
                         >
-                          {match.status === 'completed' ? 'TERMINÉ' : 'JOUER'}
+                          {match.status === 'completed'
+                            ? 'TERMINÉ'
+                            : playingMatches.has(match.id)
+                              ? 'EN COURS...'
+                              : 'JOUER'
+                          }
                         </button>
                       </div>
                     </div>
@@ -456,13 +489,18 @@ export default function TournamentBracketView() {
                       <div className="text-center mt-4">
                         <button
                           onClick={() => handlePlayMatch(thirdPlace)}
-                          className={`font-press-start px-4 py-1 rounded border-2 text-xs ${thirdPlace.status === 'completed'
+                          className={`font-press-start px-4 py-1 rounded border-2 text-xs ${thirdPlace.status === 'completed' || playingMatches.has(thirdPlace.id)
                             ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
                             : 'bg-transparent border-orange-400 text-orange-400 hover:bg-orange-400 hover:text-black'
                             }`}
-                          disabled={thirdPlace.status === 'completed'}
+                          disabled={thirdPlace.status === 'completed' || playingMatches.has(thirdPlace.id)}
                         >
-                          {thirdPlace.status === 'completed' ? 'TERMINÉ' : 'JOUER'}
+                          {thirdPlace.status === 'completed'
+                            ? 'TERMINÉ'
+                            : playingMatches.has(thirdPlace.id)
+                              ? 'EN COURS...'
+                              : 'JOUER'
+                          }
                         </button>
                       </div>
                     </div>

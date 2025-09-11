@@ -1,28 +1,29 @@
 import React, { useEffect, useRef } from 'react';
 import { Pong as PongGame } from '@/game/game/Pong';
 import { AIDifficulty } from '@/game/utils/AI/pongAI';
-import { GameType } from '@/game/utils/pongData';
+import { GameType, GameEvents } from '@/game/utils/pongData';
 
 interface PongProps {
   msg?: string;
+  onScoreChange?: (scores: { player0: number; player1: number }) => void;
 }
 
-export default function Pong({ msg }: PongProps) {
+export default function Pong({ msg, onScoreChange }: PongProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pongGameRef = useRef<PongGame | null>(null);
 
   useEffect(() => {
     if (canvasRef.current) {
       pongGameRef.current = new PongGame(canvasRef.current);
-      
+
       const gameMode = localStorage.getItem('game-mode');
-      
+
       if (gameMode === 'multiplayer') {
         console.log('Démarrage du mode multijoueur avec paddle centrale');
         pongGameRef.current.setGameMode(GameType.MULTIPLAYER_PONG);
       } else if (gameMode === 'ai') {
         const aiDifficulty = localStorage.getItem('ai-difficulty');
-        
+
         if (aiDifficulty && pongGameRef.current) {
           let difficulty: AIDifficulty;
           switch (aiDifficulty.toLowerCase()) {
@@ -38,7 +39,7 @@ export default function Pong({ msg }: PongProps) {
             default:
               difficulty = AIDifficulty.MEDIUM;
           }
-          
+
           pongGameRef.current.enableAI(difficulty);
           console.log(`IA activée avec difficulté: ${aiDifficulty}`);
         }
@@ -54,10 +55,24 @@ export default function Pong({ msg }: PongProps) {
         }
       };
 
+      const handleScoreChange = (scores: { player0: number; player1: number }) => {
+        if (onScoreChange) {
+          onScoreChange(scores);
+        }
+        window.dispatchEvent(new CustomEvent('scoreChanged', { detail: scores }));
+      };
+
+      if (pongGameRef.current && pongGameRef.current.gameData) {
+        pongGameRef.current.gameData.on(GameEvents.SCORE_CHANGED, handleScoreChange);
+      }
+
       window.addEventListener('keydown', handleKeyPress);
 
       return () => {
         window.removeEventListener('keydown', handleKeyPress);
+        if (pongGameRef.current && pongGameRef.current.gameData) {
+          pongGameRef.current.gameData.off(GameEvents.SCORE_CHANGED, handleScoreChange);
+        }
       };
     }
 
@@ -76,7 +91,7 @@ export default function Pong({ msg }: PongProps) {
 
   return (
     <div className="w-full h-full relative">
-      <canvas 
+      <canvas
         ref={canvasRef}
         className="w-full h-full"
         style={{ display: 'block' }}

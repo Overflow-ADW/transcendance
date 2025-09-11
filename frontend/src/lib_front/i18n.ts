@@ -23,7 +23,7 @@ export const messages: Record<Lang, Record<string, string>> = {
     pickPhoto: "Choisir une photo",
     save: "Enregistrer",
     noPhoto: "Aucune photo",
-    username: "JUNUSKUSH",
+    username: "Nom d'utilisateur",
     winrateVsPlayer: "ratio vs joueur",
     winrateTournament: "ratio tournoi",
     winrateVsIA: "ratio vs ia",

@@ -15,6 +15,7 @@ interface Player {
   color: string;
   isMainPlayer?: boolean;
   isHost?: boolean;
+  score?: number;
 }
 
 function GameView() {
@@ -22,6 +23,7 @@ function GameView() {
   const { lang } = useApp();
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameMode, setGameMode] = useState<string>('');
+  const [scores, setScores] = useState({ player0: 0, player1: 0 });
 
   useEffect(() => {
     const mode = localStorage.getItem('game-mode') || '';
@@ -40,20 +42,25 @@ function GameView() {
                 id: matchData.player1.id,
                 name: matchData.player1.name || matchData.player1.username,
                 color: matchData.player1.color || "#8A00C4",
-                isMainPlayer: false
+                isMainPlayer: false,
+                score: 0
               },
               {
                 id: matchData.player2.id,
                 name: matchData.player2.name || matchData.player2.username,
                 color: matchData.player2.color || "#2323FF",
-                isMainPlayer: false
+                isMainPlayer: false,
+                score: 0
               }
             ];
           }
         } else {
           const tournamentPlayers = localStorage.getItem('tournament-players');
           if (tournamentPlayers) {
-            loadedPlayers = JSON.parse(tournamentPlayers);
+            loadedPlayers = JSON.parse(tournamentPlayers).map((player: any) => ({
+              ...player,
+              score: 0
+            }));
           }
         }
         break;
@@ -61,34 +68,75 @@ function GameView() {
       case 'duel':
         const duelPlayers = localStorage.getItem('duel-players');
         if (duelPlayers) {
-          loadedPlayers = JSON.parse(duelPlayers);
+          loadedPlayers = JSON.parse(duelPlayers).map((player: any) => ({
+            ...player,
+            score: 0
+          }));
         }
         break;
 
       case 'multiplayer':
         const multiplayerPlayers = localStorage.getItem('multiplayer-players');
         if (multiplayerPlayers) {
-          loadedPlayers = JSON.parse(multiplayerPlayers);
+          loadedPlayers = JSON.parse(multiplayerPlayers).map((player: any) => ({
+            ...player,
+            score: 0
+          }));
         }
         break;
 
       case 'ai':
         const difficulty = localStorage.getItem('ai-difficulty') || 'medium';
         loadedPlayers = [
-          { id: 1, name: t(lang, "you"), color: "#8A00C4", isMainPlayer: true },
-          { id: 2, name: `${t(lang, "ai")} (${t(lang, difficulty)})`, color: "#FF6B35" }
+          { id: 1, name: t(lang, "you"), color: "#8A00C4", isMainPlayer: true, score: 0 },
+          { id: 2, name: `${t(lang, "ai")} (${t(lang, difficulty)})`, color: "#FF6B35", score: 0 }
         ];
         break;
 
       default:
         loadedPlayers = [
-          { id: 1, name: t(lang, "player1"), color: "#8A00C4" },
-          { id: 2, name: t(lang, "player2"), color: "#2323FF" }
+          { id: 1, name: t(lang, "player1"), color: "#8A00C4", score: 0 },
+          { id: 2, name: t(lang, "player2"), color: "#2323FF", score: 0 }
         ];
     }
 
     setPlayers(loadedPlayers);
   }, [lang]);
+
+  // Set up score event listener
+  useEffect(() => {
+    const handleScoreChange = (scores: { player0: number; player1: number }) => {
+      setScores(scores);
+
+      // Update players with scores
+      setPlayers(prev => prev.map((player, index) => ({
+        ...player,
+        score: index === 0 ? scores.player0 : scores.player1
+      })));
+    };
+
+    const handleWindowScoreChange = (event: any) => {
+      const scores = event.detail || event;
+      handleScoreChange(scores);
+    };
+
+    // Listen for score changes from the Pong game
+    window.addEventListener('scoreChanged', handleWindowScoreChange);
+
+    return () => {
+      window.removeEventListener('scoreChanged', handleWindowScoreChange);
+    };
+  }, []);
+
+  const handleScoreChange = (scores: { player0: number; player1: number }) => {
+    setScores(scores);
+
+    // Update players with scores
+    setPlayers(prev => prev.map((player, index) => ({
+      ...player,
+      score: index === 0 ? scores.player0 : scores.player1
+    })));
+  };
 
   const handleQuit = () => {
     localStorage.removeItem('game-mode');
@@ -161,8 +209,11 @@ function GameView() {
                   }}
                 >
                   <div className="text-center">
-                    <div className="font-bold">
+                    <div className="font-bold text-lg mb-1">
                       {player.name}
+                    </div>
+                    <div className="text-2xl font-bold mb-1">
+                      {player.score || 0}
                     </div>
                     {player.isHost && (
                       <div className="text-xs opacity-80">{t(lang, 'host')}</div>
@@ -183,7 +234,9 @@ function GameView() {
               className="relative bg-black rounded-xl overflow-hidden"
               style={{ aspectRatio: "16/10" }}
             >
-              <Pong />
+              <Pong
+                onScoreChange={gameMode !== 'multiplayer' ? handleScoreChange : undefined}
+              />
             </div>
           </div>
         </div>
