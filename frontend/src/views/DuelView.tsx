@@ -5,6 +5,8 @@ import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useApp } from "@/lib_front/store";
 import { useRouter } from 'next/navigation';
+import { t } from "@/lib_front/i18n";
+import type { Lang } from "@/lib_front/types";
 
 type DuelPlayer = {
   id: number;
@@ -27,9 +29,10 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (username: string, password: string) => void;
+  lang: Lang;
 }
 
-const LoginModal = ({ isOpen, onClose, onLogin }: LoginModalProps) => {
+const LoginModal = ({ isOpen, onClose, onLogin, lang }: LoginModalProps) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
@@ -47,11 +50,11 @@ const LoginModal = ({ isOpen, onClose, onLogin }: LoginModalProps) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-8 w-96 max-w-md mx-4">
-        <h2 className="text-2xl font-bold text-black mb-6 text-center">Se connecter</h2>
+        <h2 className="text-2xl font-bold text-black mb-6 text-center">{t(lang, 'login')}</h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-black text-sm font-bold mb-2">
-              Identifiant
+              {t(lang, 'username')}
             </label>
             <input
               type="text"
@@ -63,7 +66,7 @@ const LoginModal = ({ isOpen, onClose, onLogin }: LoginModalProps) => {
           </div>
           <div className="mb-6">
             <label className="block text-black text-sm font-bold mb-2">
-              Mot de passe
+              {t(lang, 'password')}
             </label>
             <input
               type="password"
@@ -79,13 +82,13 @@ const LoginModal = ({ isOpen, onClose, onLogin }: LoginModalProps) => {
               onClick={onClose}
               className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
             >
-              Annuler
+              {t(lang, 'cancel')}
             </button>
             <button
               type="submit"
               className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
             >
-              Se connecter
+              {t(lang, 'login')}
             </button>
           </div>
         </form>
@@ -149,6 +152,13 @@ export default function DuelView() {
   };
 
   const handleLogin = (username: string, password: string) => {
+    // Prevent adding the same player as connected user
+    const currentPlayer = players[0];
+    if (username.toLowerCase() === currentPlayer.name.toLowerCase()) {
+      alert("You cannot play against yourself!");
+      return;
+    }
+
     if (players.length < 2) {
       const newPlayers = [...players, {
         id: 2,
@@ -179,7 +189,7 @@ export default function DuelView() {
       <div className="min-h-screen flex flex-col items-center justify-center p-8 relative">
         <div className="mb-16">
           <h1 className="text-6xl font-bold text-white text-center tracking-wider">
-            DUEL
+            {t(lang, 'duel').toUpperCase()}
           </h1>
         </div>
 
@@ -191,7 +201,7 @@ export default function DuelView() {
                   onClick={addPlayer}
                   className="bg-white text-black border-4 border-white rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[300px] h-[120px] flex items-center justify-center"
                 >
-                  ADD PLAYER +
+                  {t(lang, 'addPlayer')}
                 </button>
               ) : (
                 <div className="relative">
@@ -228,7 +238,7 @@ export default function DuelView() {
         <div className="mb-8">
           {players.length === 1 && (
             <div className="text-center">
-              <p className="text-white/70 text-lg mb-2">Waiting for opponent...</p>
+              <p className="text-white/70 text-lg mb-2">{t(lang, 'waitingForOpponent')}</p>
               <div className="flex justify-center space-x-1">
                 <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
                 <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
@@ -238,7 +248,7 @@ export default function DuelView() {
           )}
           {players.length === 2 && (
             <div className="text-center">
-              <p className="text-green-400 text-lg font-bold">✓ Lobby complete! Ready to duel!</p>
+              <p className="text-green-400 text-lg font-bold">{t(lang, 'readyToDuel')}</p>
             </div>
           )}
         </div>
@@ -258,20 +268,21 @@ export default function DuelView() {
               }`}
             disabled={players.length !== 2}
           >
-            {players.length === 2 ? 'START DUEL' : 'WAITING...'}
+            {players.length === 2 ? t(lang, 'startDuel') : t(lang, 'waiting')}
           </button>
 
           <button
             onClick={() => router.push("/play")}
             className="bg-transparent border-4 border-yellow-400 text-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:bg-yellow-400 hover:text-black hover:scale-105"
           >
-            return
+            {t(lang, 'return')}
           </button>
         </div>
         <LoginModal
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
           onLogin={handleLogin}
+          lang={lang}
         />
       </div>
     </GradientBackground>

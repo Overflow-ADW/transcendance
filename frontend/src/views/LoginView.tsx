@@ -192,7 +192,7 @@ function LoginViewContent() {
               noValidate
             >
               <h1 className="text-white text-3xl font-bold text-center mb-8">
-                Welcome Back
+                {t(lang, 'welcomeBack')}
               </h1>
               {formError && (
                 <div className="p-3 rounded-md border border-red-500/50 bg-red-500/10 text-red-300 text-sm">
@@ -244,7 +244,7 @@ function LoginViewContent() {
                   className="text-purple-400 hover:text-purple-300 transition-colors"
                   onClick={() => router.push("/signin")}
                 >
-                  Don't have an account? Sign up
+                  {t(lang, 'noAccount')}
                 </button>
               </div>
             </form>
@@ -258,7 +258,7 @@ function LoginViewContent() {
                 className="w-full py-4 sm:py-6 md:py-8 lg:py-10 px-6 sm:px-8 md:px-10 lg:px-12 bg-black/80 border-4 border-purple-600 text-yellow-300 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-wider rounded-md uppercase backdrop-blur-sm transition-all duration-300 hover:scale-105"
                 onClick={() => router.push("/")}
               >
-                LOGIN
+                {t(lang, "login")}
               </button>
             </div>
             <form
@@ -278,7 +278,7 @@ function LoginViewContent() {
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="Username"
+                  placeholder={t(lang, "username")}
                   className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 border-blue-500 text-blue-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:bg-blue-500/20 focus:scale-105 focus:border-blue-400 focus:outline-none placeholder-blue-400/60"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -287,7 +287,7 @@ function LoginViewContent() {
               <div className="w-full">
                 <input
                   type="password"
-                  placeholder="Password"
+                  placeholder={t(lang, "currentPassword")}
                   className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 border-purple-500 text-purple-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:bg-purple-500/20 focus:scale-105 focus:border-purple-400 focus:outline-none placeholder-purple-400/60"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -299,7 +299,7 @@ function LoginViewContent() {
                   disabled={isSubmitting}
                   className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 border-green-500 text-green-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-green-500/20 hover:scale-105 hover:border-green-400 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                  {isSubmitting ? "LOGGING IN..." : "LOGIN"}
+                  {isSubmitting ? t(lang, 'loggingIn') : t(lang, 'login')}
                 </button>
               </div>
               <div className="flex flex-col gap-3 mt-2">
@@ -309,17 +309,16 @@ function LoginViewContent() {
                   onClick={() => handleOAuth('google')}
                 >
                   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="w-6 h-6" />
-                  Continuer avec Google
+                  {t(lang, "continueWithGoogle")}
                 </button>
               </div>
             </form>
-            <div className="text-center space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-10">
-              <button
-                type="button"
-                className="w-full py-2 sm:py-3 md:py-4 lg:py-6 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/60 border-2 border-yellow-500/60 text-yellow-300/80 text-sm sm:text-base md:text-lg lg:text-xl font-medium rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-yellow-500/10 hover:scale-105 hover:border-yellow-400"
-                onClick={() => router.push("/signin")}
-              >
-                Don't have an account? Sign up
+            <div className="text-center space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-10">                <button
+                  type="button"
+                  className="w-full py-2 sm:py-3 md:py-4 lg:py-6 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/60 border-2 border-yellow-500/60 text-yellow-300/80 text-sm sm:text-base md:text-lg lg:text-xl font-medium rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-yellow-500/10 hover:scale-105 hover:border-yellow-400"
+                  onClick={() => router.push("/signin")}
+                >
+                  {t(lang, "noAccount")}
               </button>
               <p className="text-white/60 text-xs sm:text-sm md:text-base lg:text-lg font-medium backdrop-blur-sm bg-black/40 rounded-full px-3 sm:px-4 md:px-6 lg:px-8 py-1 sm:py-2 md:py-3 lg:py-4 inline-block">
                 PONG ULTIMATE

@@ -6,6 +6,8 @@ import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useRouter } from 'next/navigation';
 import Pong from "@/game/components/Pong";
 import { withProtectedRoute } from "@/lib_front/routeProtection";
+import { t } from "@/lib_front/i18n";
+import { useApp } from "@/lib_front/store";
 
 interface Player {
   id: number | string;
@@ -17,6 +19,7 @@ interface Player {
 
 function GameView() {
   const router = useRouter();
+  const { lang } = useApp();
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameMode, setGameMode] = useState<string>('');
 
@@ -72,20 +75,20 @@ function GameView() {
       case 'ai':
         const difficulty = localStorage.getItem('ai-difficulty') || 'medium';
         loadedPlayers = [
-          { id: 1, name: "YOU", color: "#8A00C4", isMainPlayer: true },
-          { id: 2, name: `AI (${difficulty.toUpperCase()})`, color: "#FF6B35" }
+          { id: 1, name: t(lang, "you"), color: "#8A00C4", isMainPlayer: true },
+          { id: 2, name: `${t(lang, "ai")} (${t(lang, difficulty)})`, color: "#FF6B35" }
         ];
         break;
 
       default:
         loadedPlayers = [
-          { id: 1, name: "PLAYER 1", color: "#8A00C4" },
-          { id: 2, name: "PLAYER 2", color: "#2323FF" }
+          { id: 1, name: t(lang, "player1"), color: "#8A00C4" },
+          { id: 2, name: t(lang, "player2"), color: "#2323FF" }
         ];
     }
 
     setPlayers(loadedPlayers);
-  }, []);
+  }, [lang]);
 
   const handleQuit = () => {
     localStorage.removeItem('game-mode');
@@ -98,16 +101,16 @@ function GameView() {
   const getGameModeTitle = () => {
     switch (gameMode) {
       case 'tournament':
-        return 'TOURNAMENT MODE';
+        return t(lang, 'tournamentMode');
       case 'duel':
-        return 'DUEL MODE';
+        return t(lang, 'duelMode');
       case 'multiplayer':
-        return 'MULTIPLAYER MODE (4P)';
+        return t(lang, 'multiplayerMode');
       case 'ai':
         const difficulty = localStorage.getItem('ai-difficulty') || 'medium';
-        return `VS AI (${difficulty.toUpperCase()})`;
+        return `${t(lang, 'vsAI')} (${t(lang, difficulty)})`;
       default:
-        return 'GAME MODE';
+        return t(lang, 'gameMode');
     }
   };
 
@@ -139,7 +142,7 @@ function GameView() {
                       {player.name}
                     </div>
                     <div className="text-xs opacity-80">
-                      Player {index + 1}
+                      {t(lang, 'player')} {index + 1}
                     </div>
                   </div>
                 </div>
@@ -162,10 +165,10 @@ function GameView() {
                       {player.name}
                     </div>
                     {player.isHost && (
-                      <div className="text-xs opacity-80">HOST</div>
+                      <div className="text-xs opacity-80">{t(lang, 'host')}</div>
                     )}
                     {player.isMainPlayer && (
-                      <div className="text-xs opacity-80">YOU</div>
+                      <div className="text-xs opacity-80">{t(lang, 'you')}</div>
                     )}
                   </div>
                 </div>
@@ -190,7 +193,7 @@ function GameView() {
             onClick={handleQuit}
             className="bg-transparent border-4 border-red-400 text-red-400 px-12 py-3 rounded-full text-xl font-bold transition-all duration-300 hover:bg-red-400 hover:text-white hover:scale-105"
           >
-            QUIT GAME
+            {t(lang, 'quitGame')}
           </button>
         </div>
 
@@ -201,17 +204,22 @@ function GameView() {
                 <div>
                   <span className="font-bold" style={{ color: players[0]?.color }}>
                     {players[0]?.name}:
-                  </span> W/S
+                  </span> {t(lang, 'controlsWS')}
                 </div>
                 <div>
                   <span className="font-bold" style={{ color: players[1]?.color }}>
                     {players[1]?.name}:
-                  </span> O/L
+                  </span> {t(lang, 'controlsArrows')}
                 </div>
                 <div>
                   <span className="font-bold" style={{ color: players[2]?.color }}>
                     {players[2]?.name}:
-                  </span> I/K
+                  </span> {t(lang, 'controlsIK')}
+                </div>
+                <div>
+                  <span className="font-bold" style={{ color: players[3]?.color }}>
+                    {players[3]?.name}:
+                  </span> {t(lang, 'controls85')}
                 </div>
               </div>
             </div>

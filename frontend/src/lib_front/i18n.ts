@@ -61,7 +61,16 @@ export const messages: Record<Lang, Record<string, string>> = {
     noBackupCodes: "Aucun code de secours restant",
     backupCodesRemaining: "codes de secours restants",
     home: "ACCUEIL",
-    settings: "PARAMÈTRES"
+    settings: "PARAMÈTRES",
+    welcomeBack: "Bienvenue",
+    createAccount: "Créer un compte",
+    noAccount: "Pas encore de compte ? Inscrivez-vous",
+    haveAccount: "Déjà un compte ? Connectez-vous",
+    loggingIn: "CONNEXION...",
+    creating: "CRÉATION...",
+    login: "CONNEXION",
+    create: "CRÉER UN COMPTE",
+    continueWithGoogle: "Continuer avec Google"
   },
   en: {
     play: "play",
@@ -185,7 +194,16 @@ export const messages: Record<Lang, Record<string, string>> = {
     noBackupCodes: "Geen reservecodes meer beschikbaar",
     backupCodesRemaining: "reservecodes resterend",
     home: "HOME",
-    settings: "INSTELLINGEN"
+    settings: "INSTELLINGEN",
+    welcomeBack: "Welkom terug",
+    createAccount: "Account aanmaken",
+    noAccount: "Nog geen account? Registreer je",
+    haveAccount: "Al een account? Log in",
+    loggingIn: "INLOGGEN...",
+    creating: "AANMAKEN...",
+    login: "INLOGGEN",
+    create: "ACCOUNT AANMAKEN",
+    continueWithGoogle: "Doorgaan met Google"
   }
 };
 

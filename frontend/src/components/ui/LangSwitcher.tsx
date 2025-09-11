@@ -1,34 +1,28 @@
 "use client";
 
 import { useApp } from "@/lib_front/store";
-import type { Lang } from "@/lib_front/types";
-
-const languageNames: Record<Lang, string> = {
-  fr: "Français",
-  en: "English",
-  nl: "Nederlands"
-};
-
-const langs: readonly Lang[] = ["fr", "en", "nl"] as const;
+import { Lang } from "@/lib_front/types";
 
 export function LangSwitcher() {
   const { lang, setLang } = useApp();
-  
+  const languages: Array<{ code: Lang; flag: string }> = [
+    { code: "en", flag: "🇬🇧" },
+    { code: "fr", flag: "🇫🇷" },
+    { code: "nl", flag: "🇳🇱" }
+  ];
+
   return (
-    <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
-      {langs.map((l) => (
+    <div className="fixed top-4 right-4 z-50 flex items-center gap-2 text-white">
+      {languages.map(({ code, flag }) => (
         <button
-          key={l}
-          onClick={() => setLang(l)}
-          className={`px-4 py-2 rounded-lg transition-all duration-200 ${
-            lang === l 
-              ? "bg-white text-black font-semibold shadow-lg" 
-              : "bg-black/20 text-white hover:bg-black/30"
+          key={code}
+          onClick={() => setLang(code)}
+          className={`px-3 py-1 rounded border flex items-center gap-1 ${
+            lang === code ? "bg-white text-black" : "border-white/50"
           }`}
-          aria-label={`Switch language to ${languageNames[l]}`}
-          title={languageNames[l]}
         >
-          {languageNames[l]}
+          <span>{flag}</span>
+          <span>{code.toUpperCase()}</span>
         </button>
       ))}
     </div>
