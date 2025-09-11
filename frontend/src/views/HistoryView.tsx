@@ -18,12 +18,10 @@ export default function HistoryView() {
   const [gameModeFilter, setGameModeFilter] = useState('all');
   const [error, setError] = useState<string | null>(null);
 
-  // Function to navigate to a user's profile by searching their username
   const navigateToUserProfile = async (username: string) => {
     try {
-      if (username === 'IA' || username === 'AI') return; // Don't navigate for AI opponents
+      if (username === 'IA' || username === 'AI') return;
       
-      // First search for the user to get their ID
       const searchResponse = await apiClient.searchUsers(username, 1);
       if (searchResponse.results.length > 0) {
         const foundUser = searchResponse.results.find(user => 
@@ -131,7 +129,7 @@ export default function HistoryView() {
     return (
       <GradientBackground>
         <div className="min-h-screen flex items-center justify-center">
-          <div className="text-white text-xl">Chargement...</div>
+          <div className="text-white text-xl">loading ...</div>
         </div>
       </GradientBackground>
     );
@@ -145,10 +143,10 @@ export default function HistoryView() {
             <BackButton />
             <div className="text-center mt-4">
               <h1 className="text-4xl font-bold text-white mb-2">
-                📜 Historique des Parties
+                📜 Games history
               </h1>
               <p className="text-gray-300">
-                Consultez l'historique complet de vos parties
+                Watch full history of your games
               </p>
             </div>
           </div>
@@ -163,10 +161,10 @@ export default function HistoryView() {
                     onChange={(e) => handleStatusFilterChange(e.target.value)}
                     className="bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
                   >
-                    <option value="all">Toutes</option>
-                    <option value="completed">Terminées</option>
-                    <option value="in_progress">En cours</option>
-                    <option value="abandoned">Abandonnées</option>
+                    <option value="all">All</option>
+                    <option value="completed">Finished</option>
+                    <option value="in_progress">Playing</option>
+                    <option value="abandoned">Stopped</option>
                   </select>
                 </div>
 
@@ -177,17 +175,17 @@ export default function HistoryView() {
                     onChange={(e) => handleGameModeFilterChange(e.target.value)}
                     className="bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
                   >
-                    <option value="all">Tous les modes</option>
+                    <option value="all">All modes</option>
                     <option value="classic">Classic</option>
-                    <option value="tournament">Tournoi</option>
-                    <option value="custom">Personnalisé</option>
+                    <option value="tournament">Tournament</option>
+                    <option value="custom">Personalized</option>
                   </select>
                 </div>
               </div>
 
               {gameHistory && (
                 <div className="text-right text-sm text-gray-300">
-                  <div>Total: {gameHistory.pagination.totalItems} parties</div>
+                  <div>Total: {gameHistory.pagination.totalItems} games</div>
                   <div className="flex gap-4 mt-1">
                     <span className="text-green-400">🏆 {gameHistory.stats.wins}</span>
                     <span className="text-red-400">💔 {gameHistory.stats.losses}</span>
@@ -205,7 +203,7 @@ export default function HistoryView() {
             </div>
           ) : isLoading ? (
             <div className="bg-black/30 backdrop-blur-md rounded-2xl p-8 text-center">
-              <div className="text-white text-xl">Chargement de l'historique...</div>
+              <div className="text-white text-xl">Loading history...</div>
             </div>
           ) : gameHistory && gameHistory.games.length > 0 ? (
             <div className="bg-black/30 backdrop-blur-md rounded-2xl p-6">
@@ -273,7 +271,7 @@ export default function HistoryView() {
                     disabled={!gameHistory.pagination.hasPreviousPage}
                     className="px-4 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600 transition-colors"
                   >
-                    ← Précédent
+                    ← Previous
                   </button>
 
                   <div className="flex gap-1">
@@ -301,7 +299,7 @@ export default function HistoryView() {
                     disabled={!gameHistory.pagination.hasNextPage}
                     className="px-4 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600 transition-colors"
                   >
-                    Suivant →
+                    Next →
                   </button>
                 </div>
               )}
@@ -309,9 +307,9 @@ export default function HistoryView() {
           ) : (
             <div className="bg-black/30 backdrop-blur-md rounded-2xl p-8 text-center">
               <div className="text-gray-400 text-xl mb-4">📭</div>
-              <div className="text-white text-lg mb-2">Aucune partie trouvée</div>
+              <div className="text-white text-lg mb-2">No game found</div>
               <div className="text-gray-400">
-                Lancez votre première partie pour voir l'historique ici !
+                Finish your first game to see results here !
               </div>
             </div>
           )}

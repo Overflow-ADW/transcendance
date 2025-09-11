@@ -73,14 +73,14 @@ fastify.register(require('@fastify/helmet'), {
 });
 
 fastify.register(require('@fastify/cookie'), {
-  secret: process.env.SESSION_SECRET || 'a-very-long-secret-key-change-in-production',
+  secret: process.env.SESSION_SECRET,
   parseOptions: {}
 });
 
 fastify.register(require('@fastify/session'), {
-  secret: process.env.SESSION_SECRET || 'a-very-long-secret-key-change-in-production',
+  secret: process.env.SESSION_SECRET,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'development',
     maxAge: 1000 * 60 * 30,
     httpOnly: true,
     sameSite: 'lax'

@@ -28,7 +28,6 @@ services:
     container_name: transcendance-frontend
     ports:
       - "8080:443"
-      - "8081:80"
     depends_on:
       - backend
     networks:
