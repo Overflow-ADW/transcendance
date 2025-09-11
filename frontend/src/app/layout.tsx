@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppProvider } from "@/lib_front/store";
 import { AuthProvider } from "@/lib_front/AuthContext";
 import { NotificationToast } from "@/components/ui/NotificationToast";
+import { RateLimitProvider } from "@/components/ui/RateLimitProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,8 +37,10 @@ export default function RootLayout({
       <body className="antialiased bg-black min-h-screen" suppressHydrationWarning>
         <AuthProvider>
           <AppProvider>
-            {children}
-            <NotificationToast />
+            <RateLimitProvider>
+              {children}
+              <NotificationToast />
+            </RateLimitProvider>
           </AppProvider>
         </AuthProvider>
       </body>

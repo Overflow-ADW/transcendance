@@ -38,6 +38,9 @@ type AppState = {
   notifications: Notification[];
   addNotification: (notification: Omit<Notification, 'id'>) => void;
   removeNotification: (id: string) => void;
+
+  isRateLimitModalOpen: boolean;
+  setRateLimitModalOpen: (open: boolean) => void;
 };
 
 interface Notification {
@@ -66,6 +69,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isOnline, setIsOnline] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isRateLimitModalOpen, setRateLimitModalOpen] = useState(false);
   const [winrates, setWinrates] = useState<Winrate[]>([
     { label: "winrate vs player", value: 70, color: "bg-purple-600" },
     { label: "winrate tournament", value: 65, color: "bg-blue-600" },
@@ -134,6 +138,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setIsOnline,
       notifications,
       setNotifications,
+      isRateLimitModalOpen,
+      setRateLimitModalOpen,
       addNotification: (notification: Omit<Notification, 'id'>) => {
         setNotifications(prev => [
           ...prev,
@@ -155,7 +161,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       matches,
       theme,
       isOnline,
-      notifications
+      notifications,
+      isRateLimitModalOpen
     ]
   );
 

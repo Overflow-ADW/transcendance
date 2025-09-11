@@ -6,6 +6,7 @@ import type {
   UserSearchResult,
   SearchUsersResponse
 } from "./types";
+import { rateLimitManager } from "./rateLimitManager";
 
 // Configuration API centralisée avec détection automatique
 function getApiBaseUrl(): string {
@@ -111,9 +112,16 @@ class ApiClient {
   }
 
   /**
-   * Wrapper fetch avec authentification automatique
+   * Wrapper fetch avec authentification automatique et gestion du rate limit
    */
   async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
+    // Vérifier si on est actuellement bloqué par rate limit
+    if (rateLimitManager.isCurrentlyBlocked()) {
+      const error = new Error('Rate limit active - Please wait before making requests');
+      (error as any).status = 429;
+      throw error;
+    }
+
     let token = this.token || this.getToken();
 
     // Déterminer si on doit inclure le Content-Type
@@ -133,6 +141,17 @@ class ApiClient {
 
     try {
       let response = await fetch(url, config);
+
+      // Gestion globale des erreurs 429 (Rate Limit)
+      if (response.status === 429) {
+        // Déclencher le gestionnaire de rate limit
+        rateLimitManager.triggerRateLimit();
+        
+        // Lancer une erreur spécifique pour le rate limit
+        const error = new Error('Rate limit exceeded');
+        (error as any).status = 429;
+        throw error;
+      }
 
       // Gestion automatique des erreurs d'authentification
       if (response.status === 401) {

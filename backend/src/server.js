@@ -36,8 +36,25 @@ fastify.register(require('@fastify/rate-limit'), {
   max: parseInt(process.env.RATE_LIMIT_MAX) || 200,
   timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW) || 900000,
   skipOnError: true,
+  keyGenerator: (request) => {
+    const userInfo = request.user ? `_user_${request.user.id}` : '';
+    return `${request.ip}${userInfo}`;
+  },
   onExceeded: (request, key) => {
     fastify.log.warn(`Rate limit exceeded for ${key}: ${request.ip}`);
+  },
+  errorResponseBuilder: (request, context) => {
+    return {
+      error: 'Rate Limit Exceeded',
+      message: 'Too many requests, please try again later.',
+      statusCode: 429,
+      retryAfter: Math.round(context.ttl / 1000),
+      details: {
+        limit: context.max,
+        remaining: context.remaining,
+        reset: new Date(Date.now() + context.ttl)
+      }
+    };
   }
 });
 

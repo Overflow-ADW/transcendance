@@ -461,6 +461,8 @@ export default function TrueSettingsView() {
                   >
                     {isLoading ? t(currentLanguage, 'loggingOut') : t(currentLanguage, 'logout')}
                   </button>
+
+
                 </div>
               </div>
             </div>
