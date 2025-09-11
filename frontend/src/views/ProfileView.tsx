@@ -6,11 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from "@/lib_front/AuthContext";
 import { apiClient } from "@/lib_front/api";
 import { withProtectedRoute } from "@/lib_front/routeProtection";
+import { useApp } from "@/lib_front/store";
+import { t } from "@/lib_front/i18n";
 
 function ProfileView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, loading } = useAuth();
+  const { lang } = useApp();
   const visitedUserId = searchParams?.get('userId');
   const isVisitorProfile = visitedUserId && parseInt(visitedUserId) !== user?.id;
 
@@ -116,9 +119,9 @@ function ProfileView() {
         avatar_url: data.avatar_url || data.avatar || "",
         isOwn: !isVisitorProfile,
         winrates: data.stats?.winRates ? [
-          { value: data.stats.winRates.vsAI, label: 'VS IA', color: 'bg-blue-600' },
-          { value: data.stats.winRates.vsPlayers, label: 'VS Autres joueurs', color: 'bg-green-600' },
-          { value: data.stats.winRates.tournaments, label: 'Tournois gagnés', color: 'bg-purple-600' }
+          { value: data.stats.winRates.vsAI, label: t(lang, 'winrateVsIA'), color: 'bg-blue-600' },
+          { value: data.stats.winRates.vsPlayers, label: t(lang, 'winrateVsPlayer'), color: 'bg-green-600' },
+          { value: data.stats.winRates.tournaments, label: t(lang, 'winrateTournament'), color: 'bg-purple-600' }
         ] : [],
         matches: data.recentGames ? data.recentGames.map((game: any) => ({
           id: game.id,
@@ -249,7 +252,7 @@ function ProfileView() {
                   )}
                   {isVisitorProfile && profile.areWeFriends !== undefined && (
                     <div className="text-sm text-white/80 mt-2 px-3 py-1 bg-white/10 rounded-full inline-block">
-                      {profile.areWeFriends ? '✓ Ami' : '👤 Visiteur'}
+                      {profile.areWeFriends ? `✓ ${t(lang, 'friend')}` : `👤 ${t(lang, 'visitor')}`}
                     </div>
                   )}
                 </div>
@@ -340,12 +343,12 @@ function ProfileView() {
               {profile.stats && (
                 <div className="bg-black border-4 border-green-400 rounded-lg p-6">
                   <h2 className="text-xl font-bold text-green-400 text-center mb-4">
-                    GAME STATISTICS
+                    {t(lang, 'gameStatistics')}
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                     <div>
                       <div className="text-2xl font-bold text-white">{profile.stats.gamesPlayed}</div>
-                      <div className="text-xs text-green-400 uppercase">Games Played</div>
+                      <div className="text-xs text-green-400 uppercase">{t(lang, 'gamesPlayed')}</div>
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-green-400">{profile.stats.gamesWon}</div>
@@ -380,8 +383,7 @@ function ProfileView() {
               )}
 
               <div className="bg-black border-4 border-purple-400 rounded-lg p-6 flex-shrink-0">
-                <h2 className="text-xl font-bold text-purple-400 text-center mb-4">
-                  WIN RATES
+                <h2 className="text-xl font-bold text-purple-400 text-center mb-4">                    {t(lang, 'winRates')}
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {profile.winrates && profile.winrates.length > 0 ? (
@@ -407,7 +409,7 @@ function ProfileView() {
               <div className="bg-black border-4 border-blue-400 rounded-lg p-6 flex flex-col" style={{ height: '35vh' }}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-blue-400 text-center">
-                    MATCH HISTORY
+                    {t(lang, 'matchHistory')}
                   </h2>
                   {!isVisitorProfile && (
                     <button
@@ -421,16 +423,16 @@ function ProfileView() {
 
                 <div className="grid grid-cols-4 gap-2 mb-3 p-3 bg-blue-400/10 border-2 border-blue-400/30 rounded-lg flex-shrink-0">
                   <div className="text-center font-bold text-blue-400 uppercase text-xs">
-                    Opponent
+                    {t(lang, 'opponent')}
                   </div>
                   <div className="text-center font-bold text-blue-400 uppercase text-xs">
                     Score
                   </div>
                   <div className="text-center font-bold text-blue-400 uppercase text-xs">
-                    Result
+                    {t(lang, 'result')}
                   </div>
                   <div className="text-center font-bold text-blue-400 uppercase text-xs">
-                    Mode
+                    {t(lang, 'mode')}
                   </div>
                 </div>
 
@@ -484,7 +486,7 @@ function ProfileView() {
                     onClick={() => router.push("/play")}
                     className="hidden lg:block px-8 py-3 bg-transparent border-4 border-green-400 text-green-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-green-400 hover:text-black hover:scale-105"
                   >
-                    PLAY
+                    {t(lang, 'play').toUpperCase()}
                   </button>
                 )}
                 {!isVisitorProfile && (
@@ -492,14 +494,14 @@ function ProfileView() {
                     onClick={() => router.push("/trueSettings")}
                     className="px-8 py-3 bg-transparent border-4 border-purple-400 text-purple-400 text-lg font-bold rounded-lg transition-all duration-300 hover:bg-purple-400 hover:text-white hover:scale-105"
                   >
-                    SETTINGS
+                    {t(lang, 'settings').toUpperCase()}
                   </button>
                 )}
                 <button
                   onClick={() => router.push("/friends")}
                   className="px-8 py-3 bg-transparent border-4 border-white text-white text-lg font-bold rounded-lg transition-all duration-300 hover:bg-white hover:text-black hover:scale-105"
                 >
-                  FRIENDS
+                  {t(lang, 'friends').toUpperCase()}
                 </button>
               </div>
             </div>

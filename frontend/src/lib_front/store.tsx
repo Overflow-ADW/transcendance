@@ -50,7 +50,11 @@ interface Notification {
 const AppCtx = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Lang>("fr");
+  // Get initial language from localStorage or default to English
+  const initialLang = typeof window !== 'undefined' ? 
+    (localStorage.getItem('user-language') as Lang || 'en') : 'en';
+  
+  const [lang, _setLang] = useState<Lang>(initialLang);
   const [view, _setView] = useState<View>("home");
   const [history, setHistory] = useState<View[]>([]);
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
@@ -73,6 +77,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     { opponent: "lucas", result: "win", mode: "tournament" },
     { opponent: "topaz", result: "loose", mode: "1 vs 1" }
   ]);
+
+  // Wrap setLang to persist the language choice
+  const setLang = (newLang: Lang) => {
+    localStorage.setItem('user-language', newLang);
+    _setLang(newLang);
+  };
 
   const setView = (v: View) => _setView(v);
 

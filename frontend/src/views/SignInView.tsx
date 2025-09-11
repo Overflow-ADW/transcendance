@@ -89,15 +89,14 @@ function SignInViewContent() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   const validate = () => {
-    const errors: Record<string, string[]> = {};
-    if (!username || username.trim().length < 3) {
-      errors.username = ["Username must be at least 3 characters"];
+    const errors: Record<string, string[]> = {};      if (!username || username.trim().length < 3) {
+      errors.username = [t(lang, "usernameTooShort")];
     }
     if (!password || password.length < 6) {
-      errors.password = ["Password must be at least 6 characters"];
+      errors.password = [t(lang, "passwordTooShort")];
     }
     if (confirm !== password) {
-      errors.confirm = ["Passwords do not match"];
+      errors.confirm = [t(lang, "passwordsDoNotMatch")];
     }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -206,7 +205,7 @@ function SignInViewContent() {
               noValidate
             >
               <h1 className="text-white text-3xl font-bold text-center mb-8">
-                Create Account
+                {t(lang, 'createAccount')}
               </h1>
               {formError && (
                 <div className="p-3 rounded-md border border-red-500/50 bg-red-500/10 text-red-300 text-sm">
@@ -220,7 +219,7 @@ function SignInViewContent() {
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="Username"
+                  placeholder={t(lang, "username")}
                   className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${fieldErrors.username ? "border-red-500" : "border-gray-600"
                     } focus:border-purple-400 focus:outline-none transition-colors`}
                   value={username}
@@ -232,10 +231,9 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-              <div>
-                <input
+              <div>                  <input
                   type="password"
-                  placeholder="Password"
+                  placeholder={t(lang, "currentPassword")}
                   className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${fieldErrors.password ? "border-red-500" : "border-gray-600"
                     } focus:border-purple-400 focus:outline-none transition-colors`}
                   value={password}
@@ -247,10 +245,9 @@ function SignInViewContent() {
                   </p>
                 )}
               </div>
-              <div>
-                <input
+              <div>                  <input
                   type="password"
-                  placeholder="Confirm Password"
+                  placeholder={t(lang, "confirmPassword")}
                   className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${fieldErrors.confirm ? "border-red-500" : "border-gray-600"
                     } focus:border-purple-400 focus:outline-none transition-colors`}
                   value={confirm}
@@ -267,7 +264,7 @@ function SignInViewContent() {
                 disabled={isSubmitting}
                 className="w-full py-4 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 transition-colors text-lg mt-6 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Creating account..." : "Create Account"}
+                {isSubmitting ? t(lang, 'creating') : t(lang, 'create')}
               </button>
               <div className="flex flex-col gap-3 mt-4">
                 <button
@@ -276,7 +273,7 @@ function SignInViewContent() {
                   onClick={() => handleOAuth('google')}
                 >
                   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="w-6 h-6" />
-                  Continuer avec Google
+                  {t(lang, "continueWithGoogle")}
                 </button>
               </div>
               <div className="text-center mt-4">
@@ -285,7 +282,7 @@ function SignInViewContent() {
                   className="text-purple-400 hover:text-purple-300 transition-colors"
                   onClick={() => router.push("/login")}
                 >
-                  Already have an account? Login
+                  {t(lang, 'haveAccount')}
                 </button>
               </div>
             </form>
@@ -299,7 +296,7 @@ function SignInViewContent() {
                 className="w-full py-4 sm:py-6 md:py-8 lg:py-10 px-6 sm:px-8 md:px-10 lg:px-12 bg-black/80 border-4 border-purple-600 text-yellow-300 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-wider rounded-md uppercase backdrop-blur-sm transition-all duration-300 hover:scale-105"
                 onClick={() => router.push("/")}
               >
-                SIGN IN
+                {t(lang, 'createAccount')}
               </button>
             </div>
             <form
@@ -373,7 +370,7 @@ function SignInViewContent() {
                   disabled={isSubmitting}
                   className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 border-green-500 text-green-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-green-500/20 hover:scale-105 hover:border-green-400 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                  {isSubmitting ? "CREATING..." : "CREATE ACCOUNT"}
+                  {isSubmitting ? t(lang, 'creating') : t(lang, 'create')}
                 </button>
               </div>
               <div className="flex flex-col gap-3 mt-2">

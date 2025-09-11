@@ -461,7 +461,7 @@ export default function FriendsView() {
 
         <div className="mt-6 text-center">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/settings')}
             className="bg-purple-600 text-white px-8 py-3 rounded-lg hover:bg-purple-700 transition-colors font-medium"
           >
             ← BACK TO MENU
