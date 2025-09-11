@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
 import { useRouter } from 'next/navigation';
+import { useApp } from "@/lib_front/store";
+import { t } from "@/lib_front/i18n";
+import type { Lang } from "@/lib_front/types";
 
 interface Player {
   id: number;
@@ -25,9 +28,10 @@ interface AddPlayerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (name: string) => void;
+  lang: Lang;
 }
 
-const AddPlayerModal = ({ isOpen, onClose, onAdd }: AddPlayerModalProps) => {
+const AddPlayerModal = ({ isOpen, onClose, onAdd, lang }: AddPlayerModalProps) => {
   const [playerName, setPlayerName] = useState("");
 
   if (!isOpen) return null;
@@ -43,17 +47,17 @@ const AddPlayerModal = ({ isOpen, onClose, onAdd }: AddPlayerModalProps) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-8 w-96 max-w-md mx-4">
-        <h2 className="text-2xl font-bold text-black mb-6 text-center">Add Player</h2>
+        <h2 className="text-2xl font-bold text-black mb-6 text-center">{t(lang, 'addPlayerModal')}</h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
             <label className="block text-black text-sm font-bold mb-2">
-              Player Name
+              {t(lang, 'playerName')}
             </label>
             <input
               type="text"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Enter player name"
+              placeholder={t(lang, 'enterPlayerName')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:border-blue-500"
               required
               maxLength={15}
@@ -65,13 +69,13 @@ const AddPlayerModal = ({ isOpen, onClose, onAdd }: AddPlayerModalProps) => {
               onClick={onClose}
               className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
             >
-              Cancel
+              {t(lang, 'cancel')}
             </button>
             <button
               type="submit"
               className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
             >
-              Add Player
+              {t(lang, 'addPlayerButton')}
             </button>
           </div>
         </form>
@@ -82,6 +86,7 @@ const AddPlayerModal = ({ isOpen, onClose, onAdd }: AddPlayerModalProps) => {
 
 export default function MultiplayerView() {
   const router = useRouter();
+  const { lang } = useApp();
   const [players, setPlayers] = useState<Player[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -170,7 +175,7 @@ export default function MultiplayerView() {
       <div className="min-h-screen flex flex-col items-center justify-center p-8 relative">
         <div className="mb-12">
           <h1 className="text-5xl md:text-6xl font-bold text-white text-center tracking-wider">
-            MULTIPLAYER
+            {t(lang, 'multiplayerLocal').toUpperCase()}
           </h1>
           <p className="text-xl text-white/70 text-center mt-2">3 Players Local</p>
         </div>
@@ -346,6 +351,7 @@ export default function MultiplayerView() {
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddPlayer}
+          lang={lang}
         />
       </div>
     </GradientBackground>

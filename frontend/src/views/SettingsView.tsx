@@ -20,28 +20,28 @@ export default function SettingsView() {
               onClick={() => router.push("/play")}
               className="font-press-start w-full py-6 px-8 bg-transparent border-2 border-white text-white text-2xl font-bold rounded-lg transition-all duration-300 hover:bg-purple-600"
             >
-              play
+              {t(lang, 'play')}
             </button>
 
             <button
               onClick={() => router.push("/friends")}
               className="w-full py-6 px-8 bg-transparent border-2 border-white text-white text-2xl font-bold rounded-lg transition-all duration-300 hover:bg-purple-600"
             >
-              friends
+              {t(lang, 'friends')}
             </button>
 
             <button
               onClick={() => router.push("/profile")}
               className="w-full py-6 px-8 bg-transparent border-2 border-white text-white text-2xl font-bold rounded-lg transition-all duration-300 hover:bg-purple-600"
             >
-              profile
+              {t(lang, 'profile')}
             </button>
 
             <button
               onClick={() => router.push("/trueSettings")}
               className="w-full py-6 px-8 bg-purple-600 border-2 border-white text-white text-2xl font-bold rounded-lg cursor-default"
             >
-              setting
+              {t(lang, 'settings')}
             </button>
           </div>
         </div>
@@ -64,7 +64,7 @@ export default function SettingsView() {
                 onClick={() => router.push("/friends")}
                 className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/60 border-3 border-blue-500 text-blue-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-blue-500/20 hover:scale-105 hover:border-blue-400 shadow-lg shadow-blue-500/20"
               >
-                FRIENDS
+                {t(lang, 'friends').toUpperCase()}
               </button>
             </div>
 
@@ -73,7 +73,7 @@ export default function SettingsView() {
                 onClick={() => router.push("/profile")}
                 className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/60 border-3 border-green-500 text-green-300 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-green-500/20 hover:scale-105 hover:border-green-400 shadow-lg shadow-green-500/20"
               >
-                PROFILE
+                {t(lang, 'profile').toUpperCase()}
               </button>
             </div>
 
@@ -82,7 +82,7 @@ export default function SettingsView() {
                 onClick={() => router.push("/trueSettings")}
                 className="w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-purple-600/80 border-3 border-purple-400 text-white text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 hover:scale-105 shadow-lg shadow-purple-500/30"
               >
-                SETTINGS
+                {t(lang, 'settings').toUpperCase()}
               </button>
             </div>
           </div>

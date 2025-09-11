@@ -121,7 +121,7 @@ function ProfileView() {
         winrates: data.stats?.winRates ? [
           { value: data.stats.winRates.vsAI, label: t(lang, 'winrateVsIA'), color: 'bg-blue-600' },
           { value: data.stats.winRates.vsPlayers, label: t(lang, 'winrateVsPlayer'), color: 'bg-green-600' },
-          { value: data.stats.winRates.tournaments, label: t(lang, 'winrateTournament'), color: 'bg-purple-600' }
+          { value: data.stats.winRates.tournaments, label: t(lang, 'tournament'), color: 'bg-purple-600' }
         ] : [],
         matches: data.recentGames ? data.recentGames.map((game: any) => ({
           id: game.id,
@@ -391,7 +391,7 @@ function ProfileView() {
                       <div key={index} className="text-center">
                         <div className={`w-16 h-16 mx-auto rounded-lg ${w.color || 'bg-purple-600'} flex items-center justify-center mb-2`}>
                           <span className="text-xl font-bold text-white">
-                            {w.label === 'Tournois gagnés' ? w.value : `${w.value}%`}
+                            {w.label === t(lang, 'tournament') ? w.value : `${w.value}%`}
                           </span>
                         </div>
                         <div className="text-xs text-white/80 font-medium">{w.label}</div>

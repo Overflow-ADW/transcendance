@@ -241,28 +241,14 @@ function GameView() {
           </div>
         </div>
 
-        <div className="flex justify-center">
-          <button
-            onClick={handleQuit}
-            className="bg-transparent border-4 border-red-400 text-red-400 px-12 py-3 rounded-full text-xl font-bold transition-all duration-300 hover:bg-red-400 hover:text-white hover:scale-105"
-          >
-            {t(lang, 'quitGame')}
-          </button>
-        </div>
-
         {gameMode === 'multiplayer' && (
           <div className="mt-6 text-center">
             <div className="text-white/70 text-sm">
-              <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+              <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
                 <div>
                   <span className="font-bold" style={{ color: players[0]?.color }}>
                     {players[0]?.name}:
                   </span> {t(lang, 'controlsWS')}
-                </div>
-                <div>
-                  <span className="font-bold" style={{ color: players[1]?.color }}>
-                    {players[1]?.name}:
-                  </span> {t(lang, 'controlsArrows')}
                 </div>
                 <div>
                   <span className="font-bold" style={{ color: players[2]?.color }}>
@@ -270,9 +256,9 @@ function GameView() {
                   </span> {t(lang, 'controlsIK')}
                 </div>
                 <div>
-                  <span className="font-bold" style={{ color: players[3]?.color }}>
-                    {players[3]?.name}:
-                  </span> {t(lang, 'controls85')}
+                  <span className="font-bold" style={{ color: players[1]?.color }}>
+                    {players[1]?.name}:
+                  </span> {t(lang, 'controlsOL')}
                 </div>
               </div>
             </div>

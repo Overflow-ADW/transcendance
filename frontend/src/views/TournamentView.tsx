@@ -7,6 +7,7 @@ import { useApp } from "@/lib_front/store";
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/lib_front/AuthContext";
 import { apiClient } from "@/lib_front/api";
+import { t } from "@/lib_front/i18n";
 
 type TournamentPlayer = {
   id: number;
@@ -382,7 +383,7 @@ const handleStartTournament = async () => {
                     className="bg-white text-black border-4 border-white rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[300px] h-[120px] flex items-center justify-center"
                     disabled={!user}
                   >
-                    ADD PLAYER +
+                    {t(lang, 'addPlayer').toUpperCase()} +
                   </button>
                 )}
               </div>
@@ -424,10 +425,10 @@ const handleStartTournament = async () => {
             {isStartingTournament ? (
               <div className="flex items-center gap-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400"></div>
-                CRÉATION...
+                {t(lang, 'creating').toUpperCase()}...
               </div>
             ) : (
-              'START'
+              t(lang, 'start').toUpperCase()
             )}
           </button>
         </div>

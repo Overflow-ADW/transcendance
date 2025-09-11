@@ -122,6 +122,7 @@ export default function TournamentBracketView() {
 
       setMatches(enrichedMatches);
 
+      // Nettoyer les matches en cours qui sont maintenant terminés
       setPlayingMatches(prev => {
         const newPlayingMatches = new Set(prev);
         enrichedMatches.forEach((match: any) => {
@@ -160,20 +161,11 @@ export default function TournamentBracketView() {
       }
     };
 
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        reloadTournamentData();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
     window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [tournamentId]);
 
@@ -191,6 +183,7 @@ export default function TournamentBracketView() {
       return;
     }
 
+    // Marquer le match comme en cours de jeu
     setPlayingMatches(prev => new Set([...prev, match.id]));
 
     const matchData = {
@@ -325,8 +318,8 @@ export default function TournamentBracketView() {
                     <button
                       onClick={() => handlePlayMatch(final)}
                       className={`font-press-start px-6 py-2 rounded border-2 text-sm ${final.status === 'completed' || playingMatches.has(final.id)
-                        ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
-                        : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
+                          ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
+                          : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
                         }`}
                       disabled={final.status === 'completed' || playingMatches.has(final.id)}
                     >
@@ -405,8 +398,8 @@ export default function TournamentBracketView() {
                         <button
                           onClick={() => handlePlayMatch(match)}
                           className={`font-press-start px-4 py-1 rounded border-2 text-xs ${match.status === 'completed' || playingMatches.has(match.id)
-                            ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
-                            : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
+                              ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
+                              : 'bg-transparent border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black'
                             }`}
                           disabled={match.status === 'completed' || playingMatches.has(match.id)}
                         >
@@ -490,8 +483,8 @@ export default function TournamentBracketView() {
                         <button
                           onClick={() => handlePlayMatch(thirdPlace)}
                           className={`font-press-start px-4 py-1 rounded border-2 text-xs ${thirdPlace.status === 'completed' || playingMatches.has(thirdPlace.id)
-                            ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
-                            : 'bg-transparent border-orange-400 text-orange-400 hover:bg-orange-400 hover:text-black'
+                              ? 'bg-green-600 border-green-600 text-white cursor-not-allowed'
+                              : 'bg-transparent border-orange-400 text-orange-400 hover:bg-orange-400 hover:text-black'
                             }`}
                           disabled={thirdPlace.status === 'completed' || playingMatches.has(thirdPlace.id)}
                         >
