@@ -80,7 +80,8 @@ export const messages: Record<Lang, Record<string, string>> = {
     addPlayerModal: "ajouter joueur",
     playerName: "nom du joueur",
     enterPlayerName: "entrez le nom du joueur",
-    addPlayerButton: "ajouter joueur"
+    addPlayerButton: "ajouter joueur",
+    quitGame: "quitter le jeu"
   },
   en: {
     play: "play",
@@ -161,7 +162,8 @@ export const messages: Record<Lang, Record<string, string>> = {
     addPlayerModal: "add player",
     playerName: "player name",
     enterPlayerName: "enter player name",
-    addPlayerButton: "add player"
+    addPlayerButton: "add player",
+    quitGame: "quit game"
   },
   nl: {
     play: "spelen",
@@ -242,7 +244,8 @@ export const messages: Record<Lang, Record<string, string>> = {
     addPlayerModal: "speler toevoegen",
     playerName: "speler naam",
     enterPlayerName: "voer speler naam in",
-    addPlayerButton: "speler toevoegen"
+    addPlayerButton: "speler toevoegen",
+    quitGame: "spel verlaten"
   }
 };
 

@@ -152,7 +152,6 @@ export default function DuelView() {
   };
 
   const handleLogin = (username: string, password: string) => {
-    // Prevent adding the same player as connected user
     const currentPlayer = players[0];
     if (username.toLowerCase() === currentPlayer.name.toLowerCase()) {
       alert("You cannot play against yourself!");
@@ -207,8 +206,8 @@ export default function DuelView() {
                 <div className="relative">
                   <button
                     className={`border-4 rounded-3xl px-16 py-8 text-2xl font-bold transition-all duration-300 hover:scale-105 min-w-[300px] h-[120px] flex items-center justify-center ${slot.isMainPlayer
-                        ? 'bg-purple-600/20 border-purple-400 text-purple-400' // Mauve pour le joueur principal
-                        : 'bg-blue-600/20 border-blue-400 text-blue-400' // Bleu pour l'autre joueur connecté
+                      ? 'bg-purple-600/20 border-purple-400 text-purple-400'
+                      : 'bg-blue-600/20 border-blue-400 text-blue-400'
                       }`}
                   >
                     {slot.name}
@@ -263,8 +262,8 @@ export default function DuelView() {
               }
             }}
             className={`px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 ${players.length === 2
-                ? 'bg-transparent border-4 border-green-400 text-green-400 hover:bg-green-400 hover:text-black hover:scale-105'
-                : 'bg-gray-600 border-4 border-gray-500 text-gray-400 cursor-not-allowed'
+              ? 'bg-transparent border-4 border-green-400 text-green-400 hover:bg-green-400 hover:text-black hover:scale-105'
+              : 'bg-gray-600 border-4 border-gray-500 text-gray-400 cursor-not-allowed'
               }`}
             disabled={players.length !== 2}
           >

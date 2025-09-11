@@ -172,6 +172,15 @@ function GameView() {
           </h1>
         </div>
 
+        <div className="mb-6">
+          <button
+            onClick={handleQuit}
+            className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors duration-200"
+          >
+            {t(lang, 'quitGame')}
+          </button>
+        </div>
+
         <div className="mb-6 w-full max-w-4xl">
           {gameMode === 'multiplayer' ? (
             <div className="grid grid-cols-2 gap-4">
