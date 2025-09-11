@@ -69,7 +69,6 @@ export class SnapshotSystem {
             return;
         }
         
-        // Stocker position actuelle de la balle
         const currentBallPosition = this.ball.position.clone();
         
         const snapshot: PendingSnapshot = {

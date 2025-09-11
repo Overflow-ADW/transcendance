@@ -34,8 +34,8 @@ export class PongControls {
     private keySimulator: KeyboardSimulator | null = null;
 
     private player2Velocity = 0;
-    private readonly player2MaxSpeed = 2.5;
-    private readonly player2Acceleration = 0.3;
+    private readonly player2MaxSpeed = 7;
+    private readonly player2Acceleration = .8;
     private readonly player2Friction = 0.995;
     private readonly player2BounceForce = 1.0;
 
@@ -69,14 +69,24 @@ export class PongControls {
             this.ballMesh.doNotSyncBoundingInfo = true;
             console.log("Référence balle définie pour l'IA et collisions désactivées:", ball.name);
         }
-    }
-
-    private setupKeyboardControls(): void {
+    }    private setupKeyboardControls(): void {
         window.addEventListener("keydown", (evt) => {
+            if (this.ai && this.ai.isAIActive() && 
+                (this.player1UpKeys.includes(evt.key) || this.player1DownKeys.includes(evt.key)) &&
+                !(evt as any).isAIGenerated) {
+                return;
+            }
+            
             this.keysPressed[evt.key] = true;
         });
 
         window.addEventListener("keyup", (evt) => {
+            if (this.ai && this.ai.isAIActive() && 
+                (this.player1UpKeys.includes(evt.key) || this.player1DownKeys.includes(evt.key)) &&
+                !(evt as any).isAIGenerated) {
+                return;
+            }
+            
             this.keysPressed[evt.key] = false;
         });
     }
@@ -188,36 +198,23 @@ export class PongControls {
         if (player0DownPressed) {
             this.movePlayer(this.player0, PlayerKeys.DOWN);
         }
-
-        if (!this.ai || !this.ai.isAIActive()) {
-            const player1UpPressed = this.isAnyKeyPressed(this.player1UpKeys);
-            const player1DownPressed = this.isAnyKeyPressed(this.player1DownKeys);
-            
-            if (player1UpPressed) {
-                this.movePlayer(this.player1, PlayerKeys.UP);
-            }
-            if (player1DownPressed) {
-                this.movePlayer(this.player1, PlayerKeys.DOWN);
-            }
-        } else {
-            const aiUpPressed = this.isAnyKeyPressed(this.player1UpKeys);
-            const aiDownPressed = this.isAnyKeyPressed(this.player1DownKeys);
-            
-            if (aiUpPressed || aiDownPressed) {
-                
-                if (aiUpPressed) {
-                    this.movePlayer(this.player1, PlayerKeys.UP);
-                }
-                if (aiDownPressed) {
-                    this.movePlayer(this.player1, PlayerKeys.DOWN);
-                }
-            } else {
-                if (Math.random() < 0.01) {
-                    console.log(`DEBUG IA: Aucune touche détectée`);
-                }
-            }
+        const player1UpPressed = this.isAnyKeyPressed(this.player1UpKeys);
+        const player1DownPressed = this.isAnyKeyPressed(this.player1DownKeys);
+        
+        if (player1UpPressed) {
+            this.movePlayer(this.player1, PlayerKeys.UP);
+        }
+        if (player1DownPressed) {
+            this.movePlayer(this.player1, PlayerKeys.DOWN);
         }
 
+        if ((player1UpPressed || player1DownPressed) && Math.random() < 0.05) {
+            if (this.ai && this.ai.isAIActive()) {
+                console.log("Mouvement Player1 contrôlé par l'IA");
+            } else {
+                console.log("Mouvement Player1 contrôlé par le joueur humain");
+            }
+        }
         if (this.player2) {
             this.updatePlayer2Movement();
         }

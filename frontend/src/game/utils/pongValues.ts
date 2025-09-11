@@ -102,8 +102,8 @@ export const GAME_CONFIG = {
         SCORE_TEXTURE_SIZE: 128,
         SCORE_PLANE_WIDTH: 250,
         SCORE_PLANE_HEIGHT: 250,
-        SCORE_PLANE_POSITION_Y: -50,
-        SCORE_PLANE_POSITION_X_OFFSET: 250,
+        SCORE_PLANE_POSITION_Y: 5000,
+        SCORE_PLANE_POSITION_X_OFFSET: 25000,
         SCORE_FONT_SIZE: 90,
         PLAYER_NAME_FONT_SIZE: 20,
         WINNER_FONT_SIZE: 25
@@ -138,7 +138,7 @@ export const GAME_MODE_CONFIGS: Record<GameType, GameModeConfig> = {
     },
     [GameType.MULTIPLAYER_PONG]: {
         BALL_PHYSICS: {
-            INITIAL_SPEED: 10,
+            INITIAL_SPEED: 6,
             SPEED_INCREMENT: 0.5,
             MAX_SPEED: 20
         },

@@ -19,6 +19,8 @@ export class KeyboardSimulator {
             bubbles: true,
             cancelable: true
         });
+        (event as any).isAIGenerated = true;
+        
         this.keyEventTarget.dispatchEvent(event);
     }
 
@@ -36,6 +38,8 @@ export class KeyboardSimulator {
             bubbles: true,
             cancelable: true
         });
+        (event as any).isAIGenerated = true;
+        
         this.keyEventTarget.dispatchEvent(event);
     }
 
