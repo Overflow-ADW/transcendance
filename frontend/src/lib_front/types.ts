@@ -81,14 +81,14 @@ export interface GameStats {
     avgDuration: number;
     highestScore: number;
     winRates: {
-      vsAI: number;        // Win rate VS IA (%)
-      vsPlayers: number;   // Win rate VS Autres joueurs (%)
-      tournaments: number; // Nombre de tournois gagnés
+      vsAI: number;
+      vsPlayers: number;
+      tournaments: number;
     };
     gamesByType: {
-      vsAI: number;        // Nombre de jeux VS IA
-      vsPlayers: number;   // Nombre de jeux VS joueurs
-      tournaments: number; // Nombre de tournois participés
+      vsAI: number;
+      vsPlayers: number;
+      tournaments: number;
     };
   };
   byGameType?: Array<{

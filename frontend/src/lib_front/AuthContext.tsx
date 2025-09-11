@@ -46,7 +46,6 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Initialiser l'état avec les données du localStorage
   const [user, setUser] = useState<User | null>(() => {
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem('user');
@@ -70,7 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return false;
   });
 
-  // Vérifier l'authentification au chargement
   useEffect(() => {
     checkAuthStatus();
   }, []);
@@ -87,7 +85,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Si nous avons un utilisateur stocké, l'utiliser temporairement
       if (storedUser) {
         try {
           const parsedUser = JSON.parse(storedUser);
@@ -98,7 +95,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Vérifier le token auprès du backend
       const data = await apiClient.verifyToken(token);
       if ((data.valid || data.code === 'TOKEN_VALID') && data.user) {
         setUser(data.user);
@@ -111,9 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         apiClient.clearAuth();
       }
     } catch (error) {
-      // Garder l'authentification en cas d'erreur réseau
       if (error instanceof TypeError || (error instanceof Error && error.message.includes('Failed to fetch'))) {
-        // Ne rien faire, garder l'état actuel
         return;
       } else {
         setUser(null);
@@ -143,12 +137,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         setIsAuthenticated(true);
 
-        // Stocker refresh token
         if (data.refreshToken) {
           localStorage.setItem('refreshToken', data.refreshToken);
         }
 
-        // Stocker utilisateur pour persistance
         localStorage.setItem('user', JSON.stringify(data.user));
 
         return { success: true };
@@ -185,12 +177,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      // Appeler l'endpoint de logout
       await apiClient.logout();
     } catch (error) {
-      // Silent error handling
     } finally {
-      // Nettoyer l'état local dans tous les cas
       apiClient.clearAuth();
       setUser(null);
       setIsAuthenticated(false);
@@ -217,9 +206,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuthStatus
   };
 
-  // Ne pas rendre les enfants tant que la vérification initiale n'est pas terminée
   if (loading) {
-    return null; // ou un composant de chargement si vous préférez
+    return null;
   }
 
   return (
