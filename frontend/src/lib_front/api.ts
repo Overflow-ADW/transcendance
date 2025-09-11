@@ -10,18 +10,13 @@ import { rateLimitManager } from "./rateLimitManager";
 
 // Configuration API centralisée avec détection automatique
 function getApiBaseUrl(): string {
-  // En mode développement, pointer vers le backend Fastify
+  // Toujours utiliser l'origine actuelle (proxy nginx)
   if (typeof window !== 'undefined') {
-    // En développement, utiliser le backend sur port 3000
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:3000';
-    }
-    // En production, utiliser l'origine actuelle (avec proxy Nginx)
     return window.location.origin;
   }
 
-  // Fallback pour le build-time
-  return 'http://localhost:3000';
+  // Fallback pour le build-time - utiliser le proxy nginx
+  return 'https://localhost:8080';
 }
 
 const BASE_URL = getApiBaseUrl().replace(/\/+$/, ""); // Supprimer les slashes finaux

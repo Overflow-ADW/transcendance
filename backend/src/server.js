@@ -27,7 +27,10 @@ fastify.register(require('@fastify/cors'), {
     'http://localhost:8080',
     'http://127.0.0.1:8080',
     'http://localhost:3000', 
-    'http://127.0.0.1:3000'
+    'https://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://localhost:8080',
+    'https://127.0.0.1:8080'
   ],
   credentials: true
 });
@@ -97,7 +100,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       auth: require('@fastify/oauth2').GOOGLE_CONFIGURATION
     },
     startRedirectPath: '/api/oauth/google',
-    callbackUri: `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/oauth/google/callback`
+    callbackUri: `${process.env.BACKEND_URL || 'https://localhost:8080'}/api/oauth/google/callback`
   });
   fastify.log.info('✅ Google OAuth2 plugin registered with auto redirect');
 }
@@ -114,7 +117,7 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
       auth: require('@fastify/oauth2').GITHUB_CONFIGURATION
     },
     startRedirectPath: '/api/oauth/github',
-    callbackUri: `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/oauth/github/callback`
+    callbackUri: `${process.env.BACKEND_URL || 'https://localhost:8080'}/api/oauth/github/callback`
   });
   fastify.log.info('✅ GitHub OAuth2 plugin registered with auto redirect');
 }
