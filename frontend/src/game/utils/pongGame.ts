@@ -625,7 +625,6 @@ export class PongBall {
             lightParticles.stop();
             setTimeout(() => {
                 lightParticles.dispose();
-                console.log("🧹 Effet lumineux de spawn nettoyé (sans mesh)");
             }, 500);
         }, 200);
     }

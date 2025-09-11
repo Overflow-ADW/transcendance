@@ -3,13 +3,20 @@ const nextConfig = {
   // Pour Option 1 (Static) : garder 'export' - MANDATORY pour SPA
   output: 'export',
   
-  // Pour Option 2 (Standalone) : utiliser 'standalone' (seulement si module SSR choisi)
-  // output: 'standalone',
-  
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
+  
+  // Optimisation des performances
+  poweredByHeader: false,
+  
   images: {
-    unoptimized: true
+    unoptimized: true,
+    domains: ['localhost']
+  },
+  
+  // Configuration pour optimiser les polices et éviter les préchargements inutiles
+  experimental: {
+    optimizePackageImports: ['@heroicons/react']
   },
   
   webpack: (config, { isServer }) => {
@@ -33,9 +40,6 @@ const nextConfig = {
     }
     
     return config;
-  },
-  experimental: {
-    esmExternals: false
   }
 };
 

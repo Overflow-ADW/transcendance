@@ -1,10 +1,8 @@
-// src/routes/adminRoutes.js
 const { authenticateToken } = require('../middleware/auth');
 
 async function adminRoutes(fastify, options) {
   const db = fastify.db;
 
-  // Protéger toutes les routes admin en vérifiant l'authentification et les droits admin
   fastify.addHook('onRequest', fastify.ensureAuthenticated);
   fastify.addHook('preHandler', fastify.ensureAdmin);
 

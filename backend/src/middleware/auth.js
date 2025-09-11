@@ -8,7 +8,6 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-// Middleware d'authentification avancé avec blacklist
 async function authenticateToken(request, reply) {
   try {
     const authHeader = request.headers.authorization;
@@ -23,7 +22,6 @@ async function authenticateToken(request, reply) {
 
     const token = authHeader.substring(7);
     
-    // Vérifier le token avec notre utilitaire avancé
     const verification = verifyToken(token, 'access');
     
     if (!verification.success) {
@@ -54,7 +52,6 @@ async function authenticateToken(request, reply) {
 
     const decoded = verification.payload;
 
-    // Vérifier si le token est dans la blacklist
     const db = request.server.db;
     if (db && isTokenBlacklisted(decoded.jti, db)) {
       return reply.status(401).send({
@@ -64,7 +61,6 @@ async function authenticateToken(request, reply) {
       });
     }
 
-    // Vérifier que l'utilisateur existe toujours
     if (db) {
       const user = db.prepare('SELECT id, username, email, status FROM users WHERE id = ?').get(decoded.userId);
       
@@ -76,7 +72,6 @@ async function authenticateToken(request, reply) {
         });
       }
       
-      // Ajouter les infos utilisateur actualisées
       request.user = {
         ...decoded,
         currentStatus: user.status,
@@ -95,7 +90,6 @@ async function authenticateToken(request, reply) {
   }
 }
 
-// Middleware pour vérifier les refresh tokens
 async function authenticateRefreshToken(request, reply) {
   try {
     const { refreshToken } = request.body;
@@ -108,7 +102,6 @@ async function authenticateRefreshToken(request, reply) {
       });
     }
 
-    // Vérifier le refresh token
     const verification = verifyToken(refreshToken, 'refresh');
     
     if (!verification.success) {
@@ -123,7 +116,6 @@ async function authenticateRefreshToken(request, reply) {
 
     const decoded = verification.payload;
 
-    // Vérifier si le token est dans la blacklist
     const db = request.server.db;
     if (db && isTokenBlacklisted(decoded.jti, db)) {
       return reply.status(401).send({
@@ -144,7 +136,6 @@ async function authenticateRefreshToken(request, reply) {
   }
 }
 
-// Middleware optionnel d'authentification (n'échoue pas si pas de token)
 async function optionalAuth(request, reply) {
   try {
     const authHeader = request.headers.authorization;
@@ -156,7 +147,6 @@ async function optionalAuth(request, reply) {
         const decoded = jwt.verify(token, JWT_SECRET);
         request.user = decoded;
       } catch (jwtError) {
-        // En mode optionnel, on n'échoue pas, on continue sans utilisateur
         request.user = null;
       }
     } else {

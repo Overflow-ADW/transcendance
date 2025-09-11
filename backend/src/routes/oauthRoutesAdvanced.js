@@ -1,6 +1,3 @@
-/**
- * Routes OAuth avancées avec providers multiples et fonctionnalités étendues
- */
 const OAuthUtils = require('../utils/oauthUtils');
 const OAuthUtilsAdvanced = require('../utils/oauthUtilsAdvanced');
 const jwtUtils = require('../utils/jwtUtils');
@@ -8,7 +5,6 @@ const jwtUtils = require('../utils/jwtUtils');
 async function oauthRoutesAdvanced(fastify, options) {
   const { db } = fastify;
 
-  // Schémas de validation étendus
   const linkAccountSchemaAdvanced = {
     type: 'object',
     required: ['provider'],
@@ -25,10 +21,6 @@ async function oauthRoutesAdvanced(fastify, options) {
     }
   };
 
-  /**
-   * GET /api/oauth/providers/extended
-   * Liste complète des providers avec métadonnées
-   */
   fastify.get('/providers/extended', async (request, reply) => {
     const providers = ['google', 'github', 'microsoft', 'discord'].map(provider => {
       const config = OAuthUtilsAdvanced.getProviderConfig(provider);
@@ -48,10 +40,6 @@ async function oauthRoutesAdvanced(fastify, options) {
     });
   });
 
-  /**
-   * POST /api/oauth/validate-config
-   * Valide la configuration OAuth (admin uniquement)
-   */
   fastify.post('/validate-config', async (request, reply) => {
     const validationResults = {};
 
@@ -73,10 +61,6 @@ async function oauthRoutesAdvanced(fastify, options) {
     });
   });
 
-  /**
-   * GET /api/oauth/user/connections
-   * Récupère les connexions OAuth détaillées d'un utilisateur
-   */
   fastify.get('/user/connections', {
     preHandler: [fastify.authenticate],
     schema: {
@@ -108,17 +92,14 @@ async function oauthRoutesAdvanced(fastify, options) {
     try {
       const userId = request.user.userId;
 
-      // Récupérer les connexions existantes
       const linkedAccounts = OAuthUtils.getLinkedAccounts(db, userId);
       
-      // Enrichir avec les métadonnées des providers
       const connections = linkedAccounts.map(account => ({
         ...account,
         providerConfig: OAuthUtilsAdvanced.getProviderConfig(account.provider),
         canUnlink: OAuthUtils.canUnlinkAccount(db, userId)
       }));
 
-      // Providers disponibles non encore liés
       const linkedProviders = connections.map(c => c.provider);
       const allProviders = ['google', 'github', 'microsoft', 'discord'];
       const availableProviders = allProviders
@@ -126,7 +107,6 @@ async function oauthRoutesAdvanced(fastify, options) {
         .filter(p => process.env[`${p.toUpperCase()}_CLIENT_ID`])
         .map(p => OAuthUtilsAdvanced.getProviderConfig(p));
 
-      // Vérification des possibilités de déliaison
       const canUnlink = {};
       linkedProviders.forEach(provider => {
         canUnlink[provider] = OAuthUtils.canUnlinkAccount(db, userId);
@@ -148,10 +128,6 @@ async function oauthRoutesAdvanced(fastify, options) {
     }
   });
 
-  /**
-   * POST /api/oauth/refresh-connection/:provider
-   * Actualise la connexion avec un provider
-   */
   fastify.post('/refresh-connection/:provider', {
     preHandler: [fastify.authenticate],
     schema: {
@@ -168,7 +144,6 @@ async function oauthRoutesAdvanced(fastify, options) {
       const { provider } = request.params;
       const userId = request.user.userId;
 
-      // Vérifier que l'utilisateur a ce provider lié
       const linkedAccount = db.prepare(`
         SELECT * FROM oauth_providers 
         WHERE user_id = ? AND provider = ?
@@ -180,10 +155,8 @@ async function oauthRoutesAdvanced(fastify, options) {
         });
       }
 
-      // Log de l'activité
       await OAuthUtilsAdvanced.logOAuthActivity(db, userId, 'refresh_connection', provider);
 
-      // Rediriger vers le processus OAuth pour réautoriser
       const config = OAuthUtilsAdvanced.getProviderConfig(provider);
       const authUrl = `/api/oauth/${provider}?mode=refresh&userId=${userId}`;
 
@@ -203,10 +176,6 @@ async function oauthRoutesAdvanced(fastify, options) {
     }
   });
 
-  /**
-   * GET /api/oauth/user/activity
-   * Historique des activités OAuth d'un utilisateur
-   */
   fastify.get('/user/activity', {
     preHandler: [fastify.authenticate],
     schema: {
@@ -225,12 +194,10 @@ async function oauthRoutesAdvanced(fastify, options) {
 
       let history = OAuthUtilsAdvanced.getOAuthHistory(db, userId, limit);
 
-      // Filtrer par provider si spécifié
       if (provider) {
         history = history.filter(log => log.provider === provider);
       }
 
-      // Enrichir avec les métadonnées des providers
       const enrichedHistory = history.map(log => ({
         ...log,
         providerConfig: OAuthUtilsAdvanced.getProviderConfig(log.provider)
@@ -252,10 +219,6 @@ async function oauthRoutesAdvanced(fastify, options) {
     }
   });
 
-  /**
-   * POST /api/oauth/bulk-unlink
-   * Délie plusieurs providers en une fois
-   */
   fastify.post('/bulk-unlink', {
     preHandler: [fastify.authenticate],
     schema: {
@@ -277,7 +240,6 @@ async function oauthRoutesAdvanced(fastify, options) {
       const { providers, confirmPassword } = request.body;
       const userId = request.user.userId;
 
-      // Vérifier le mot de passe si fourni
       if (confirmPassword) {
         const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId);
         if (user && user.password_hash !== 'oauth') {
@@ -296,7 +258,6 @@ async function oauthRoutesAdvanced(fastify, options) {
 
       for (const provider of providers) {
         try {
-          // Vérifier qu'on peut délier ce provider
           if (!OAuthUtils.canUnlinkAccount(db, userId)) {
             results.push({
               provider,
@@ -353,15 +314,10 @@ async function oauthRoutesAdvanced(fastify, options) {
     }
   });
 
-  /**
-   * GET /api/oauth/stats
-   * Statistiques OAuth pour l'administration
-   */
   fastify.get('/stats', {
     preHandler: [fastify.authenticate, fastify.requireAdmin]
   }, async (request, reply) => {
     try {
-      // Statistiques par provider
       const providerStats = db.prepare(`
         SELECT 
           provider,
@@ -373,7 +329,6 @@ async function oauthRoutesAdvanced(fastify, options) {
         GROUP BY provider
       `).all();
 
-      // Utilisateurs avec multiple providers
       const multiProviderUsers = db.prepare(`
         SELECT 
           user_id,
@@ -384,7 +339,6 @@ async function oauthRoutesAdvanced(fastify, options) {
         HAVING provider_count > 1
       `).all();
 
-      // Activité récente (7 derniers jours)
       const recentActivity = db.prepare(`
         SELECT 
           DATE(timestamp) as date,
@@ -419,7 +373,6 @@ async function oauthRoutesAdvanced(fastify, options) {
     }
   });
 
-  // Nettoyage périodique du cache (toutes les 5 minutes)
   setInterval(() => {
     OAuthUtilsAdvanced.cleanCache();
   }, 5 * 60 * 1000);

@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-// Secrets JWT depuis les variables d'environnement
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
 
@@ -10,18 +9,12 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-/**
- * Générer une paire de tokens (access + refresh)
- * @param {Object} payload - Données utilisateur à inclure
- * @param {Object} options - Options de génération
- */
 function generateTokenPair(payload, options = {}) {
   const tokenId = crypto.randomUUID();
   
-  // Token d'accès (courte durée)
   const accessTokenPayload = {
     ...payload,
-    jti: tokenId, // JWT ID unique
+    jti: tokenId,
     type: 'access',
     iat: Math.floor(Date.now() / 1000)
   };
@@ -37,7 +30,6 @@ function generateTokenPair(payload, options = {}) {
     }
   );
 
-  // Token de refresh (longue durée)
   const refreshTokenPayload = {
     userId: payload.userId,
     username: payload.username,
@@ -65,11 +57,6 @@ function generateTokenPair(payload, options = {}) {
   };
 }
 
-/**
- * Vérifier un token avec gestion d'erreurs détaillée
- * @param {string} token - Token JWT à vérifier
- * @param {string} type - Type de token ('access' ou 'refresh')
- */
 function verifyToken(token, type = 'access') {
   const secret = type === 'refresh' ? JWT_REFRESH_SECRET : JWT_SECRET;
   
@@ -80,7 +67,6 @@ function verifyToken(token, type = 'access') {
       algorithms: ['HS256']
     });
 
-    // Vérifier le type de token
     if (decoded.type !== type) {
       throw new Error(`INVALID_TOKEN_TYPE: Expected ${type}, got ${decoded.type}`);
     }
@@ -127,11 +113,6 @@ function verifyToken(token, type = 'access') {
   }
 }
 
-/**
- * Rafraîchir un access token avec un refresh token
- * @param {string} refreshToken - Token de refresh valide
- * @param {Object} db - Instance de base de données
- */
 function refreshAccessToken(refreshToken, db) {
   const verification = verifyToken(refreshToken, 'refresh');
   
@@ -144,7 +125,6 @@ function refreshAccessToken(refreshToken, db) {
 
   const { userId, username, jti } = verification.payload;
 
-  // Vérifier que l'utilisateur existe toujours
   const user = db.prepare('SELECT id, username, email, status FROM users WHERE id = ?').get(userId);
   
   if (!user) {
@@ -158,7 +138,6 @@ function refreshAccessToken(refreshToken, db) {
     };
   }
 
-  // Générer un nouveau token d'accès
   const newTokens = generateTokenPair({
     userId: user.id,
     username: user.username
@@ -171,11 +150,6 @@ function refreshAccessToken(refreshToken, db) {
   };
 }
 
-/**
- * Invalider un token (blacklist)
- * @param {string} tokenId - ID du token à invalider
- * @param {Object} db - Instance de base de données
- */
 function invalidateToken(tokenId, db) {
   try {
     const stmt = db.prepare(`
@@ -198,28 +172,17 @@ function invalidateToken(tokenId, db) {
   }
 }
 
-/**
- * Vérifier si un token est dans la blacklist
- * @param {string} tokenId - ID du token à vérifier
- * @param {Object} db - Instance de base de données
- */
 function isTokenBlacklisted(tokenId, db) {
   try {
     const result = db.prepare('SELECT token_id FROM token_blacklist WHERE token_id = ?').get(tokenId);
     return !!result;
   } catch (error) {
-    // En cas d'erreur DB, on considère le token comme valide par sécurité
     return false;
   }
 }
 
-/**
- * Nettoyer les tokens expirés de la blacklist
- * @param {Object} db - Instance de base de données
- */
 function cleanupExpiredTokens(db) {
   try {
-    // Supprimer les tokens blacklist de plus de 7 jours
     const stmt = db.prepare(`
       DELETE FROM token_blacklist 
       WHERE datetime(invalidated_at, '+7 days') < datetime('now')

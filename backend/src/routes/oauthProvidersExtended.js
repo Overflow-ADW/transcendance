@@ -1,10 +1,6 @@
-/**
- * Configuration Fastify pour providers OAuth supplémentaires
- */
 
 async function registerAdditionalOAuthProviders(fastify) {
   try {
-    // Configuration Microsoft OAuth2
     if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
       await fastify.register(require('@fastify/oauth2'), {
         name: 'microsoftOAuth2',
@@ -28,7 +24,6 @@ async function registerAdditionalOAuthProviders(fastify) {
       fastify.log.info('✅ Microsoft OAuth2 configuré');
     }
 
-    // Configuration Discord OAuth2
     if (process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET) {
       await fastify.register(require('@fastify/oauth2'), {
         name: 'discordOAuth2',
@@ -58,18 +53,12 @@ async function registerAdditionalOAuthProviders(fastify) {
   }
 }
 
-/**
- * Routes OAuth pour Microsoft
- */
 async function microsoftOAuthRoutes(fastify, options) {
   const { db } = fastify;
   const OAuthUtils = require('../utils/oauthUtils');
   const OAuthUtilsAdvanced = require('../utils/oauthUtilsAdvanced');
   const jwtUtils = require('../utils/jwtUtils');
 
-  /**
-   * GET /api/oauth/microsoft
-   */
   fastify.get('/microsoft', async (request, reply) => {
     try {
       const state = OAuthUtils.generateState();
@@ -97,9 +86,6 @@ async function microsoftOAuthRoutes(fastify, options) {
     }
   });
 
-  /**
-   * GET /api/oauth/microsoft/callback
-   */
   fastify.get('/microsoft/callback', async (request, reply) => {
     try {
       const { code, state, error } = request.query;
@@ -145,7 +131,6 @@ async function microsoftOAuthRoutes(fastify, options) {
         providerId: validatedData.providerId
       });
 
-      // Logique similaire aux autres providers
       let user = await OAuthUtils.findExistingOAuthUser(db, 'microsoft', validatedData.providerId);
 
       if (user) {
@@ -188,18 +173,12 @@ async function microsoftOAuthRoutes(fastify, options) {
   });
 }
 
-/**
- * Routes OAuth pour Discord
- */
 async function discordOAuthRoutes(fastify, options) {
   const { db } = fastify;
   const OAuthUtils = require('../utils/oauthUtils');
   const OAuthUtilsAdvanced = require('../utils/oauthUtilsAdvanced');
   const jwtUtils = require('../utils/jwtUtils');
 
-  /**
-   * GET /api/oauth/discord
-   */
   fastify.get('/discord', async (request, reply) => {
     try {
       const state = OAuthUtils.generateState();
@@ -223,9 +202,6 @@ async function discordOAuthRoutes(fastify, options) {
     }
   });
 
-  /**
-   * GET /api/oauth/discord/callback
-   */
   fastify.get('/discord/callback', async (request, reply) => {
     try {
       const { code, state, error } = request.query;

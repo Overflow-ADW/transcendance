@@ -1,10 +1,5 @@
 const bcrypt = require('bcrypt');
 
-/**
- * Données de seed pour le développement
- * Crée des utilisateurs et des parties de test
- */
-
 const SEED_USERS = [
   {
     username: 'alice',
@@ -29,95 +24,92 @@ const SEED_USERS = [
   },
   {
     username: 'charlie',
-    password: 'Charlie456!', // Compte sans email
+    password: 'Charlie456!', 
     display_name: 'Charlie Rookie',
     status: 'in_game'
   }
 ];
 
 const SEED_GAMES = [
-  // Jeux entre joueurs
   {
-    player1_id: 1, // alice
-    player2_id: 2, // bob
+    player1_id: 1,
+    player2_id: 2,
     winner_id: 1,
-    score_player1: 11,
-    score_player2: 7,
-    duration: 180, // 3 minutes
+    score_player1: 5,
+    score_player2: 2,
+    duration: 180,
     game_mode: 'classic',
     ai_opponent: false
   },
   {
-    player1_id: 2, // bob
-    player2_id: 3, // charlie
+    player1_id: 2,
+    player2_id: 3,
     winner_id: 2,
-    score_player1: 11,
-    score_player2: 9,
+    score_player1: 5,
+    score_player2: 3,
     duration: 240,
     game_mode: 'classic',
     ai_opponent: false
   },
   {
-    player1_id: 1, // alice
-    player2_id: 3, // charlie
+    player1_id: 1,
+    player2_id: 3,
     winner_id: 1,
-    score_player1: 11,
-    score_player2: 5,
+    score_player1: 5,
+    score_player2: 2,
     duration: 150,
     game_mode: 'classic',
     ai_opponent: false
   },
   {
-    player1_id: 2, // bob
-    player2_id: 1, // alice
+    player1_id: 2,
+    player2_id: 1,
     winner_id: 1,
-    score_player1: 8,
-    score_player2: 11,
+    score_player1: 3,
+    score_player2: 5,
     duration: 200,
     game_mode: 'classic',
     ai_opponent: false
   },
-  // Jeux contre IA
   {
-    player1_id: 1, // alice vs IA
+    player1_id: 1,
     player2_id: null,
     winner_id: 1,
-    score_player1: 11,
-    score_player2: 6,
+    score_player1: 5,
+    score_player2: 3,
     duration: 120,
     game_mode: 'classic',
     ai_opponent: true,
     ai_level: 3
   },
   {
-    player1_id: 1, // alice vs IA (défaite)
+    player1_id: 1,
     player2_id: null,
-    winner_id: null, // IA gagne
-    score_player1: 9,
-    score_player2: 11,
+    winner_id: null,
+    score_player1: 4,
+    score_player2: 5,
     duration: 140,
     game_mode: 'classic',
     ai_opponent: true,
     ai_level: 4
   },
-  // Jeux de tournoi (Tournoi Test)
   {
-    player1_id: 1, // alice vs bob (demi-finale)
+    player1_id: 1,
     player2_id: 2,
     winner_id: 1,
-    score_player1: 11,
-    score_player2: 8,
+    score_player1: 5,
+    score_player2: 4,
     duration: 180,
     game_mode: 'tournament',
     ai_opponent: false,
     tournament_id: 1
   },
   {
-    player1_id: 2, // bob vs charlie (demi-finale)
+    player1_id: 2,
     player2_id: 3,
     winner_id: 2,
-    score_player1: 11,
-    score_player2: 6,
+    score_player1: 5,
+    score_player2: 3,
     duration: 160,
     game_mode: 'tournament',
     ai_opponent: false,
@@ -133,42 +125,35 @@ const SEED_TOURNAMENTS = [
     current_players: 3,
     status: 'completed',
     format: 'elimination',
-    created_by: 1, // alice
-    winner_id: 1 // alice gagne
+    created_by: 1,
+    winner_id: 1
   }
 ];
 
 const SEED_TOURNAMENT_PARTICIPANTS = [
-  { tournament_id: 1, user_id: 1, position: 1 }, // alice - gagnante
-  { tournament_id: 1, user_id: 2, position: 2 }, // bob - finaliste
-  { tournament_id: 1, user_id: 3, position: 3 }  // charlie - demi-finaliste
+  { tournament_id: 1, user_id: 1, position: 1 },
+  { tournament_id: 1, user_id: 2, position: 2 },
+  { tournament_id: 1, user_id: 3, position: 3 }
 ];
 
 const SEED_FRIENDSHIPS = [
-  { user_id: 1, friend_id: 2, status: 'accepted' }, // alice <-> bob
+  { user_id: 1, friend_id: 2, status: 'accepted' },
   { user_id: 2, friend_id: 1, status: 'accepted' },
-  { user_id: 1, friend_id: 3, status: 'accepted' }, // alice <-> charlie
+  { user_id: 1, friend_id: 3, status: 'accepted' },
   { user_id: 3, friend_id: 1, status: 'accepted' },
-  { user_id: 2, friend_id: 3, status: 'pending' }   // bob -> charlie (pending)
+  { user_id: 2, friend_id: 3, status: 'pending' } 
 ];
 
-/**
- * Initialise les données de seed
- * @param {Object} db - Instance de base de données SQLite
- * @param {Object} logger - Logger Fastify
- */
 async function seedDatabase(db, logger) {
   try {
     logger.info('🌱 Initialisation des données de seed...');
 
-    // Vérifier si des utilisateurs existent déjà
     const existingUsers = db.prepare('SELECT COUNT(*) as count FROM users').get();
     if (existingUsers.count > 0) {
       logger.info('📊 Données de seed déjà présentes, skip');
       return;
     }
 
-    // ============ SEED USERS ============
     logger.info('👥 Création des utilisateurs de test...');
     const insertUser = db.prepare(`
       INSERT INTO users (username, email, password, display_name, status, created_at)
@@ -187,17 +172,14 @@ async function seedDatabase(db, logger) {
       logger.info(`✅ Utilisateur créé: ${user.username}`);
     }
 
-    // ============ SEED GAMES ============
     logger.info('🎮 Creation des parties de test...');
     
-    // Vérifier les utilisateurs avant de créer les jeux
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
     logger.info(`👥 Utilisateurs disponibles: ${userCount.count}`);
     
     const users = db.prepare('SELECT id, username FROM users').all();
     users.forEach(u => logger.info(`  - User ID ${u.id}: ${u.username}`));
     
-    // Insertion simple sans dates complexes
     const insertGame = db.prepare(`
       INSERT INTO games (
         player1_id, player2_id, winner_id, 
@@ -219,9 +201,9 @@ async function seedDatabase(db, logger) {
           game.score_player2,
           game.duration,
           game.game_mode,
-          game.ai_opponent ? 1 : 0, // Convertir boolean en integer pour SQLite
+          game.ai_opponent ? 1 : 0,
           game.ai_level || null,
-          null // tournament_id = null pour les jeux normaux
+          null
         );
         
         logger.info(`✅ Partie ${result.lastInsertRowid} créée: ${game.game_mode} (${game.score_player1}-${game.score_player2})`);
@@ -237,11 +219,9 @@ async function seedDatabase(db, logger) {
     const normalGamesCount = SEED_GAMES.filter(game => !game.tournament_id).length;
     logger.info(`🎯 ${normalGamesCount} parties normales créées avec succès`);
 
-    // Test: vérifier les données
     const gameCount = db.prepare('SELECT COUNT(*) as count FROM games').get();
     logger.info(`📊 Total jeux en base: ${gameCount.count}`);
 
-    // ============ SEED TOURNAMENTS ============
     logger.info('🏆 Creation des tournois de test...');
     const insertTournament = db.prepare(`
       INSERT INTO tournaments (
@@ -264,7 +244,6 @@ async function seedDatabase(db, logger) {
       logger.info(`✅ Tournoi ${result.lastInsertRowid} créé: ${tournament.name}`);
     });
 
-    // ============ SEED TOURNAMENT PARTICIPANTS ============
     logger.info('👥 Creation des participants aux tournois...');
     const insertParticipant = db.prepare(`
       INSERT INTO tournament_participants (tournament_id, user_id, position)
@@ -280,7 +259,6 @@ async function seedDatabase(db, logger) {
       logger.info(`✅ Participant ajouté: user_id=${participant.user_id}, position=${participant.position}`);
     });
 
-    // ============ SEED TOURNAMENT GAMES ============
     logger.info('🏆 Creation des parties de tournoi...');
     const tournamentGames = SEED_GAMES.filter(game => game.tournament_id);
     
@@ -296,7 +274,7 @@ async function seedDatabase(db, logger) {
           game.score_player2,
           game.duration,
           game.game_mode,
-          game.ai_opponent ? 1 : 0, // Convertir boolean en integer pour SQLite
+          game.ai_opponent ? 1 : 0,
           game.ai_level || null,
           game.tournament_id
         );
@@ -308,7 +286,6 @@ async function seedDatabase(db, logger) {
       }
     });
 
-    // ============ SEED FRIENDSHIPS ============
     logger.info('👫 Creation des relations d\'amitie...');
     const insertFriendship = db.prepare(`
       INSERT INTO friends (user_id, friend_id, status, created_at, accepted_at)
@@ -325,7 +302,6 @@ async function seedDatabase(db, logger) {
       );
     });
 
-    // ============ UPDATE STATS ============
     logger.info('📊 Mise à jour des statistiques...');
     updateUserStats(db);
 
@@ -341,12 +317,7 @@ async function seedDatabase(db, logger) {
   }
 }
 
-/**
- * Met à jour les statistiques des utilisateurs basées sur les parties
- * @param {Object} db - Instance de base de données
- */
 function updateUserStats(db) {
-  // Mise à jour des stats pour chaque utilisateur
   const users = db.prepare('SELECT id FROM users').all();
   
   const updateStats = db.prepare(`
@@ -375,10 +346,10 @@ function updateUserStats(db) {
 
   users.forEach(user => {
     updateStats.run(
-      user.id, user.id, // games_played
-      user.id, // games_won
-      user.id, user.id, user.id, user.id, // total_score
-      user.id // WHERE clause
+      user.id, user.id,
+      user.id,
+      user.id, user.id, user.id, user.id,
+      user.id
     );
   });
 }

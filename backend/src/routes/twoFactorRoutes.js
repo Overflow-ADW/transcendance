@@ -11,7 +11,6 @@ const { authenticateToken } = require('../middleware/auth');
 const { generateTokenPair } = require('../utils/jwtUtils');
 const Joi = require('joi');
 
-// Schémas de validation
 const enableTwoFactorSchema = Joi.object({
   token: Joi.string().pattern(/^\d{6}$/).required()
 });
@@ -31,10 +30,6 @@ const verifyBackupCodeSchema = Joi.object({
 
 async function twoFactorRoutes(fastify, options) {
   
-  /**
-   * Génère un secret TOTP temporaire pour configuration 2FA
-   * POST /api/2fa/setup
-   */
   fastify.post('/setup', { 
     preHandler: [authenticateToken] 
   }, async (request, reply) => {
@@ -42,7 +37,6 @@ async function twoFactorRoutes(fastify, options) {
       const userId = request.user.userId;
       const username = request.user.username;
 
-      // Vérifie si l'utilisateur a déjà 2FA activé
       const user = fastify.db.prepare('SELECT two_factor_enabled FROM users WHERE id = ?').get(userId);
       
       if (user.two_factor_enabled) {
@@ -52,13 +46,10 @@ async function twoFactorRoutes(fastify, options) {
         });
       }
 
-      // Génère un nouveau secret temporaire
       const secretData = generateTOTPSecret(username);
       
-      // Génère le QR code
       const qrCodeImage = await generateQRCode(secretData.otpauthUrl);
 
-      // Stocke le secret temporairement (sera confirmé lors de l'activation)
       fastify.db.prepare(`
         UPDATE users 
         SET two_factor_temp_secret = ? 
@@ -89,15 +80,10 @@ async function twoFactorRoutes(fastify, options) {
     }
   });
 
-  /**
-   * Active l'authentification à deux facteurs
-   * POST /api/2fa/enable
-   */
   fastify.post('/enable', { 
     preHandler: [authenticateToken]
   }, async (request, reply) => {
     try {
-      // Validation manuelle au lieu du schéma Joi
       const { token } = request.body;
       if (!token || !/^\d{6}$/.test(token)) {
         return reply.code(400).send({ 
@@ -108,7 +94,6 @@ async function twoFactorRoutes(fastify, options) {
       
       const userId = request.user.userId;
 
-      // Récupère le secret temporaire
       const user = fastify.db.prepare(`
         SELECT two_factor_temp_secret, two_factor_enabled 
         FROM users 
@@ -132,7 +117,6 @@ async function twoFactorRoutes(fastify, options) {
         });
       }
 
-      // Vérifie le token TOTP
       const isValidToken = verifyTOTPToken(token, user.two_factor_temp_secret);
       
       if (!isValidToken) {
@@ -143,11 +127,9 @@ async function twoFactorRoutes(fastify, options) {
         });
       }
 
-      // Génère les codes de sauvegarde
       const backupCodes = generateBackupCodes(10);
       const hashedBackupCodes = backupCodes.map(code => hashBackupCode(code));
 
-      // Active la 2FA et sauvegarde les données
       fastify.db.prepare(`
         UPDATE users 
         SET 
@@ -180,10 +162,6 @@ async function twoFactorRoutes(fastify, options) {
     }
   });
 
-  /**
-   * Statut 2FA de l'utilisateur
-   * GET /api/2fa/status
-   */
   fastify.get('/status', { 
     preHandler: [authenticateToken] 
   }, async (request, reply) => {
@@ -228,10 +206,6 @@ async function twoFactorRoutes(fastify, options) {
     }
   });
 
-  /**
-   * Vérification d'un code TOTP pour l'authentification
-   * POST /api/2fa/verify
-   */
   fastify.post('/verify', async (request, reply) => {
     try {
       const { token, tempUserId } = request.body;
@@ -250,7 +224,6 @@ async function twoFactorRoutes(fastify, options) {
         });
       }
 
-      // Récupère le secret de l'utilisateur
       const user = fastify.db.prepare(`
         SELECT 
           id, username, email, two_factor_enabled, two_factor_secret, 
@@ -265,11 +238,9 @@ async function twoFactorRoutes(fastify, options) {
         });
       }
 
-      // Vérifie le token TOTP
       const isValidToken = verifyTOTPToken(token, user.two_factor_secret);
       
       if (!isValidToken) {
-        // Vérifier si c'est un code de sauvegarde
         let backupCodes = [];
         if (user.two_factor_backup_codes) {
           try {
@@ -282,7 +253,6 @@ async function twoFactorRoutes(fastify, options) {
         const backupResult = verifyBackupCode(token.toUpperCase(), backupCodes);
         
         if (backupResult.isValid) {
-          // Supprimer le code de sauvegarde utilisé
           const remainingCodes = backupCodes.filter(code => code !== backupResult.usedCodeHash);
           
           fastify.db.prepare(`
@@ -301,7 +271,6 @@ async function twoFactorRoutes(fastify, options) {
         }
       }
 
-      // Génère les tokens JWT
       const { accessToken, refreshToken } = generateTokenPair({
         userId: user.id,
         username: user.username,
@@ -336,10 +305,6 @@ async function twoFactorRoutes(fastify, options) {
     }
   });
 
-  /**
-   * Désactive l'authentification à deux facteurs
-   * POST /api/2fa/disable
-   */
   fastify.post('/disable', { 
     preHandler: [authenticateToken]
   }, async (request, reply) => {
@@ -362,7 +327,6 @@ async function twoFactorRoutes(fastify, options) {
 
       const userId = request.user.userId;
 
-      // Récupère l'utilisateur avec le mot de passe
       const user = fastify.db.prepare(`
         SELECT 
           id, password_hash, two_factor_enabled, two_factor_secret, 
@@ -381,7 +345,6 @@ async function twoFactorRoutes(fastify, options) {
         });
       }
 
-      // Vérifier le mot de passe
       const bcrypt = require('bcrypt');
       const isPasswordValid = await bcrypt.compare(password, user.password_hash);
       
@@ -392,11 +355,9 @@ async function twoFactorRoutes(fastify, options) {
         });
       }
 
-      // Vérifier le code TOTP ou de sauvegarde
       let isValidCode = verifyTOTPToken(token, user.two_factor_secret);
       
       if (!isValidCode && user.two_factor_backup_codes) {
-        // Vérifier avec les codes de sauvegarde
         let backupCodes = [];
         try {
           backupCodes = JSON.parse(user.two_factor_backup_codes);
@@ -416,7 +377,6 @@ async function twoFactorRoutes(fastify, options) {
         });
       }
 
-      // Désactiver la 2FA
       fastify.db.prepare(`
         UPDATE users 
         SET 

@@ -1,11 +1,9 @@
-// src/routes/userRoutes.js
 const { authenticateToken } = require('../middleware/auth');
 const bcrypt = require('bcrypt');
 const Joi = require('joi');
 const path = require('path');
 const fs = require('fs');
 
-// Schémas de validation
 const updateProfileSchema = Joi.object({
   username: Joi.string().alphanum().min(3).max(30).optional(),
   email: Joi.string().email().optional(),
@@ -27,9 +25,6 @@ const addFriendSchema = Joi.object({
 async function userRoutes(fastify, options) {
   const db = fastify.db;
 
-  // ========================================
-  // ROUTE DE RÉCUPÉRATION DU PROFIL COMPLET
-  // ========================================
   fastify.get('/profile', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       console.log('Fetching profile for user ID:', request.user.userId);
@@ -67,10 +62,8 @@ async function userRoutes(fastify, options) {
 
       console.log('User data from DB:', user);
       
-      // Calculer le winrate
       const winrate = user.games_played > 0 ? Math.round((user.games_won / user.games_played) * 100) : 0;
 
-      // Récupérer l'historique récent (dernières 5 parties pour résumé)
       const recentGames = db.prepare(`
         SELECT 
           g.id,
@@ -123,7 +116,6 @@ async function userRoutes(fastify, options) {
         request.user.userId, request.user.userId, request.user.userId, request.user.userId
       );
 
-      // Statistiques détaillées pour le résumé (exclusion des jeux de tournoi)
       const detailedStats = db.prepare(`
         SELECT 
           COUNT(CASE WHEN g.status = 'completed' THEN 1 END) as completed_games,
@@ -146,7 +138,6 @@ async function userRoutes(fastify, options) {
         WHERE (g.player1_id = ? OR g.player2_id = ?) AND g.tournament_id IS NULL
       `).get(request.user.userId, request.user.userId, request.user.userId, request.user.userId, request.user.userId, request.user.userId, request.user.userId);
 
-      // Statistiques de tournois
       const tournamentStats = db.prepare(`
         SELECT 
           COUNT(DISTINCT t.id) as tournaments_joined,
@@ -172,7 +163,7 @@ async function userRoutes(fastify, options) {
         winrate: winrate,
         stats: {
           friends: user.friends_count,
-          gamesPlayed: detailedStats.completed_games || 0, // Jeux non-tournoi uniquement
+          gamesPlayed: detailedStats.completed_games || 0,
           gamesWon: detailedStats.games_won || 0,
           gamesLost: detailedStats.games_lost || 0,
           gamesDrawn: detailedStats.games_drawn || 0,
@@ -181,14 +172,12 @@ async function userRoutes(fastify, options) {
           avgDuration: detailedStats.avg_duration ? Math.round(detailedStats.avg_duration) : 0,
           highestScore: detailedStats.highest_score || 0,
           
-          // Win rates par type d'adversaire
           winRates: {
             vsAI: detailedStats.vs_ai_total > 0 ? Math.round((detailedStats.vs_ai_won / detailedStats.vs_ai_total) * 100) : 0,
             vsPlayers: detailedStats.vs_players_total > 0 ? Math.round((detailedStats.vs_players_won / detailedStats.vs_players_total) * 100) : 0,
-            tournaments: tournamentStats.tournaments_won || 0 // Nombre de tournois gagnés
+            tournaments: tournamentStats.tournaments_won || 0
           },
           
-          // Détails par type
           gamesByType: {
             vsAI: detailedStats.vs_ai_total || 0,
             vsPlayers: detailedStats.vs_players_total || 0,
@@ -210,15 +199,11 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE RÉCUPÉRATION DU PROFIL PUBLIC D'UN UTILISATEUR
-  // ========================================
   fastify.get('/profile/:userId', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const { userId } = request.params;
       const requesterId = request.user.userId;
 
-      // Vérifier que l'utilisateur cible existe
       const targetUser = db.prepare(`
         SELECT 
           u.id,
@@ -242,7 +227,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Vérifier si les utilisateurs sont amis (pour déterminer le niveau d'accès)
       const friendship = db.prepare(`
         SELECT status FROM friends 
         WHERE ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))
@@ -251,7 +235,6 @@ async function userRoutes(fastify, options) {
 
       const areWeFriends = !!friendship;
 
-      // Récupérer les statistiques publiques
       const publicStats = db.prepare(`
         SELECT 
           COUNT(CASE WHEN status = 'completed' THEN 1 END) as games_played,
@@ -269,7 +252,6 @@ async function userRoutes(fastify, options) {
         WHERE (player1_id = ? OR player2_id = ?)
       `).get(userId, userId, userId, userId, userId, userId, userId, userId);
 
-      // Récupérer les stats de tournoi
       const tournamentStats = db.prepare(`
         SELECT 
           COUNT(DISTINCT t.id) as tournaments_joined,
@@ -279,12 +261,10 @@ async function userRoutes(fastify, options) {
         WHERE tp.user_id = ?
       `).get(userId, userId);
 
-      // Avatar par défaut si nécessaire
       if (!targetUser.avatar_url || targetUser.avatar_url === null || targetUser.avatar_url.trim() === '') {
         targetUser.avatar_url = '/uploads/default/defaultavatar.jpg';
       }
 
-      // Si les utilisateurs sont amis, on peut montrer plus de détails
       let recentGames = [];
       if (areWeFriends) {
         recentGames = db.prepare(`
@@ -339,7 +319,7 @@ async function userRoutes(fastify, options) {
         status: targetUser.status,
         created_at: targetUser.created_at,
         last_login: targetUser.last_login,
-        isOwn: false, // Toujours false pour un profil visité
+        isOwn: false,
         areWeFriends,
         stats: {
           friends: targetUser.friends_count,
@@ -351,21 +331,19 @@ async function userRoutes(fastify, options) {
           avgDuration: publicStats.avg_duration ? Math.round(publicStats.avg_duration) : 0,
           highestScore: publicStats.highest_score || 0,
           
-          // Win rates par type d'adversaire
           winRates: {
             vsAI: publicStats.vs_ai_total > 0 ? Math.round((publicStats.vs_ai_won / publicStats.vs_ai_total) * 100) : 0,
             vsPlayers: publicStats.vs_players_total > 0 ? Math.round((publicStats.vs_players_won / publicStats.vs_players_total) * 100) : 0,
             tournaments: tournamentStats.tournaments_won || 0
           },
           
-          // Détails par type
           gamesByType: {
             vsAI: publicStats.vs_ai_total || 0,
             vsPlayers: publicStats.vs_players_total || 0,
             tournaments: tournamentStats.tournaments_joined || 0
           }
         },
-        recentGames: areWeFriends ? recentGames : [] // Seuls les amis peuvent voir l'historique
+        recentGames: areWeFriends ? recentGames : []
       };
 
       fastify.log.info(`👤 Profil public consulté: ${targetUser.username} (ID: ${userId}) par ${request.user.username} (ID: ${requesterId}), amis: ${areWeFriends}`);
@@ -381,19 +359,15 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE D'HISTORIQUE DES JEUX AVEC PAGINATION
-  // ========================================
   fastify.get('/games/history', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const userId = request.user.userId;
       const { page = 1, limit = 10, status, gameMode } = request.query;
       
       const currentPage = Math.max(1, parseInt(page));
-      const pageSize = Math.min(50, Math.max(1, parseInt(limit))); // Entre 1 et 50
+      const pageSize = Math.min(50, Math.max(1, parseInt(limit)));
       const offset = (currentPage - 1) * pageSize;
 
-      // Construire les clauses WHERE pour le filtrage
       let filters = [];
       let filterParams = [];
       
@@ -409,14 +383,12 @@ async function userRoutes(fastify, options) {
 
       const whereClause = filters.length > 0 ? `AND ${filters.join(' AND ')}` : '';
 
-      // Compter le total des jeux
       const totalCount = db.prepare(`
         SELECT COUNT(*) as count
         FROM games g
         WHERE (g.player1_id = ? OR g.player2_id = ?) ${whereClause}
       `).get(userId, userId, ...filterParams);
 
-      // Récupérer les jeux avec pagination
       const games = db.prepare(`
         SELECT 
           g.id,
@@ -476,12 +448,10 @@ async function userRoutes(fastify, options) {
         userId, userId, ...filterParams, pageSize, offset
       );
 
-      // Calculer les métadonnées de pagination
       const totalPages = Math.ceil(totalCount.count / pageSize);
       const hasNextPage = currentPage < totalPages;
       const hasPreviousPage = currentPage > 1;
 
-      // Statistiques rapides pour cette page
       const pageStats = {
         wins: games.filter(g => g.result === 'win').length,
         losses: games.filter(g => g.result === 'loss').length,
@@ -517,9 +487,6 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE MISE À JOUR DU PROFIL
-  // ========================================
   fastify.put('/profile', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const { error, value } = updateProfileSchema.validate(request.body);
@@ -534,7 +501,6 @@ async function userRoutes(fastify, options) {
       const { username, email, display_name } = value;
       const userId = request.user.userId;
 
-      // Vérifier les conflits d'unicité
       if (username || email) {
         const conflicts = db.prepare(`
           SELECT username, email FROM users 
@@ -551,7 +517,6 @@ async function userRoutes(fastify, options) {
         }
       }
 
-      // Construire la requête de mise à jour dynamiquement
       const updates = [];
       const values = [];
 
@@ -587,7 +552,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Récupérer le profil mis à jour
       const updatedUser = db.prepare('SELECT id, username, email, display_name, avatar_url FROM users WHERE id = ?').get(userId);
 
       fastify.log.info(`✅ Profil mis à jour pour: ${request.user.username} (ID: ${userId})`);
@@ -607,9 +571,6 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE CHANGEMENT DE MOT DE PASSE
-  // ========================================
   fastify.put('/password', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const { error, value } = changePasswordSchema.validate(request.body);
@@ -624,7 +585,6 @@ async function userRoutes(fastify, options) {
       const { currentPassword, newPassword } = value;
       const userId = request.user.userId;
 
-      // Récupérer le mot de passe actuel
       const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId);
       
       if (!user) {
@@ -634,7 +594,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Vérifier le mot de passe actuel
       const passwordMatch = await bcrypt.compare(currentPassword, user.password);
       
       if (!passwordMatch) {
@@ -645,11 +604,9 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Hacher le nouveau mot de passe
       const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
       const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
-      // Mettre à jour le mot de passe
       const result = db.prepare('UPDATE users SET password = ?, updated_at = datetime(\'now\') WHERE id = ?').run(hashedNewPassword, userId);
 
       if (result.changes === 0) {
@@ -675,9 +632,6 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE D'UPLOAD D'AVATAR EN BASE64
-  // ========================================
   fastify.post('/avatar', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       fastify.log.info(`📸 Upload avatar demandé par utilisateur: ${request.user.username} (ID: ${request.user.userId})`);
@@ -694,7 +648,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Vérification du type de fichier (PNG et JPG prioritaires)
       const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
       if (!allowedTypes.includes(mimeType.toLowerCase())) {
         return reply.status(400).send({
@@ -704,7 +657,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Décoder les données base64
       let buffer;
       try {
         const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
@@ -716,7 +668,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Vérification de la taille (5MB max)
       const maxSize = 5 * 1024 * 1024;
       if (buffer.length > maxSize) {
         return reply.status(400).send({
@@ -725,18 +676,15 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Génération d'un nom de fichier unique
       const fileExtension = mimeType.split('/')[1];
       const uniqueFileName = `${request.user.userId}_${Date.now()}.${fileExtension}`;
       const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'avatars');
       const filePath = path.join(uploadsDir, uniqueFileName);
 
-      // S'assurer que le dossier existe
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
 
-      // Supprimer l'ancien avatar s'il existe
       const currentUser = db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(request.user.userId);
       if (currentUser?.avatar_url) {
         const oldFileName = currentUser.avatar_url.split('/').pop();
@@ -753,18 +701,14 @@ async function userRoutes(fastify, options) {
         }
       }
 
-      // Écrire le nouveau fichier
       await fs.promises.writeFile(filePath, buffer);
 
-      // URL relative pour l'accès web
       const avatarUrl = `/uploads/avatars/${uniqueFileName}`;
 
-      // Mettre à jour la base de données
       const result = db.prepare('UPDATE users SET avatar_url = ?, updated_at = datetime(\'now\') WHERE id = ?')
         .run(avatarUrl, request.user.userId);
 
       if (result.changes === 0) {
-        // Nettoyer le fichier uploadé si l'update échoue
         fs.unlinkSync(filePath);
         return reply.status(404).send({
           error: 'Utilisateur non trouvé',
@@ -791,9 +735,6 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE SUPPRESSION D'AVATAR
-  // ========================================
   fastify.delete('/avatar', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       fastify.log.info(`🗑️ Suppression avatar demandée par utilisateur: ${request.user.username} (ID: ${request.user.userId})`);
@@ -806,7 +747,6 @@ async function userRoutes(fastify, options) {
           const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'avatars');
           const filePath = path.join(uploadsDir, fileName);
           
-          // Supprimer le fichier s'il existe
           if (fs.existsSync(filePath)) {
             try {
               fs.unlinkSync(filePath);
@@ -822,7 +762,6 @@ async function userRoutes(fastify, options) {
         fastify.log.info('ℹ️ Aucun avatar à supprimer pour cet utilisateur');
       }
 
-      // Mettre à jour la base de données
       const result = db.prepare('UPDATE users SET avatar_url = NULL, updated_at = datetime(\'now\') WHERE id = ?')
         .run(request.user.userId);
 
@@ -849,12 +788,8 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE UTILITAIRE : NETTOYER LES AVATARS ORPHELINS (ADMIN ONLY)
-  // ========================================
   fastify.post('/avatar/cleanup', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
-      // Vérifier si l'utilisateur est admin
       const user = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(request.user.userId);
       if (!user?.is_admin) {
         return reply.status(403).send({
@@ -872,10 +807,8 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Lister tous les fichiers dans le dossier avatars
       const files = fs.readdirSync(uploadsDir);
       
-      // Récupérer tous les avatar_url de la base de données
       const avatarsInDB = db.prepare('SELECT avatar_url FROM users WHERE avatar_url IS NOT NULL').all();
       const activeAvatars = avatarsInDB.map(row => {
         const url = row.avatar_url;
@@ -884,7 +817,6 @@ async function userRoutes(fastify, options) {
 
       let cleanedCount = 0;
       
-      // Supprimer les fichiers orphelins
       for (const file of files) {
         if (!activeAvatars.includes(file)) {
           try {
@@ -916,15 +848,11 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE RÉCUPÉRATION DE LA LISTE D'AMIS
-  // ========================================
   fastify.get('/friends', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const userId = request.user.userId;
       fastify.log.info(`�� Récupération des amis pour l'utilisateur ${userId}`);
 
-      // Récupérer les amis acceptés (relations bidirectionnelles) 
       const friendships = db.prepare(`
         SELECT DISTINCT
           CASE 
@@ -946,7 +874,6 @@ async function userRoutes(fastify, options) {
 
       fastify.log.info(`📊 Trouvé ${friendships.length} relations d'amitié`);
 
-      // Récupérer les informations des amis
       const friends = [];
       for (const friendship of friendships) {
         const friendInfo = db.prepare(`
@@ -978,7 +905,6 @@ async function userRoutes(fastify, options) {
         }
       }
 
-      // Trier les amis par statut en ligne
       friends.sort((a, b) => {
         const statusOrder = { 'online': 1, 'offline': 2 };
         const statusA = statusOrder[a.online_status] || 2;
@@ -988,7 +914,6 @@ async function userRoutes(fastify, options) {
         return a.username.localeCompare(b.username);
       });
 
-      // Récupérer les demandes d'amitié en attente
       const pendingRequests = db.prepare(`
         SELECT 
           f.id as friendship_id,
@@ -1038,9 +963,6 @@ async function userRoutes(fastify, options) {
   });
 
 
-  // ========================================
-  // ROUTE D'AJOUT D'AMI
-  // ========================================
   fastify.post('/friends', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const { error, value } = addFriendSchema.validate(request.body);
@@ -1055,7 +977,6 @@ async function userRoutes(fastify, options) {
       const { username } = value;
       const userId = request.user.userId;
 
-      // Vérifier que l'utilisateur cible existe
       const targetUser = db.prepare('SELECT id, username FROM users WHERE username = ?').get(username);
       
       if (!targetUser) {
@@ -1074,7 +995,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Vérifier s'il existe déjà une relation d'amitié
       const existingFriendship = db.prepare(`
         SELECT id, status FROM friends 
         WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)
@@ -1094,7 +1014,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Créer la demande d'amitié
       const result = db.prepare(`
         INSERT INTO friends (user_id, friend_id, status, created_at)
         VALUES (?, ?, 'pending', datetime('now'))
@@ -1124,9 +1043,6 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE D'ACCEPTATION DE DEMANDE D'AMITIÉ
-  // ========================================
   fastify.put('/friends/:friendId/accept', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       fastify.log.info(`🎯 DEBUG: Endpoint d'acceptation atteint`, {
@@ -1148,7 +1064,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Vérifier que la demande existe et est en attente
       fastify.log.info(`🔍 DEBUG: Recherche demande ID ${friendId} pour userId ${userId}`);
       const friendRequest = db.prepare(`
         SELECT f.id, f.user_id, f.friend_id, f.status, u.username as requester_username
@@ -1168,7 +1083,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Accepter la demande
       const result = db.prepare('UPDATE friends SET status = \'accepted\', accepted_at = datetime(\'now\') WHERE id = ?').run(friendId);
 
       if (result.changes === 0) {
@@ -1178,15 +1092,12 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // ✨ IMPORTANT: Créer la relation réciproque pour l'amitié bidirectionnelle
-      // Vérifier d'abord si la relation inverse existe déjà
       const existingReverse = db.prepare(`
         SELECT id FROM friends 
         WHERE user_id = ? AND friend_id = ?
       `).get(userId, friendRequest.user_id);
 
       if (!existingReverse) {
-        // Créer la relation inverse
         db.prepare(`
           INSERT INTO friends (user_id, friend_id, status, created_at, accepted_at)
           VALUES (?, ?, 'accepted', datetime('now'), datetime('now'))
@@ -1194,7 +1105,6 @@ async function userRoutes(fastify, options) {
 
         fastify.log.info(`🔗 Relation réciproque créée: ${request.user.username} → ${friendRequest.requester_username}`);
       } else {
-        // Si elle existe, la mettre à jour
         db.prepare(`
           UPDATE friends 
           SET status = 'accepted', accepted_at = datetime('now')
@@ -1225,9 +1135,6 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE SUPPRESSION D'AMI
-  // ========================================
   fastify.delete('/friends/:friendId', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const friendId = parseInt(request.params.friendId);
@@ -1240,7 +1147,6 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Récupérer les informations de la relation pour identifier les utilisateurs
       const friendship = db.prepare(`
         SELECT f.id, f.user_id, f.friend_id, u.username as friend_username
         FROM friends f
@@ -1261,11 +1167,9 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      // Identifier les deux utilisateurs de la relation
       const user1Id = friendship.user_id;
       const user2Id = friendship.friend_id;
 
-      // Supprimer TOUTES les relations entre ces deux utilisateurs (bidirectionnelles)
       const result = db.prepare(`
         DELETE FROM friends 
         WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)
@@ -1294,9 +1198,6 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE RECHERCHE D'UTILISATEURS
-  // ========================================
   fastify.get('/search', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const { q: query, limit = 10 } = request.query;
@@ -1309,9 +1210,8 @@ async function userRoutes(fastify, options) {
         });
       }
 
-      const searchLimit = Math.min(parseInt(limit), 50); // Max 50 résultats
+      const searchLimit = Math.min(parseInt(limit), 50);
 
-      // Rechercher des utilisateurs
       const users = db.prepare(`
         SELECT 
           id, username, display_name, avatar_url,
@@ -1362,14 +1262,10 @@ async function userRoutes(fastify, options) {
     }
   });
 
-  // ========================================
-  // ROUTE DE STATISTIQUES UTILISATEUR
-  // ========================================
   fastify.get('/stats', { preHandler: [authenticateToken] }, async (request, reply) => {
     try {
       const userId = request.user.userId;
 
-      // Statistiques complètes de l'utilisateur
       const stats = db.prepare(`
         SELECT 
           u.username,
@@ -1400,10 +1296,8 @@ async function userRoutes(fastify, options) {
         userId, userId, userId, userId, userId, userId, userId
       );
 
-      // Dernières parties (simulé pour l'instant)
       const recentGames = [];
 
-      // Calculer le winrate
       const winrate = stats.total_games > 0 ? 
         Math.round((stats.games_won / stats.total_games) * 100) : 0;
 
