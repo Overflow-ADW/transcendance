@@ -49,22 +49,48 @@ const SearchPlayerModal = ({ isOpen, onClose, onSelect, currentPlayers }: {
       const searchUsers = async () => {
         try {
           setIsSearching(true);
+          setError(null); // Clear previous errors
+          
           const response = await apiClient.searchUsers(searchQuery);
           const filteredResults = response.results.filter((result: { id: number }) =>
             !currentPlayers.some(player => player.id === result.id)
           );
           setSearchResults(filteredResults);
-        } catch (error) {
-          console.error('Error searching users:', error);
+        } catch (error: any) {
+          console.error('❌ Error searching users:', error);
+          
+          // ✅ Gestion d'erreurs spécifique pour la recherche
+          if (error.message) {
+            try {
+              const errorData = JSON.parse(error.message);
+              switch (errorData.code) {
+                case 'TOO_MANY_REQUESTS':
+                  setError('Trop de requêtes. Veuillez attendre quelques secondes.');
+                  break;
+                case 'NOT_AUTHENTICATED':
+                  setError('Session expirée. Veuillez vous reconnecter.');
+                  break;
+                default:
+                  setError('Erreur lors de la recherche. Veuillez réessayer.');
+              }
+            } catch {
+              setError('Erreur de connexion. Vérifiez votre connexion internet.');
+            }
+          } else {
+            setError('Erreur lors de la recherche d\'utilisateurs.');
+          }
+          setSearchResults([]);
         } finally {
           setIsSearching(false);
         }
       };
 
-      const timeoutId = setTimeout(searchUsers, 300);
+      // ✅ Debouncing amélioré avec timeout plus long pour éviter les 429
+      const timeoutId = setTimeout(searchUsers, 500);
       return () => clearTimeout(timeoutId);
     } else {
       setSearchResults([]);
+      setError(null);
     }
   }, [searchQuery, currentPlayers]);
 
@@ -196,6 +222,11 @@ export default function TournamentView() {
   const { user } = useAuth();
   const [players, setPlayers] = useState<TournamentPlayer[]>([]);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  
+  // ✅ États pour la gestion d'erreurs et loading
+  const [isStartingTournament, setIsStartingTournament] = useState(false);
+  const [tournamentError, setTournamentError] = useState<string | null>(null);
+  
   const colors = ["#8A00C4", "#2323FF", "#FF6B35", "#28A745"];
 
   useEffect(() => {
@@ -233,41 +264,76 @@ export default function TournamentView() {
     }
   };
 
-  const handleStartTournament = async () => {
-    if (players.length < 2) {
-      return;
-    }
+// ✅ FONCTION SIMPLIFIÉE ET ROBUSTE avec gestion d'erreurs complète
+const handleStartTournament = async () => {
+  if (players.length < 2) {
+    console.warn('Pas assez de joueurs pour démarrer le tournoi');
+    return;
+  }
 
-    try {
-      const tournamentResponse = await apiClient.createTournament({
-        name: `Tournoi de ${user?.display_name || user?.username}`,
-        description: `Tournoi avec ${players.length} joueurs`,
-        maxPlayers: 4,
-        format: 'elimination'
-      });
+  try {
+    setIsStartingTournament(true);
+    setTournamentError(null);
 
-      if (!tournamentResponse.tournament) {
-        throw new Error('Erreur lors de la création du tournoi');
-      }
+    const playerIds = players.map(p => p.id);
+    const response = await apiClient.createAndStartTournament({
+      name: `Tournoi de ${user?.display_name || user?.username}`,
+      playerIds: playerIds,
+      format: 'elimination'
+    });
+    
+    // ✅ Si on arrive ici, c'est que TOUT a réussi (transaction atomique)
+    const { tournamentId } = response;
+    
+    // Sauvegarder les informations pour la page suivante
+    localStorage.setItem('current-tournament-id', tournamentId.toString());
+    localStorage.setItem('tournament-players', JSON.stringify(players));
 
-      const tournamentId = tournamentResponse.tournament.id;
+    // Redirection vers la page du bracket
+    router.push("/tournament-bracket");
 
-      for (const player of players) {
-        if (player.id !== user?.id) {
-          await apiClient.addTournamentParticipant(tournamentId, player.id);
+  } catch (error: any) {
+    // ✅ GESTION D'ERREURS ROBUSTE avec messages utilisateur clairs
+    console.error('❌ Erreur lors du démarrage du tournoi:', error);
+    
+    let userMessage = 'Une erreur inattendue s\'est produite';
+    
+    if (error.message) {
+      try {
+        // Tenter de parser la réponse d'erreur JSON
+        const errorData = JSON.parse(error.message);
+        
+        switch (errorData.code) {
+          case 'USERS_NOT_FOUND':
+            userMessage = 'Certains joueurs sélectionnés n\'existent plus.';
+            break;
+          case 'CREATOR_NOT_IN_PLAYERS':
+            userMessage = 'Erreur de configuration : le créateur doit être inclus.';
+            break;
+          case 'VALIDATION_ERROR':
+            userMessage = `Données invalides: ${errorData.details}`;
+            break;
+          case 'TOO_MANY_REQUESTS':
+            userMessage = 'Trop de requêtes. Veuillez patienter quelques secondes.';
+            break;
+          case 'NOT_AUTHENTICATED':
+            userMessage = 'Votre session a expiré. Veuillez vous reconnecter.';
+            router.push('/login');
+            return;
+          default:
+            userMessage = errorData.error || errorData.message || userMessage;
         }
+      } catch {
+        // Si ce n'est pas du JSON, utiliser le message tel quel
+        userMessage = error.message;
       }
-
-      const startResponse = await apiClient.startTournament(tournamentId);
-
-      localStorage.setItem('current-tournament-id', tournamentId.toString());
-      localStorage.setItem('tournament-players', JSON.stringify(players));
-
-      router.push("/tournament-bracket");
-    } catch (error) {
-      console.error('Erreur lors du démarrage du tournoi:', error);
     }
-  };
+    
+    setTournamentError(userMessage);
+  } finally {
+    setIsStartingTournament(false);
+  }
+};
 
   const removePlayer = (id: number) => {
     if (id !== user?.id) {
@@ -324,20 +390,45 @@ export default function TournamentView() {
           })}
         </div>
 
+        {/* ✅ Affichage des erreurs */}
+        {tournamentError && (
+          <div className="mb-6 p-4 bg-red-900/60 text-red-300 rounded-lg border border-red-500/40 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <span className="text-red-400">⚠️</span>
+              <strong>Erreur:</strong>
+            </div>
+            <p className="mt-1">{tournamentError}</p>
+            <button
+              onClick={() => setTournamentError(null)}
+              className="mt-2 text-sm text-red-200 hover:text-red-100 underline"
+            >
+              Fermer
+            </button>
+          </div>
+        )}
+
         <div>
           <button
             onClick={() => {
-              if (players.length >= 2) {
+              if (players.length >= 2 && !isStartingTournament) {
                 handleStartTournament();
               }
             }}
-            className={`bg-transparent border-4 border-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:scale-105 ${players.length >= 2
+            className={`bg-transparent border-4 border-yellow-400 px-16 py-4 rounded-full text-3xl font-bold transition-all duration-300 hover:scale-105 ${
+              players.length >= 2 && !isStartingTournament
                 ? "text-yellow-400 hover:bg-yellow-400 hover:text-black"
                 : "text-yellow-400/50 border-yellow-400/50 cursor-not-allowed"
-              }`}
-            disabled={players.length < 2}
+            }`}
+            disabled={players.length < 2 || isStartingTournament}
           >
-            START
+            {isStartingTournament ? (
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400"></div>
+                CRÉATION...
+              </div>
+            ) : (
+              'START'
+            )}
           </button>
         </div>
 

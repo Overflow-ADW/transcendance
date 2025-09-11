@@ -25,14 +25,20 @@ fastify.decorate('db', dbInstance);
 fastify.register(require('@fastify/cors'), {
   origin: [
     'http://localhost:8080',
-    'http://127.0.0.1:8080'
+    'http://127.0.0.1:8080',
+    'http://localhost:3000', 
+    'http://127.0.0.1:3000'
   ],
   credentials: true
 });
 
 fastify.register(require('@fastify/rate-limit'), {
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 1000,
-  timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW) || 900000
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 200,
+  timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW) || 900000,
+  skipOnError: true,
+  onExceeded: (request, key) => {
+    fastify.log.warn(`Rate limit exceeded for ${key}: ${request.ip}`);
+  }
 });
 
 fastify.register(require('@fastify/helmet'), {

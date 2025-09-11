@@ -503,6 +503,20 @@ class ApiClient {
     return response.json();
   }
 
+  // ✅ NOUVELLE MÉTHODE ATOMIQUE : Créer et démarrer un tournoi en une seule transaction
+  async createAndStartTournament(data: {
+    name: string;
+    description?: string;
+    playerIds: number[];
+    format?: string;
+  }) {
+    const response = await this.request('/api/tournaments/create-and-start', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  }
+
   async addTournamentParticipant(tournamentId: number, userId: number) {
     const response = await this.request(`/api/tournaments/${tournamentId}/participants`, {
       method: 'POST',

@@ -455,6 +455,132 @@ async function tournamentRoutes(fastify, options) {
     }
   });
 
+  // ✅ NOUVELLE MÉTHODE ATOMIQUE : Créer et démarrer un tournoi en une seule transaction
+  fastify.post('/create-and-start', { preHandler: [authenticateToken] }, async (request, reply) => {
+    try {
+      const createAndStartSchema = Joi.object({
+        name: Joi.string().min(3).max(50).required(),
+        description: Joi.string().max(200).optional(),
+        playerIds: Joi.array().items(Joi.number().integer()).min(2).max(32).required(),
+        format: Joi.string().valid('elimination', 'round_robin').default('elimination')
+      });
+
+      const { error, value } = createAndStartSchema.validate(request.body);
+      if (error) {
+        return reply.status(400).send({
+          error: 'Données invalides',
+          details: error.details[0].message,
+          code: 'VALIDATION_ERROR'
+        });
+      }
+
+      const { name, description, playerIds, format } = value;
+      const creatorId = request.user.userId;
+
+      // Vérifier que le créateur est dans la liste des joueurs
+      if (!playerIds.includes(creatorId)) {
+        return reply.status(400).send({
+          error: 'Le créateur doit être inclus dans la liste des joueurs',
+          code: 'CREATOR_NOT_IN_PLAYERS'
+        });
+      }
+
+      // Vérifier que tous les utilisateurs existent
+      const users = db.prepare(`
+        SELECT id, username, display_name FROM users 
+        WHERE id IN (${playerIds.map(() => '?').join(',')})
+      `).all(...playerIds);
+
+      if (users.length !== playerIds.length) {
+        const existingIds = users.map(u => u.id);
+        const missingIds = playerIds.filter(id => !existingIds.includes(id));
+        return reply.status(400).send({
+          error: 'Certains utilisateurs n\'existent pas',
+          details: `IDs manquants: ${missingIds.join(', ')}`,
+          code: 'USERS_NOT_FOUND'
+        });
+      }
+
+      // ✅ TRANSACTION ATOMIQUE : Tout réussit ou tout échoue
+      const createAndStartTransaction = db.transaction(() => {
+        // 1. Créer le tournoi
+        const tournamentResult = db.prepare(`
+          INSERT INTO tournaments (
+            name, 
+            description,
+            max_players,
+            current_players,
+            status,
+            format,
+            created_by,
+            created_at,
+            started_at
+          ) VALUES (?, ?, ?, ?, 'active', ?, ?, datetime('now'), datetime('now'))
+        `).run(name, description || null, playerIds.length, playerIds.length, format, creatorId);
+
+        const tournamentId = tournamentResult.lastInsertRowid;
+
+        // 2. Ajouter tous les participants
+        const addParticipantStmt = db.prepare(`
+          INSERT INTO tournament_participants (tournament_id, user_id) 
+          VALUES (?, ?)
+        `);
+
+        for (const playerId of playerIds) {
+          addParticipantStmt.run(tournamentId, playerId);
+        }
+
+        // 3. Créer les matchs du tournoi selon le format
+        const participants = users.map(user => ({ user_id: user.id, username: user.username }));
+        
+        if (format === 'elimination') {
+          createEliminationMatches(db, tournamentId, participants);
+        } else {
+          throw new Error('Format non supporté pour l\'instant');
+        }
+
+        return tournamentId;
+      });
+
+      // Exécuter la transaction
+      const tournamentId = createAndStartTransaction();
+
+      // Retourner les détails du tournoi créé
+      const tournament = db.prepare(`
+        SELECT 
+          t.*, 
+          u.username as creator_username,
+          u.display_name as creator_display_name
+        FROM tournaments t
+        JOIN users u ON u.id = t.created_by
+        WHERE t.id = ?
+      `).get(tournamentId);
+
+      fastify.log.info(`🏆 Tournoi créé et démarré avec succès:`, {
+        tournamentId,
+        name,
+        creatorId,
+        playersCount: playerIds.length,
+        format
+      });
+
+      return reply.status(201).send({
+        message: 'Tournoi créé et démarré avec succès',
+        tournament: tournament,
+        tournamentId: tournamentId,
+        code: 'TOURNAMENT_CREATED_AND_STARTED'
+      });
+
+    } catch (error) {
+      fastify.log.error('❌ Erreur lors de la création atomique du tournoi:', error);
+      return reply.status(500).send({
+        error: 'Erreur interne du serveur',
+        details: error.message,
+        code: 'INTERNAL_ERROR'
+      });
+    }
+  });
+
   function createEliminationMatches(db, tournamentId, participants) {
     if (participants.length === 2) {
       db.prepare(`

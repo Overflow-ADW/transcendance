@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from "@/lib_front/AuthContext";
 import { apiClient } from "@/lib_front/api";
 import { withProtectedRoute } from "@/lib_front/routeProtection";
-import { useFontOptimization } from "@/hooks/useFontOptimization";
 
 function ProfileView() {
   const router = useRouter();
@@ -70,10 +69,6 @@ function ProfileView() {
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
-  // Optimiser les polices pour cette page
-  useFontOptimization();
-
-  // Function to navigate to a user's profile by searching their username
   const navigateToUserProfile = async (username: string) => {
     try {
       if (username === 'IA' || username === 'AI') return; // Don't navigate for AI opponents
