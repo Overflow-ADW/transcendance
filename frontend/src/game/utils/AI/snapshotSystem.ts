@@ -21,6 +21,7 @@ export class SnapshotSystem {
         const timeSinceLastSnapshot = currentTime - this.lastSnapshotTime;
         if (timeSinceLastSnapshot < this.MIN_SNAPSHOT_INTERVAL) {
             this.snapshotBlocked++;
+            console.log(`Attente de ${this.MIN_SNAPSHOT_INTERVAL - timeSinceLastSnapshot}ms avant de créer un nouveau snapshot.`);
             return false;
         }
         

@@ -69,12 +69,14 @@ export class Pong {
     private player1GlowLayer!: GlowLayer;
     private _player2GlowLayer!: GlowLayer;
     private isGameStopped = false;
-    
-    private gameStartTime: number = 0;
+      private gameStartTime: number = 0;
     private isAIGame: boolean = false;
     private aiLevel: number | null = null;
     private aiDifficultyName: string = '';
     private gameMode: string = 'classic';
+
+    private originalPlayer0Name: string = '';
+    private originalPlayer1Name: string = '';
 
     constructor(private canvas: HTMLCanvasElement) {
         this.engine = new Engine(this.canvas, true);
@@ -109,8 +111,7 @@ export class Pong {
                 } catch (e) {
                     console.warn('Erreur lors de la récupération des données du match tournament:', e);
                 }
-                
-                // Fallback pour tournament sans données de match
+
                 return { 
                     player0Name: currentUser?.display_name || currentUser?.username || "Player 0", 
                     player1Name: "Player 1" 
@@ -129,8 +130,7 @@ export class Pong {
                 } catch (e) {
                     console.warn('Erreur lors de la récupération des joueurs duel:', e);
                 }
-                
-                // Si pas de données duel, utiliser l'utilisateur connecté
+
                 const defaultPlayer0Name = currentUser?.display_name || currentUser?.username || "Player 0";
                 return { player0Name: defaultPlayer0Name, player1Name: "Player 1" };
             }
@@ -181,13 +181,16 @@ export class Pong {
             }
             console.log(`Mode IA Difficulte: ${this.aiDifficultyName}`);
         }
-        
-        this.gameData = new PongData({
+          this.gameData = new PongData({
             maxScore: GAME_CONFIG.DEFAULT_MAX_SCORE,
             gameType: GameType.DEFAULT_PONG,
             player0Name: player0Name,
             player1Name: this.isAIGame ? `${this.aiDifficultyName} AI` : player1Name
         });
+
+        this.originalPlayer0Name = this.gameData.player0Name;
+        this.originalPlayer1Name = this.gameData.player1Name;
+        console.log(`🎯 Noms originaux stockés: "${this.originalPlayer0Name}" / "${this.originalPlayer1Name}"`);
         
         this.scene = this.createScene();
         this.createScoreDisplays();
@@ -336,10 +339,6 @@ export class Pong {
         return scene;
     }
 
-    /**
-     * Définit le mode de jeu actuel
-     * @param gameType Type de jeu à charger
-     */
     public setGameMode(gameType: GameType): void {
         console.log("Pong.setGameMode() = ", gameType);
         
@@ -384,13 +383,7 @@ export class Pong {
                 this.gameData.startGame();
             }, 100);
         }
-    }
-
-    /**
-     * Configure et active l'IA
-     * @param difficulty Niveau de difficulté (1-3)
-     */
-    public enableAI(difficulty: AIDifficulty = AIDifficulty.MEDIUM): void {
+    }    public enableAI(difficulty: AIDifficulty = AIDifficulty.MEDIUM): void {
         this.controls.setupAI(difficulty);
         
         this.controls.activateAI();
@@ -404,18 +397,24 @@ export class Pong {
             aiName
         );
         
+        this.originalPlayer1Name = aiName;
+        
         this.updateScoreDisplays(this.gameData.player0Score, this.gameData.player1Score);
     }
 
     public disableAI(): void {
         this.controls.deactivateAI();
+        
+        const defaultPlayer1Name = "Player 2";
         this.gameData.setPlayerNames(
             this.gameData.player0Name, 
-            "Player 2"
+            defaultPlayer1Name
         );
-    }
 
-    public setAIDifficulty(difficulty: AIDifficulty): void {
+        this.originalPlayer1Name = defaultPlayer1Name;
+        
+        this.updateScoreDisplays(this.gameData.player0Score, this.gameData.player1Score);
+    }    public setAIDifficulty(difficulty: AIDifficulty): void {
         this.controls.setAIDifficulty(difficulty);
         
         if (this.controls.isAIActive()) {
@@ -425,6 +424,8 @@ export class Pong {
                 this.gameData.player0Name, 
                 aiName
             );
+
+            this.originalPlayer1Name = aiName;
             
             this.updateScoreDisplays(this.gameData.player0Score, this.gameData.player1Score);
         }
@@ -710,96 +711,13 @@ export class Pong {
                 0
             );
         }
-    }
-
-    private updateScoreDisplays(score0: number, score1: number): void {
-        const context0 = this.scorePlayer0Texture.getContext() as unknown as CanvasRenderingContext2D;
-        const context1 = this.scorePlayer1Texture.getContext() as unknown as CanvasRenderingContext2D;
-
-        context0.clearRect(0, 0, GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE, GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE);
-        context1.clearRect(0, 0, GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE, GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE);
-
-        context0.textAlign = 'center';
-        context0.textBaseline = 'middle';
-        context1.textAlign = 'center';
-        context1.textBaseline = 'middle';
-        
-        const fontSize = 16;
-        const font = `bold ${fontSize}px Arial`;
-        
-        context0.font = font;
-        context0.fillStyle = MAIN_COLORS.HEX_BLUE;
-
-        context1.font = font;
-        if (this.gameData.gameType === GameType.MULTIPLAYER_PONG) {
-            context1.fillStyle = MAIN_COLORS.HEX_GREEN;
-
-            const scorePlayer1Material = this.scorePlayer1Mesh.material as StandardMaterial;
-            scorePlayer1Material.emissiveColor = MAIN_COLORS.RGB_GREEN;
-        } else {
-            context1.fillStyle = MAIN_COLORS.HEX_PURPLE;
-
-            const scorePlayer1Material = this.scorePlayer1Mesh.material as StandardMaterial;
-            scorePlayer1Material.emissiveColor = MAIN_COLORS.RGB_PURPLE;
-        }
-
-        context0.fillText(
-            score0.toString(), 
-            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2, 
-            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2
+    }    private updateScoreDisplays(score0: number, score1: number): void {
+        this.forceUpdateScoreDisplays(
+            score0, 
+            score1, 
+            this.originalPlayer0Name, 
+            this.originalPlayer1Name
         );
-        
-        context1.fillText(
-            score1.toString(), 
-            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2, 
-            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2
-        );
-
-        const smallerFontSize = 16;
-        const smallerFont = `bold ${smallerFontSize}px Arial`;
-
-        let player0Name: string;
-        let player1Name: string;
-        
-        if (this.gameData.gameType === GameType.MULTIPLAYER_PONG) {
-            player0Name = "TEAM";
-            player1Name = "PLAYER 2";
-        } else {
-            player0Name = this.gameData.player0Name;
-            player1Name = this.gameData.player1Name;
-            
-            if (player0Name.length > 12) {
-                player0Name = player0Name.substring(0, 12) + "...";
-            }
-            if (player1Name.length > 12) {
-                player1Name = player1Name.substring(0, 12) + "...";
-            }
-        }
-        
-        context0.font = smallerFont;
-        context0.fillStyle = MAIN_COLORS.HEX_BLUE;
-        context0.fillText(
-            player0Name,
-            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2,
-            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2 + fontSize/2 + 15
-        );
-
-        context1.font = smallerFont;
-        if (this.gameData.gameType === GameType.MULTIPLAYER_PONG) {
-            context1.fillStyle = MAIN_COLORS.HEX_GREEN;
-        } else {
-            context1.fillStyle = MAIN_COLORS.HEX_PURPLE;
-        }
-        context1.fillText(
-            player1Name,
-            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2,
-            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2 + fontSize/2 + 15
-        );
-        
-        this.scorePlayer0Texture.update();
-        this.scorePlayer1Texture.update();
-        this.scorePlayer0Texture.hasAlpha = true;
-        this.scorePlayer1Texture.hasAlpha = true;
     }
 
     private createGameOverMessage(): void {
@@ -880,31 +798,34 @@ export class Pong {
         this.gameOverTexture.update();
         this.gameOverTexture.hasAlpha = true;
         this.gameOverMesh.isVisible = true;
-    }
-
-    private setupGameDataListeners(): void {
+    }    private setupGameDataListeners(): void {
         let prevScorePlayer0 = 0;
-        let prevScorePlayer1 = 0;
-
-        this.gameData.on(GameEvents.SCORE_CHANGED, (scores: { player0: number; player1: number }) => {
-            console.log("Scores mis à jour:", scores);
-            this.updateScoreDisplays(scores.player0, scores.player1);
+        let prevScorePlayer1 = 0;        this.gameData.on(GameEvents.SCORE_CHANGED, (scores: { player0: number; player1: number }) => {
+            
+            this.forceUpdateScoreDisplays(
+                scores.player0, 
+                scores.player1, 
+                this.originalPlayer0Name, 
+                this.originalPlayer1Name
+            );
+            
             this.scorePlayer0Mesh.isVisible = true;
             this.scorePlayer1Mesh.isVisible = true;
+            
             if (scores.player0 > prevScorePlayer0) {
-            this.barColorTrackingActive = false;
-            if (scores.player0 >= this.gameData.maxScore) {
-                this.animateWallColorTransitionFinal(0);
-            } else {
-                this.animateWallColorTransition(0);
-            }
+                this.barColorTrackingActive = false;
+                if (scores.player0 >= this.gameData.maxScore) {
+                    this.animateWallColorTransitionFinal(0);
+                } else {
+                    this.animateWallColorTransition(0);
+                }
             } else if (scores.player1 > prevScorePlayer1) {
-            this.barColorTrackingActive = false;
-            if (scores.player1 >= this.gameData.maxScore) {
-                this.animateWallColorTransitionFinal(1);
-            } else {
-                this.animateWallColorTransition(1);
-            }
+                this.barColorTrackingActive = false;
+                if (scores.player1 >= this.gameData.maxScore) {
+                    this.animateWallColorTransitionFinal(1);
+                } else {
+                    this.animateWallColorTransition(1);
+                }
             }
             prevScorePlayer0 = scores.player0;
             prevScorePlayer1 = scores.player1;
@@ -1105,6 +1026,78 @@ export class Pong {
         });
     }
 
+    private forceUpdateScoreDisplays(score0: number, score1: number, forcedName0: string, forcedName1: string): void {
+        if (!this.scorePlayer0Texture || !this.scorePlayer1Texture) {
+            return;
+        }
+
+        const context0 = this.scorePlayer0Texture.getContext() as unknown as CanvasRenderingContext2D;
+        const context1 = this.scorePlayer1Texture.getContext() as unknown as CanvasRenderingContext2D;
+
+        if (!context0 || !context1) {
+            return;
+        } 
+
+        context0.clearRect(0, 0, GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE, GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE);
+        context1.clearRect(0, 0, GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE, GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE);
+
+        context0.textAlign = 'center';
+        context0.textBaseline = 'middle';
+        context1.textAlign = 'center';
+        context1.textBaseline = 'middle';
+        
+        const fontSize = 16;
+        const font = `bold ${fontSize}px Arial`;
+        const smallerFont = `bold ${fontSize}px Arial`;
+
+        let displayName0 = forcedName0 || "Player 0";
+        let displayName1 = forcedName1 || "Player 1";
+        
+        if (displayName0.length > 9) {
+            displayName0 = displayName0.substring(0, 9) + "...";
+        }
+        if (displayName1.length > 9) {
+            displayName1 = displayName1.substring(0, 9) + "...";
+        }
+
+        context0.font = font;
+        context0.fillStyle = MAIN_COLORS.HEX_BLUE;
+        context0.fillText(
+            score0.toString(), 
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2, 
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2
+        );
+        
+        context0.font = smallerFont;
+        context0.fillStyle = MAIN_COLORS.HEX_BLUE;
+        context0.fillText(
+            displayName0,
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2,
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2 + fontSize/2 + 15
+        );
+
+        context1.font = font;
+        context1.fillStyle = MAIN_COLORS.HEX_PURPLE;
+        context1.fillText(
+            score1.toString(), 
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2, 
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2
+        );
+
+        context1.font = smallerFont;
+        context1.fillStyle = MAIN_COLORS.HEX_PURPLE;
+        context1.fillText(
+            displayName1,
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2,
+            GAME_CONFIG.DISPLAY.SCORE_TEXTURE_SIZE / 2 + fontSize/2 + 15
+        );
+
+        this.scorePlayer0Texture.update(true);
+        this.scorePlayer1Texture.update(true);
+        this.scorePlayer0Texture.hasAlpha = true;
+        this.scorePlayer1Texture.hasAlpha = true;
+    }
+
     private animateWallColorTransition(player: number): void {
         if (this.animatingWallColor) {
             return;
@@ -1251,7 +1244,6 @@ export class Pong {
             }
         };
 
-        console.log("Démarrage de l'animation");
         animate();
     }
 
@@ -1259,7 +1251,6 @@ export class Pong {
         console.log(`Début d'animation finale pour le joueur ${player}`);
 
         if (this.animatingWallColor) {
-            console.log("Animation en cours arrêtée pour l'animation finale");
             this.animatingWallColor = false;
         }
         

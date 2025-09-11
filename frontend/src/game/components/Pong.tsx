@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Pong as PongGame } from '@/game/Pong';
+import { Pong as PongGame } from '@/game/game/Pong';
 import { AIDifficulty } from '@/game/utils/AI/pongAI';
 import { GameType } from '@/game/utils/pongData';
 

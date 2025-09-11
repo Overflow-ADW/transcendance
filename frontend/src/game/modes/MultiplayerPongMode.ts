@@ -6,15 +6,6 @@ import { PongControls } from "@/game/utils/pongControls";
 import { getGameModeConfig, PLAYER_CONFIG, MAIN_COLORS, BALL_CONFIG, WALL_CONFIG } from "@/game/utils/pongValues";
 import { PongBall, BallOptions, GlowLayerOptions } from "@/game/utils/pongGame";
 
-/**
- * MultiplayerPongMode
- *
- * Mode de jeu à 3 joueurs :
- * - Player 0 et Player 1 sont en équipe (Team)
- * - Player 2 (paddle verte au centre) est seul
- * - La Team gagne en touchant Player 2
- * - Player 2 gagne quand la balle sort des limites (goal pour Team)
- */
 export class MultiplayerPongMode implements IPongGameMode {
     private ballManager?: MultiplayerPongBall;
     private gameData: PongData | null = null;
