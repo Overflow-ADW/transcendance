@@ -219,7 +219,14 @@ class ApiClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials)
     });
-    return response.json();
+    
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Erreur ${response.status}`);
+    }
+    
+    return data;
   }
 
   async register(userData: { username: string; password: string; email?: string }) {
@@ -228,7 +235,14 @@ class ApiClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData)
     });
-    return response.json();
+    
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Erreur ${response.status}`);
+    }
+    
+    return data;
   }
 
   async verifyToken(token: string) {
@@ -267,7 +281,14 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(credentials)
     });
-    return await response.json();
+    
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Erreur ${response.status}`);
+    }
+    
+    return data;
   }
 
   async logout() {
