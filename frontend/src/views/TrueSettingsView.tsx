@@ -494,14 +494,14 @@ export default function TrueSettingsView() {
           isOpen={showUsernameModal}
           onClose={() => setShowUsernameModal(false)}
           onConfirm={handleChangeUsername}
-          title="Change Username"
+          title={t(currentLanguage, 'changeUsernameTitle')}
         />
 
         <ChangePasswordModal
           isOpen={showPasswordModal}
           onClose={() => setShowPasswordModal(false)}
           onConfirm={handleChangePassword}
-          title="Change Password"
+          title={t(currentLanguage, 'changePasswordTitle')}
         />
 
         <TwoFactorModal

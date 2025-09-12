@@ -109,7 +109,7 @@ export default function MultiplayerView() {
       try {
         const parsedPlayers = JSON.parse(savedPlayers);
 
-        const hostName = currentUser.display_name || currentUser.username || "YOU";
+        const hostName = currentUser.display_name || currentUser.username || t(lang, 'you');
 
         if (parsedPlayers.length > 0 && parsedPlayers[0].isHost) {
           parsedPlayers[0].name = hostName;
@@ -122,13 +122,13 @@ export default function MultiplayerView() {
         }
       } catch (e) {
         console.warn('Erreur lors du parsing des joueurs sauvegardés:', e);
-        const hostName = currentUser.display_name || currentUser.username || "YOU";
+        const hostName = currentUser.display_name || currentUser.username || t(lang, 'you');
         const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
         setPlayers(defaultPlayers);
         localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
       }
     } else {
-      const hostName = currentUser?.display_name || currentUser?.username || "YOU";
+      const hostName = currentUser?.display_name || currentUser?.username || t(lang, 'you');
       const defaultPlayers = [{ id: 1, name: hostName, color: "#2323FF", isHost: true }];
       setPlayers(defaultPlayers);
       localStorage.setItem('multiplayer-players', JSON.stringify(defaultPlayers));
@@ -167,7 +167,7 @@ export default function MultiplayerView() {
 
   const slots: GameSlot[] = Array.from({ length: 3 }, (_, i) => {
     const player = players[i];
-    return player || { id: `empty-${i}`, name: "INVITE PLAYER", color: "", isHost: false, isEmpty: true };
+    return player || { id: `empty-${i}`, name: `+ ${t(lang, 'invitePlayer').toUpperCase()}`, color: "", isHost: false, isEmpty: true };
   });
 
   return (
@@ -177,7 +177,7 @@ export default function MultiplayerView() {
           <h1 className="text-5xl md:text-6xl font-bold text-white text-center tracking-wider">
             {t(lang, 'multiplayerLocal').toUpperCase()}
           </h1>
-          <p className="text-xl text-white/70 text-center mt-2">3 Players Local</p>
+          <p className="text-xl text-white/70 text-center mt-2">3 {t(lang, 'playersLocal')}</p>
         </div>
 
         <div className="mb-12">
@@ -189,7 +189,7 @@ export default function MultiplayerView() {
                     onClick={addPlayer}
                     className="bg-white text-black border-4 border-white rounded-3xl px-12 py-6 text-xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[280px] h-[100px] flex items-center justify-center"
                   >
-                    + INVITE PLAYER
+                    {slot.name}
                   </button>
                 ) : (
                   <div className="relative">
@@ -204,10 +204,10 @@ export default function MultiplayerView() {
                       <div className="flex flex-col items-center">
                         <span>{slot.name}</span>
                         {slot.isHost && (
-                          <span className="text-xs mt-1 opacity-80">HOST</span>
+                          <span className="text-xs mt-1 opacity-80">{t(lang, 'host').toUpperCase()}</span>
                         )}
                         <span className="text-xs mt-1 opacity-60">
-                          Player {index + 1}
+                          {t(lang, 'player')} {index + 1}
                         </span>
                       </div>
                     </button>
@@ -234,7 +234,7 @@ export default function MultiplayerView() {
                     onClick={addPlayer}
                     className="bg-white text-black border-4 border-white rounded-3xl px-12 py-6 text-xl font-bold transition-all duration-300 hover:scale-105 hover:bg-gray-100 min-w-[280px] h-[100px] flex items-center justify-center"
                   >
-                    + INVITE PLAYER
+                    {slot.name}
                   </button>
                 ) : (
                   <div className="relative">
@@ -249,10 +249,10 @@ export default function MultiplayerView() {
                       <div className="flex flex-col items-center">
                         <span>{slot.name}</span>
                         {slot.isHost && (
-                          <span className="text-xs mt-1 opacity-80">HOST</span>
+                          <span className="text-xs mt-1 opacity-80">{t(lang, 'host').toUpperCase()}</span>
                         )}
                         <span className="text-xs mt-1 opacity-60">
-                          Player {index + 3}
+                          {t(lang, 'player')} {index + 3}
                         </span>
                       </div>
                     </button>
@@ -276,7 +276,7 @@ export default function MultiplayerView() {
           {players.length < 3 && (
             <div className="text-center">
               <p className="text-white/70 text-lg mb-2">
-                Waiting for players... ({players.length}/3)
+                {t(lang, 'waitingForPlayers')}... ({players.length}/3)
               </p>
               <div className="flex justify-center space-x-1">
                 <div className="w-2 h-2 bg-white/50 rounded-full animate-pulse"></div>
@@ -288,9 +288,9 @@ export default function MultiplayerView() {
           {players.length === 3 && (
             <div className="text-center">
               <p className="text-green-400 text-lg font-bold mb-2">
-                ✓ All players ready! (3/3)
+                ✓ {t(lang, 'allPlayersReady')} (3/3)
               </p>
-              <p className="text-white/60 text-sm">Ready to start the game</p>
+              <p className="text-white/60 text-sm">{t(lang, 'readyToStartGame')}</p>
             </div>
           )}
         </div>
@@ -298,9 +298,9 @@ export default function MultiplayerView() {
         {/* Game Info */}
         {players.length === 3 && (
           <div className="mb-8 p-4 bg-black/50 border-2 border-yellow-400/50 rounded-lg">
-            <h3 className="text-yellow-400 font-bold text-center mb-2">GAME MODE</h3>
+            <h3 className="text-yellow-400 font-bold text-center mb-2">{t(lang, 'gameMode').toUpperCase()}</h3>
             <p className="text-white/80 text-center text-sm">
-              3-Player Battle • Local Multiplayer
+              3-{t(lang, 'playerBattle')} • {t(lang, 'localMultiplayer')}
             </p>
           </div>
         )}
@@ -320,31 +320,31 @@ export default function MultiplayerView() {
               }`}
             disabled={players.length !== 3}
           >
-            {players.length === 3 ? 'START GAME' : `WAITING (${players.length}/3)`}
+            {players.length === 3 ? t(lang, 'startGame').toUpperCase() : `${t(lang, 'waiting').toUpperCase()} (${players.length}/3)`}
           </button>
 
           <button
             onClick={() => router.push("/play")}
             className="bg-transparent border-4 border-yellow-400 text-yellow-400 px-12 py-4 rounded-full text-2xl font-bold transition-all duration-300 hover:bg-yellow-400 hover:text-black hover:scale-105"
           >
-            BACK
+            {t(lang, 'return').toUpperCase()}
           </button>
         </div>
 
         <div className="mt-8 max-w-2xl text-center">
-          <h4 className="text-white font-bold mb-2">HOW TO PLAY</h4>
+          <h4 className="text-white font-bold mb-2">{t(lang, 'howToPlay').toUpperCase()}</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-white/70">
             <div>
-              <span className="font-bold text-blue-400">Player 1:</span> W/S keys
+              <span className="font-bold text-blue-400">{t(lang, 'player1')}:</span> {t(lang, 'controlsWS')} {t(lang, 'keys')}
             </div>
             <div>
-              <span className="font-bold text-purple-400">Player 2:</span> O/L keys
+              <span className="font-bold text-purple-400">{t(lang, 'player2')}:</span> {t(lang, 'controlsOL')} {t(lang, 'keys')}
             </div>
             <div>
-              <span className="font-bold text-yellow-400">Player 3:</span> I/K keys
+              <span className="font-bold text-yellow-400">{t(lang, 'player3')}:</span> {t(lang, 'controlsIK')} {t(lang, 'keys')}
             </div>
           </div>
-          <p className="text-white/50 text-xs mt-4">Last player standing wins!</p>
+          <p className="text-white/50 text-xs mt-4">{t(lang, 'lastPlayerWins')}</p>
         </div>
 
         <AddPlayerModal
