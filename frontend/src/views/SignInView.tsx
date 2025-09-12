@@ -182,7 +182,7 @@ function SignInViewContent() {
               <ul className="space-y-10 list-none">
                 <li>
                   <MenuButton
-                    label="sign in"
+                    label={t(lang, "signIn")}
                     onClick={() => router.push("/signin")}
                     variant="holographic"
                     active={true}
@@ -190,7 +190,7 @@ function SignInViewContent() {
                 </li>
                 <li>
                   <MenuButton
-                    label="login"
+                    label={t(lang, "login")}
                     onClick={() => router.push("/login")}
                     variant="holographic"
                   />
@@ -233,7 +233,7 @@ function SignInViewContent() {
               </div>
               <div>                  <input
                   type="password"
-                  placeholder={t(lang, "currentPassword")}
+                  placeholder={t(lang, "password")}
                   className={`w-full p-4 rounded-lg bg-gray-800/90 text-white border ${fieldErrors.password ? "border-red-500" : "border-gray-600"
                     } focus:border-purple-400 focus:outline-none transition-colors`}
                   value={password}
@@ -316,7 +316,7 @@ function SignInViewContent() {
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="Username"
+                  placeholder={t(lang, "username")}
                   className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${fieldErrors.username
                     ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
                     : "border-blue-500 text-blue-300 focus:bg-blue-500/20 focus:border-blue-400 placeholder-blue-400/60"
@@ -333,7 +333,7 @@ function SignInViewContent() {
               <div className="w-full">
                 <input
                   type="password"
-                  placeholder="Password"
+                  placeholder={t(lang, "password")}
                   className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${fieldErrors.password
                     ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
                     : "border-purple-500 text-purple-300 focus:bg-purple-500/20 focus:border-purple-400 placeholder-purple-400/60"
@@ -350,7 +350,7 @@ function SignInViewContent() {
               <div className="w-full">
                 <input
                   type="password"
-                  placeholder="Confirm Password"
+                  placeholder={t(lang, "confirmPassword")}
                   className={`w-full py-3 sm:py-4 md:py-6 lg:py-8 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/80 border-3 text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold rounded-lg backdrop-blur-sm transition-all duration-300 focus:scale-105 focus:outline-none placeholder-opacity-60 ${fieldErrors.confirm
                     ? "border-red-500 text-red-300 focus:bg-red-500/20 focus:border-red-400 placeholder-red-400/60"
                     : "border-orange-500 text-orange-300 focus:bg-orange-500/20 focus:border-orange-400 placeholder-orange-400/60"
@@ -380,7 +380,7 @@ function SignInViewContent() {
                   onClick={() => handleOAuth('google')}
                 >
                   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="w-6 h-6" />
-                  Continuer avec Google
+                  {t(lang, "continueWithGoogle")}
                 </button>
               </div>
             </form>
@@ -390,7 +390,7 @@ function SignInViewContent() {
                 className="w-full py-2 sm:py-3 md:py-4 lg:py-6 px-4 sm:px-6 md:px-8 lg:px-10 bg-black/60 border-2 border-yellow-500/60 text-yellow-300/80 text-sm sm:text-base md:text-lg lg:text-xl font-medium rounded-lg backdrop-blur-sm transition-all duration-300 hover:bg-yellow-500/10 hover:scale-105 hover:border-yellow-400"
                 onClick={() => router.push("/login")}
               >
-                Already have an account? Login
+                {t(lang, 'haveAccount')}
               </button>
               <p className="text-white/60 text-xs sm:text-sm md:text-base lg:text-lg font-medium backdrop-blur-sm bg-black/40 rounded-full px-3 sm:px-4 md:px-6 lg:px-8 py-1 sm:py-2 md:py-3 lg:py-4 inline-block">
                 PONG ULTIMATE

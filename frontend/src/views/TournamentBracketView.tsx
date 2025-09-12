@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useApp } from "@/lib_front/store";
 import { useState, useEffect } from "react";
 import { apiClient } from "@/lib_front/api";
+import { t } from "@/lib_front/i18n";
 
 interface Player {
   id: number;
@@ -230,7 +231,7 @@ export default function TournamentBracketView() {
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <h2 className="font-press-start text-xl text-white mb-4">
-              Chargement du tournoi...
+              {t(lang, 'loading')}
             </h2>
           </div>
         </div>
@@ -245,10 +246,10 @@ export default function TournamentBracketView() {
       <div className="min-h-screen p-8">
         <div className="text-center mb-12">
           <h1 className="font-press-start text-4xl md:text-6xl text-white mb-4 tracking-wider">
-            TOURNAMENT
+            {t(lang, 'tournament').toUpperCase()}
           </h1>
           <h2 className="font-press-start text-xl md:text-2xl text-yellow-400 tracking-wider">
-            BRACKET
+            {t(lang, 'bracket').toUpperCase()}
           </h2>
         </div>
 
@@ -257,12 +258,12 @@ export default function TournamentBracketView() {
             <div className="flex justify-center">
               <div className="w-full max-w-md">
                 <h3 className="font-press-start text-lg text-center text-yellow-400 mb-8">
-                  FINAL
+                  {t(lang, 'finals').toUpperCase()}
                 </h3>
                 <div className="bg-black border-4 border-yellow-400 rounded-lg p-6">
                   <div className="text-center mb-4">
                     <span className="font-press-start text-sm text-gray-400">
-                      CHAMPIONSHIP
+                      {t(lang, 'championship').toUpperCase()}
                     </span>
                   </div>
                   <div className="space-y-4">
@@ -324,10 +325,10 @@ export default function TournamentBracketView() {
                       disabled={final.status === 'completed' || playingMatches.has(final.id)}
                     >
                       {final.status === 'completed'
-                        ? 'TERMINÉ'
+                        ? t(lang, 'completed').toUpperCase()
                         : playingMatches.has(final.id)
-                          ? 'EN COURS...'
-                          : 'JOUER'
+                          ? t(lang, 'inProgress').toUpperCase()
+                          : t(lang, 'play').toUpperCase()
                       }
                     </button>
                   </div>
@@ -339,7 +340,7 @@ export default function TournamentBracketView() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
                 <div className="space-y-8">
                   <h3 className="font-press-start text-lg text-center text-yellow-400 mb-8">
-                    SEMI-FINALS
+                    {t(lang, 'semifinals').toUpperCase()}
                   </h3>
                   {semifinals.map((match, index) => (
                     <div key={match.id} className="bg-black border-4 border-purple-500 rounded-lg p-4">
@@ -404,10 +405,10 @@ export default function TournamentBracketView() {
                           disabled={match.status === 'completed' || playingMatches.has(match.id)}
                         >
                           {match.status === 'completed'
-                            ? 'TERMINÉ'
+                            ? t(lang, 'completed').toUpperCase()
                             : playingMatches.has(match.id)
-                              ? 'EN COURS...'
-                              : 'JOUER'
+                              ? t(lang, 'inProgress').toUpperCase()
+                              : t(lang, 'play').toUpperCase()
                           }
                         </button>
                       </div>
@@ -423,14 +424,14 @@ export default function TournamentBracketView() {
 
                 <div className="space-y-8">
                   <h3 className="font-press-start text-lg text-center text-yellow-400 mb-8">
-                    FINALS
+                    {t(lang, 'finals').toUpperCase()}
                   </h3>
 
                   {thirdPlace && (
                     <div className="bg-black border-4 border-orange-500 rounded-lg p-4 mb-6">
                       <div className="text-center mb-4">
                         <span className="font-press-start text-xs text-gray-400">
-                          3RD PLACE
+                          {t(lang, 'thirdPlace').toUpperCase()}
                         </span>
                       </div>
                       <div className="space-y-3">
@@ -489,10 +490,10 @@ export default function TournamentBracketView() {
                           disabled={thirdPlace.status === 'completed' || playingMatches.has(thirdPlace.id)}
                         >
                           {thirdPlace.status === 'completed'
-                            ? 'TERMINÉ'
+                            ? t(lang, 'completed').toUpperCase()
                             : playingMatches.has(thirdPlace.id)
-                              ? 'EN COURS...'
-                              : 'JOUER'
+                              ? t(lang, 'inProgress').toUpperCase()
+                              : t(lang, 'play').toUpperCase()
                           }
                         </button>
                       </div>
@@ -503,7 +504,7 @@ export default function TournamentBracketView() {
                     <div className="bg-black border-4 border-yellow-400 rounded-lg p-6">
                       <div className="text-center mb-4">
                         <span className="font-press-start text-sm text-gray-400">
-                          CHAMPIONSHIP
+                          {t(lang, 'championship').toUpperCase()}
                         </span>
                       </div>
                       <div className="space-y-4">
@@ -564,7 +565,7 @@ export default function TournamentBracketView() {
                             }`}
                           disabled={final.status === 'completed'}
                         >
-                          {final.status === 'completed' ? 'TERMINÉ' : 'JOUER'}
+                          {final.status === 'completed' ? t(lang, 'completed').toUpperCase() : t(lang, 'play').toUpperCase()}
                         </button>
                       </div>
                     </div>
@@ -572,7 +573,7 @@ export default function TournamentBracketView() {
                     <div className="bg-gray-800 border-4 border-gray-600 rounded-lg p-6">
                       <div className="text-center">
                         <span className="font-press-start text-sm text-gray-400">
-                          En attente des demi-finales
+                          {t(lang, 'waitingForSemifinals')}
                         </span>
                       </div>
                     </div>
@@ -588,7 +589,7 @@ export default function TournamentBracketView() {
             onClick={() => router.push('/tournament')}
             className="font-press-start bg-transparent border-2 border-gray-500 text-gray-400 px-6 py-2 rounded hover:bg-gray-500 hover:text-white transition-colors"
           >
-            RETOUR
+            {t(lang, 'return').toUpperCase()}
           </button>
         </div>
       </div>

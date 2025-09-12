@@ -169,14 +169,14 @@ function LoginViewContent() {
               <ul className="space-y-10 list-none">
                 <li>
                   <MenuButton
-                    label="sign in"
+                    label={t(lang, "signIn")}
                     onClick={() => router.push("/signin")}
                     variant="holographic"
                   />
                 </li>
                 <li>
                   <MenuButton
-                    label="login"
+                    label={t(lang, "login")}
                     onClick={() => router.push("/login")}
                     variant="holographic"
                     active={true}
@@ -206,7 +206,7 @@ function LoginViewContent() {
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="Username"
+                  placeholder={t(lang, "username")}
                   className="w-full p-4 rounded-lg bg-gray-800/90 text-white border border-gray-600 focus:border-purple-400 focus:outline-none transition-colors"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -215,7 +215,7 @@ function LoginViewContent() {
               <div>
                 <input
                   type="password"
-                  placeholder="Password"
+                  placeholder={t(lang, "password")}
                   className="w-full p-4 rounded-lg bg-gray-800/90 text-white border border-gray-600 focus:border-purple-400 focus:outline-none transition-colors"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -226,7 +226,7 @@ function LoginViewContent() {
                 disabled={isSubmitting}
                 className="w-full py-4 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 transition-colors text-lg mt-6 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Logging in..." : "Login"}
+                {isSubmitting ? t(lang, 'loggingIn') : t(lang, 'login')}
               </button>
               <div className="flex flex-col gap-3 mt-4">
                 <button
@@ -235,7 +235,7 @@ function LoginViewContent() {
                   onClick={() => handleOAuth('google')}
                 >
                   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="w-6 h-6" />
-                  Continuer avec Google
+                  {t(lang, "continueWithGoogle")}
                 </button>
               </div>
               <div className="text-center mt-4">
