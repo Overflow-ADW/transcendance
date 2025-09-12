@@ -148,7 +148,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { success: false, error: data.error || data.message || 'Login failed' };
     } catch (error: any) {
-      return { success: false, error: error.message };
+      if (error.message && (error.message.includes('Identifiants invalides') || error.message.includes('401'))) {
+        return { success: false, error: 'Username or password incorect' };
+      }
+      return { success: false, error: error.message || 'Erreur de connexion' };
     }
   };
 

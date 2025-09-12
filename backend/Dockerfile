@@ -17,4 +17,9 @@ COPY uploads/ ./uploads/
 
 EXPOSE 3000
 
+RUN apk add --no-cache openssl && \
+    [ -f server.key ] || openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout server.key -out server.cert -subj "/C=FR/ST=Ile-de-France/L=Paris/O=42/OU=Student/CN=localhost"
+
+
 CMD ["npm", "start"]

@@ -10,14 +10,24 @@ const twoFactorRoutes = require('./routes/twoFactorRoutes');
 const oauthRoutes = require('./routes/oauthRoutes');
 const { initDatabase } = require('./db');
 
-const fastify = require('fastify')({
+const fs = require('fs');
+let fastifyOptions = {
   logger: {
     level: process.env.LOG_LEVEL || 'info',
     transport: process.env.NODE_ENV === 'development' ? {
       target: 'pino-pretty'
     } : undefined
   }
-});
+};
+
+if (process.env.NODE_ENV !== 'production') {
+  fastifyOptions.https = {
+    key: fs.readFileSync(path.join(__dirname, '../server.key')),
+    cert: fs.readFileSync(path.join(__dirname, '../server.cert'))
+  };
+}
+
+const fastify = require('fastify')(fastifyOptions);
 
 const dbInstance = initDatabase(fastify);
 fastify.decorate('db', dbInstance);

@@ -64,6 +64,13 @@ export function RateLimitModal({ isOpen, onClose }: RateLimitModalProps) {
     }
   };
 
+  const handleForceClose = () => {
+      localStorage.removeItem('rateLimitEndTime');
+      setIsBlocked(false);
+      setRemainingTime(0);
+      if (onClose) onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -137,6 +144,15 @@ export function RateLimitModal({ isOpen, onClose }: RateLimitModalProps) {
             >
               {isBlocked ? 'Please wait...' : 'Continue'}
             </button>
+            
+
+              <button
+                onClick={handleForceClose}
+                className="ml-4 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm"
+              >
+                Force Close (Dev)
+              </button>
+
           </div>
 
           <div className="text-xs text-center mt-4 opacity-75">
