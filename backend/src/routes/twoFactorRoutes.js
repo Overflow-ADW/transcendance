@@ -122,8 +122,8 @@ async function twoFactorRoutes(fastify, options) {
       if (!isValidToken) {
         fastify.log.warn(`Tentative d'activation 2FA avec token invalide - User: ${userId}`);
         return reply.code(400).send({ 
-          error: 'Code de vérification invalide',
-          message: 'Vérifiez votre code à 6 chiffres et réessayez'
+          error: 'Invalid verification code',
+          message: 'Verify the 6 digits code and try again'
         });
       }
 
@@ -265,8 +265,8 @@ async function twoFactorRoutes(fastify, options) {
         } else {
           fastify.log.warn(`Tentative de connexion 2FA avec token invalide - User: ${user.id}`);
           return reply.code(400).send({ 
-            error: 'Code de vérification invalide',
-            message: 'Vérifiez votre code à 6 chiffres ou utilisez un code de sauvegarde'
+            error: 'Invalide verification code',
+            message: 'Verify your 6 digits code or use backup codes'
           });
         }
       }
@@ -282,7 +282,7 @@ async function twoFactorRoutes(fastify, options) {
 
       reply.send({
         success: true,
-        message: 'Authentification à deux facteurs réussie',
+        message: '2FA success',
         user: {
           id: user.id,
           username: user.username,
@@ -297,10 +297,10 @@ async function twoFactorRoutes(fastify, options) {
       });
 
     } catch (error) {
-      fastify.log.error('Erreur lors de la vérification 2FA:', error);
+      fastify.log.error('Error verifying 2fa:', error);
       reply.code(500).send({ 
         error: 'Erreur interne du serveur',
-        message: 'Impossible de vérifier le code 2FA'
+        message: 'Impossible to verify 2fa code'
       });
     }
   });
@@ -313,15 +313,15 @@ async function twoFactorRoutes(fastify, options) {
       
       if (!password || password.length < 8) {
         return reply.code(400).send({ 
-          error: 'Mot de passe requis',
-          message: 'Le mot de passe actuel est requis pour désactiver la 2FA'
+          error: 'password is required',
+          message: 'The password is required to disable 2FA'
         });
       }
 
       if (!token || !/^\d{6}$/.test(token)) {
         return reply.code(400).send({ 
-          error: 'Code de vérification requis',
-          message: 'Un code de vérification à 6 chiffres est requis'
+          error: 'Verification code required',
+          message: 'A 6-digit verification code is required'
         });
       }
 
@@ -329,7 +329,7 @@ async function twoFactorRoutes(fastify, options) {
 
       const user = fastify.db.prepare(`
         SELECT 
-          id, password_hash, two_factor_enabled, two_factor_secret, 
+          id, password, two_factor_enabled, two_factor_secret, 
           two_factor_backup_codes
         FROM users 
         WHERE id = ?
@@ -341,17 +341,17 @@ async function twoFactorRoutes(fastify, options) {
 
       if (!user.two_factor_enabled) {
         return reply.code(400).send({ 
-          error: 'Authentification à deux facteurs non activée' 
+          error: '2FA inactive' 
         });
       }
 
       const bcrypt = require('bcrypt');
-      const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+      const isPasswordValid = await bcrypt.compare(password, user.password);
       
       if (!isPasswordValid) {
         return reply.code(400).send({ 
-          error: 'Mot de passe incorrect',
-          message: 'Le mot de passe actuel est incorrect'
+          error: 'Incorrect password',
+          message: 'Actual password is not valid'
         });
       }
 
@@ -372,8 +372,8 @@ async function twoFactorRoutes(fastify, options) {
       if (!isValidCode) {
         fastify.log.warn(`Tentative de désactivation 2FA avec code invalide - User: ${userId}`);
         return reply.code(400).send({ 
-          error: 'Code de vérification invalide',
-          message: 'Vérifiez votre code à 6 chiffres ou utilisez un code de sauvegarde'
+          error: 'Invliad verification code',
+          message: 'Verify your 6 digits code or use backup codes'
         });
       }
 
@@ -387,18 +387,18 @@ async function twoFactorRoutes(fastify, options) {
         WHERE id = ?
       `).run(userId);
 
-      fastify.log.info(`2FA désactivé avec succès pour l'utilisateur ${userId}`);
+      fastify.log.info(`2FA disabled for ${userId}`);
 
       reply.send({
         success: true,
-        message: 'Authentification à deux facteurs désactivée avec succès'
+        message: '2FA disabled with success'
       });
 
     } catch (error) {
       fastify.log.error('Erreur lors de la désactivation 2FA:', error);
       reply.code(500).send({ 
-        error: 'Erreur interne du serveur',
-        message: 'Impossible de désactiver l\'authentification à deux facteurs'
+        error: 'Intenal Server Error',
+        message: 'Cannot deactivate 2FA'
       });
     }
   });
