@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { GradientBackground } from "@/components/ui/GradientBackground";
-import { BackButton } from "@/components/ui/BackButton";
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/lib_front/AuthContext";
 import { apiClient } from "@/lib_front/api";
@@ -140,7 +139,6 @@ export default function HistoryView() {
       <div className="min-h-screen p-6">
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
-            <BackButton />
             <div className="text-center mt-4">
               <h1 className="text-4xl font-bold text-white mb-2">
                 📜 Games history
@@ -256,7 +254,7 @@ export default function HistoryView() {
                           {game.score_player1} - {game.score_player2}
                         </div>
                         <div className="text-xs text-gray-400">
-                          Partie #{game.id}
+                          Game #{game.id}
                         </div>
                       </div>
                     </div>
