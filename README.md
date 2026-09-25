@@ -1,6 +1,8 @@
 # ft_transcendence
 
-A collaborative **full-stack web application** built as part of the 42 curriculum, centered around a Pong experience and the product features around it: authentication, profiles, friends, match history, tournaments, account security and multiple game modes.
+A collaborative **full-stack Pong platform** built as part of the 42 curriculum.
+
+The project goes well beyond a browser game: it combines a Babylon.js 3D Pong experience with authentication, two-factor security, profiles, friends, statistics, match history, tournaments and a containerized frontend/backend architecture.
 
 > Portfolio version of a project developed by Florent, Younes and Topaze.
 
@@ -12,15 +14,11 @@ A collaborative **full-stack web application** built as part of the 42 curriculu
   <img src="screenshots/pong-vs-ai.png" alt="ft_transcendence Pong match against the hard AI" width="95%">
 </p>
 
-The game supports several ways to play, including AI opponents, player-versus-player matches, local multiplayer and tournaments.
-
 ### Player profile and statistics
 
 <p align="center">
   <img src="screenshots/profile-statistics.png" alt="ft_transcendence player profile with statistics and recent match history" width="95%">
 </p>
-
-Profiles bring together avatar management, game statistics, win rates, friends and recent results.
 
 ### Match history
 
@@ -28,109 +26,243 @@ Profiles bring together avatar management, game statistics, win rates, friends a
   <img src="screenshots/match-history.png" alt="ft_transcendence persisted match history" width="95%">
 </p>
 
-Completed matches are persisted by the backend and exposed through a dedicated history view with filtering by status and game mode.
+## Features
 
-## Highlights
+### Pong and game modes
 
-- Next.js / React frontend written in TypeScript
-- Fastify backend with SQLite persistence
-- Local authentication with JWT-based sessions
-- OAuth integration
-- Two-factor authentication (2FA)
-- User profiles, friends and match history
-- Tournament flows and multiple game modes
-- Pong rendering and gameplay built with Babylon.js
-- Persistent game statistics and results
-- Docker Compose setup for frontend and backend
+The game is rendered with **Babylon.js** and uses a real 3D scene rather than a simple DOM or canvas representation.
 
-## Stack
+Implemented gameplay includes:
 
-**Frontend:** Next.js 15, React 19, TypeScript, Tailwind CSS, Babylon.js  
-**Backend:** Node.js, Fastify, SQLite, JWT, bcrypt  
-**Infrastructure:** Docker, Docker Compose, Nginx
+- classic player-versus-player Pong;
+- AI opponents with **Easy, Medium and Hard** difficulty levels;
+- a local multiplayer variant with an additional center paddle;
+- tournament flows with a bracket view;
+- score tracking and persisted match results;
+- configurable ball speed and collision behavior;
+- glow layers, particle effects and other visual feedback.
+
+The AI uses different reaction times, prediction precision and positioning error depending on the selected difficulty.
+
+### Accounts and social features
+
+The web application around the game includes:
+
+- local user registration and authentication;
+- JWT access and refresh tokens;
+- customizable profiles and avatars;
+- friend relationships;
+- player statistics;
+- persisted match history;
+- tournament data;
+- protected administration routes for user management.
+
+### Two-factor authentication
+
+Two-factor authentication is implemented with **TOTP**.
+
+The setup flow generates a QR code for authenticator applications and validates six-digit codes before activation. Recovery codes are generated, stored as hashes and can be consumed as backup authentication codes.
+
+### OAuth
+
+The active backend integrates **Google** and **GitHub OAuth2** when the corresponding provider credentials are configured.
+
+The repository also contains additional provider-related work, but OAuth depends on external application credentials and correctly configured callback URLs, so it is optional for running the core project locally.
+
+## Technology stack
+
+### Frontend
+
+- **Next.js 15**
+- **React 19**
+- **TypeScript**
+- **Tailwind CSS**
+- **Babylon.js 8** for the Pong scene, effects and gameplay
+- Nginx for serving the production frontend
+
+### Backend
+
+- **Node.js**
+- **Fastify 4**
+- **SQLite** through `better-sqlite3`
+- JWT authentication with refresh tokens
+- bcrypt password hashing
+- Joi request validation
+- TOTP through `speakeasy`
+- QR-code generation for 2FA
+- multipart uploads for avatars
+
+### Security and infrastructure
+
+- Docker and Docker Compose
+- Nginx reverse proxy
+- local HTTPS with self-signed certificates
+- CORS configuration
+- API rate limiting
+- Helmet security headers
+- persisted Docker volumes for database data and uploads
 
 ## Architecture
 
 ```text
+browser
+   │
+   ▼
+Nginx / Next.js frontend
+   │
+   ├── profiles / friends / statistics
+   ├── tournaments / history
+   └── Babylon.js Pong client
+   │
+   ▼
+Fastify API
+   │
+   ├── authentication / JWT / OAuth
+   ├── 2FA
+   ├── users / social data
+   ├── games / match history
+   ├── tournaments
+   └── admin routes
+   │
+   ▼
+SQLite
+```
+
+The frontend and backend are separate Docker services on the same network. Nginx serves the exported frontend over HTTPS and proxies API and uploaded-file requests to the Fastify backend.
+
+## Project structure
+
+```text
 transcendance/
-├── frontend/        # Next.js application and game client
-├── backend/         # Fastify API, authentication and persistence
+├── frontend/
+│   ├── src/
+│   │   ├── app/             # Next.js routes
+│   │   ├── components/      # Shared UI components
+│   │   ├── views/           # Application views
+│   │   ├── game/
+│   │   │   ├── game/        # Pong scene and main game logic
+│   │   │   ├── modes/       # Game-mode implementations
+│   │   │   └── utils/       # Physics, AI, controls and configuration
+│   │   └── lib_front/       # Frontend helpers, types and state
+│   ├── Dockerfile
+│   └── nginx.conf
+│
+├── backend/
+│   ├── src/
+│   │   ├── routes/          # Auth, users, games, tournaments, 2FA, admin
+│   │   ├── middleware/      # Authentication and route guards
+│   │   ├── utils/           # JWT, OAuth and 2FA utilities
+│   │   └── db.js            # SQLite initialization
+│   └── Dockerfile
+│
 └── docker-compose.yml
 ```
 
-The frontend and backend run as separate services on the same Docker network. Application data and uploads are persisted through Docker volumes.
+## Request flow
 
-At a high level, the application combines several systems that have to remain consistent with one another:
+A typical authenticated action crosses several layers:
 
 ```text
-browser / UI
-     │
-     ├── authentication & account security
-     ├── profiles / friends / statistics
-     └── Pong client
-             │
-             ▼
-        Fastify API
-             │
-             ├── authentication
-             ├── users & social data
-             ├── matches & tournaments
-             └── persistent SQLite data
+UI interaction
+     ↓
+frontend state / view
+     ↓
+HTTPS request
+     ↓
+Nginx reverse proxy
+     ↓
+Fastify route
+     ↓
+authentication / validation
+     ↓
+SQLite
+     ↓
+JSON response
+     ↓
+updated UI
 ```
 
-## Product scope
+The Pong experience adds another independent subsystem on the frontend: Babylon.js owns the real-time scene, controls, ball movement, collision logic, AI behavior and visual effects, while completed games are written back into the application data model.
 
-The Pong game is the visible center of the application, but the project is deliberately larger than the game itself.
+## Main API areas
 
-A user can create an account, manage a profile, interact with friends, choose between several game modes, play matches and later retrieve the results through statistics and match history.
+The backend is organized around the following route groups:
 
-This makes ft_transcendence closer to a small complete web product than to an isolated browser game.
+```text
+/api/auth
+/api/users
+/api/games
+/api/tournaments
+/api/2fa
+/api/admin
+```
 
-## Authentication and security
+It also exposes a health endpoint used to check the backend and database connection.
 
-The application includes local authentication backed by JWT-based sessions, password hashing and two-factor authentication.
+## Running with Docker
 
-OAuth providers are also integrated in the codebase and require their own external provider credentials and callback configuration when enabled.
+### Prerequisites
 
-## Game modes
+- Docker Desktop or Docker Engine
+- Docker Compose
+- a modern browser
 
-The interface exposes multiple ways to play Pong, including:
+Create a local `backend/.env` containing the required secrets and application settings. At minimum, authentication requires a JWT secret and session configuration. OAuth credentials can be left out if those providers are not needed.
 
-- games against AI opponents;
-- player-versus-player matches;
-- local multiplayer;
-- tournaments.
-
-Game results feed back into the rest of the application through match history and player statistics.
-
-## Containerized execution
-
-The repository contains a Docker Compose setup separating the frontend and backend into their own services.
-
-Application data and uploaded files are stored in Docker volumes, allowing the stack to be rebuilt without treating the containers themselves as persistent storage.
-
-## Running the project
-
-The repository intentionally does not commit private environment files.
-
-1. Configure the backend environment, including a `JWT_SECRET`.
-2. Copy and adapt `frontend/.env.example`.
-3. Add OAuth credentials only for the providers you want to enable.
-4. Start the stack:
+Then build and start the stack:
 
 ```bash
 docker compose up --build
 ```
 
-The frontend is exposed through HTTPS on port `8080`; the backend service listens on port `3000`.
+The frontend is exposed at:
+
+```text
+https://localhost:8080
+```
+
+The local Nginx container uses a self-signed certificate, so the browser may display a certificate warning on first access.
+
+To run in the background:
+
+```bash
+docker compose up --build -d
+```
+
+Stop the stack with:
+
+```bash
+docker compose down
+```
+
+Application data and uploads are stored in Docker volumes and therefore survive normal container recreation.
+
+## Why this project mattered
+
+Earlier 42 projects often isolate one core problem: processes, concurrency, networking, parsing or graphics.
+
+ft_transcendence is different because several independent systems have to behave as **one product**.
+
+The game engine has to coexist with authentication and account state. Match results have to become persistent statistics. Security mechanisms have to fit into the user flow. Frontend and backend interfaces have to remain compatible, and all of it has to run consistently inside the containerized environment.
+
+The challenge is therefore not only implementing features, but **integrating them without losing coherence**.
+
+It was also a substantial collaboration exercise: responsibilities were split between several developers while sharing data models, APIs, frontend behavior and deployment constraints.
 
 ## What this project demonstrates
 
-ft_transcendence brings together many of the concerns explored separately in earlier projects: interfaces, API design, persistence, authentication, security, real-time game interactions, browser rendering and containerized execution.
-
-The difficult part is not any single feature in isolation, but making all of those systems behave as **one coherent application**.
-
-It was also a substantial collaboration exercise: responsibilities had to be split between several developers while keeping shared data, interfaces and application behavior compatible as the project evolved.
+- full-stack application architecture;
+- frontend/backend API integration;
+- 3D browser rendering with Babylon.js;
+- game-state and collision logic;
+- configurable AI behavior;
+- authentication and authorization;
+- JWT and refresh-token flows;
+- TOTP-based 2FA with recovery codes;
+- persistent relational application data;
+- security middleware and request validation;
+- Dockerized multi-service deployment;
+- collaborative development across a large shared codebase.
 
 ---
 
